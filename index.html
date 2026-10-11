@@ -1124,12 +1124,20 @@ function openDoc(id){
   d.lines.forEach(l => { if (l.match === undefined) l.match = matchLine(l, r) || (CHARGE_RE.test(l.desc) ? null : "__new"); });
   const opts = Object.values(r.supplies).sort((a,b) => a.name.localeCompare(b.name));
   const body = [el("p",{class:"lead", text: d.supplier + ", " + nice(d.date) + ", via " + d.source + (d.kind === "order" ? ". Arriving " + (d.eta || "soon") + ". The invoice will follow when it's delivered." : ".")})];
+  const { lastIdx, firstIdx } = dupInfo(d);
+  const twin = d.status === "new" ? findDuplicateInvoice(r, d) : null;
+  if (twin) body.push(el("div",{class:"msg bad"}, "This looks like invoice " + twin.number + " from " + nice(twin.date) + (twin.status === "approved" ? ", which is already approved" : ", already in your inbox") + ". Approving it again won't double-count prices, but you can delete this copy. ",
+    el("button",{class:"linkbtn", type:"button", text:"Open the earlier one", onclick:() => openDoc(twin.id)})));
+  const newer = d.status === "new" ? d.lines.filter(l => { const su = l.match && l.match !== "__new" && r.supplies[l.match]; return su && (su.history || []).some(x => (x.date || "") > (d.date || "")); }).length : 0;
+  if (newer) body.push(el("div",{class:"msg good", text:"This invoice is dated " + nice(d.date) + ", but " + newer + (newer === 1 ? " item has" : " items have") + " a newer price already. " + (newer === 1 ? "It keeps" : "They keep") + " the newer price; this one goes into the price history."}));
   const tb = el("tbody");
   d.lines.forEach(l => {
     const su = l.match && r.supplies[l.match], ch = su && su.price ? (l.price - su.price) / su.price : null;
     const sel = el("select",{class:"inp", style:"min-width:180px", disabled: d.status !== "new" || d.kind === "order" ? "" : null}, el("option",{value:"", text:"Skip"}), el("option",{value:"__new", text:"+ Add as a new supply"}), opts.map(s => el("option",{value:s.id, text:s.name}))); sel.value = l.match || "";
     sel.onchange = () => { l.match = sel.value || null; save(); openDoc(id); };
-    tb.append(el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:l.desc}), el("div",{class:"mini", text:l.code ? "#" + l.code : ""})), el("td",{class:"num", text:l.qty}), el("td",{class:"num", text:$$(l.price)}),
+    const i = d.lines.indexOf(l), rep2 = l._k && lastIdx[l._k] !== firstIdx[l._k];
+    const repNote = !rep2 ? null : lastIdx[l._k] === i ? "Repeated item: this last line's price is used" : "Repeated item: line " + (lastIdx[l._k] + 1) + "'s price is used instead";
+    tb.append(el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:l.desc}), el("div",{class:"mini", text:l.code ? "#" + l.code : ""}), repNote ? el("div",{class:"mini", style:"color:var(--warn);font-weight:700", text:repNote}) : null), el("td",{class:"num", text:l.qty}), el("td",{class:"num", text:$$(l.price)}),
       el("td",null, sel), el("td",{class:"num"}, ch != null && Math.abs(ch) >= 0.005 ? el("span",{class: ch > 0 ? "up" : "down", text:(ch > 0 ? "+" : "") + pc(ch)}) : su ? "same" : "—")));
   });
   body.push(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Line","Qty","Case price","Matches supply","vs. now"].map((h, i) => el("th",{class: i === 1 || i === 2 || i === 4 ? "num" : "", text:h})))), tb)));
@@ -1138,26 +1146,68 @@ function openDoc(id){
   if (d.kind === "order") foot.push(el("button",{class:"btn primary", text:"Demo: mark delivered", onclick:() => { d.kind = "invoice"; d.status = "new"; d.number = d.number.replace("PO-","INV-"); save(); openDoc(id); toast("Delivered. The invoice is ready to review."); }}));
   openDlg((d.kind === "order" ? "Order " : "Invoice ") + d.number, body, foot);
 }
+// Record a price in a supply's history (kept in date order) and set the current price
+// to the most recent one. An older invoice never overwrites a newer price.
+function applyPrice(su, price, date, docId){
+  const h = su.history = (su.history || []).slice();
+  if (docId && h.some(x => x.doc === docId)) return { changed:false, older:false, skipped:true };      // this invoice already counted
+  if (h.some(x => x.date === date && Math.abs(x.price - price) < 0.005)) return { changed:false, older:false, skipped:true };   // same price, same day
+  let at = h.length; while (at > 0 && (h[at - 1].date || "") > (date || "")) at--;
+  h.splice(at, 0, { date, price, doc: docId || null });
+  const older = at < h.length - 1;
+  const latest = h[h.length - 1].price, changed = su.price !== latest;
+  su.price = latest;
+  return { changed, older, skipped:false };
+}
+const lineKey = l => (l.code ? "c:" + String(l.code).trim().toLowerCase() : "d:" + String(l.desc || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim());
+// Lines on one invoice that point at the same product: only the last one sets the price.
+function dupInfo(d){
+  const lastIdx = {}, firstIdx = {};
+  d.lines.forEach((l, i) => { const k = l.match && l.match !== "__new" ? "s:" + l.match : l.match === "__new" ? "n:" + lineKey(l) : null; if (!k) return; lastIdx[k] = i; if (firstIdx[k] == null) firstIdx[k] = i; l._k = k; });
+  return { lastIdx, firstIdx };
+}
 function approve(d){
-  const r = R(), before = JSON.parse(JSON.stringify(r.supplies)); let up = 0;
+  const r = R(), before = JSON.parse(JSON.stringify(r.supplies)); let up = 0, older = 0, combined = 0;
   const isBev = (r.vendors || []).some(v => v.kind === "bev" && v.name.toLowerCase() === (d.supplier || "").toLowerCase());
   let added = 0;
+  const { lastIdx } = dupInfo(d);
+  // New products: one supply per product, even if it appears on several lines.
+  const madeFor = {};
   d.lines.forEach(l => {
     if (l.match !== "__new") return;
+    const k = lineKey(l);
+    if (madeFor[k]){ l.match = madeFor[k]; return; }
     const pk = parsePack(l.pack) || parsePack(l.desc);
     let unit = pk ? pk.unit : "each", size = pk ? pk.size : null;
     if (isBev && unit === "oz") unit = "fl oz";
-    const ns = { id: uid("s"), name: tidyName(l.desc), cat:"", supplier: d.supplier, code: l.code || "", caseQty: size, unit, yield: pk && pk.keg ? 0.9 : 1, price: l.price, history:[{ date: d.date, price: l.price }] };
-    r.supplies[ns.id] = ns; l.match = ns.id; added++;
+    const ns = { id: uid("s"), name: tidyName(l.desc), cat:"", supplier: d.supplier, code: l.code || "", caseQty: size, unit, yield: pk && pk.keg ? 0.9 : 1, price: null, history:[] };
+    r.supplies[ns.id] = ns; l.match = ns.id; madeFor[k] = ns.id; added++;
   });
-  d.lines.forEach(l => { const s = l.match && r.supplies[l.match]; if (!s) return; if (s.history && s.history.length === 1 && s.history[0].date === d.date && s.price === l.price) return; if (s.price !== l.price){ s.price = l.price; s.history = (s.history || []).concat([{ date: d.date, price: l.price }]); up++; } if (l.code && !s.code) s.code = l.code; });
-  const newIds = d.lines.filter(l => l.match && r.supplies[l.match] && r.supplies[l.match].history && r.supplies[l.match].history.length === 1 && r.supplies[l.match].history[0].date === d.date).map(l => l.match);
+  // One price per product: the last line for it on this invoice.
+  const seen = {};
+  d.lines.forEach((l, i) => {
+    const su = l.match && r.supplies[l.match]; if (!su) return;
+    seen[l.match] = (seen[l.match] || 0) + 1;
+  });
+  const lastFor = {}; d.lines.forEach((l, i) => { if (l.match && r.supplies[l.match]) lastFor[l.match] = i; });
+  Object.entries(lastFor).forEach(([sid, i]) => {
+    const l = d.lines[i], su = r.supplies[sid];
+    if (seen[sid] > 1) combined += seen[sid] - 1;
+    if (l.code && !su.code) su.code = l.code;
+    const res = applyPrice(su, l.price, d.date, d.id);
+    if (res.changed) up++;
+    if (res.older) older++;
+  });
+  const newIds = Object.values(madeFor);
+  d.combined = combined; d.older = older;
   const linked = linkUnpriced(r, newIds);
   d.status = "approved";
   const changed = Object.values(r.items).map(it => ({ it, a: stats(it, r, before).plate, b: stats(it).plate })).filter(x => Math.abs(x.b - x.a) >= 0.005);
   save();
   openDlg("Invoice approved", [
     el("div",{class:"cost", style:"grid-template-columns:repeat(3,1fr)"}, el("div",null, el("span",{text:"Prices updated"}), el("b",{text:up})), el("div",null, el("span",{text:"New supplies"}), el("b",{text:added})), el("div",null, el("span",{text:"Recipes affected"}), el("b",{text:changed.length}))),
+    older ? el("div",{class:"msg good", text: older + (older === 1 ? " item already had" : " items already had") + " a newer price from a later invoice, so " + (older === 1 ? "it keeps" : "they keep") + " the newer price. This invoice's price is saved in the history."}) : null,
+    combined ? el("p",{class:"mini", text: combined + (combined === 1 ? " repeated line was" : " repeated lines were") + " combined: when the same item appears more than once, the last line's price is used."}) : null,
     linked ? el("p",{class:"mini", text:"Linked " + linked + (linked === 1 ? " recipe ingredient that was" : " recipe ingredients that were") + " waiting for these supplies. Check the amounts on those recipes."}) : null,
     added ? el("p",{class:"mini", text:"New supplies need a case size before they can cost a recipe. Check them on the Supplies tab."}) : null,
     changed.length ? el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Recipe","Plate cost","Change","Status"].map((h,i) => el("th",{class: i === 1 || i === 2 ? "num" : "", text:h})))),
@@ -1264,6 +1314,14 @@ function openUpload(supplier){
       date: (d.invoiceDate && /^\d{4}-\d{2}-\d{2}$/.test(d.invoiceDate)) ? d.invoiceDate : date.value || today(), status:"new", lines };
     if (!r.vendors.some(v => v.name.toLowerCase() === doc.supplier.toLowerCase()) && !SUPPLIERS.some(x => x.name.toLowerCase() === doc.supplier.toLowerCase()))
       r.vendors.push({ id: uid("v"), name: doc.supplier, kind:"food", account:"", rep:"", repContact:"", order:"rep", invoices: doc.source === "Photo" ? "paper" : "pdf" });
+    const twin = findDuplicateInvoice(r, doc);
+    if (twin){
+      openDlg("Already uploaded?", [
+        el("p",{class:"lead", text:"This looks like invoice " + twin.number + " from " + twin.supplier + ", dated " + nice(twin.date) + ", which you uploaded already" + (twin.status === "approved" ? " and approved." : ".")}),
+        el("p",{text:"Uploading it again won't double-count anything, but it does clutter your inbox."})
+      ], [el("button",{class:"btn quiet", text:"Keep both", onclick:() => { r.inbox.push(doc); save(); openDoc(doc.id); }}), el("button",{class:"btn primary", text:"Open the earlier one", onclick:() => openDoc(twin.id)})]);
+      return;
+    }
     r.inbox.push(doc); save(); openDoc(doc.id); toast("Read " + lines.length + " lines. Check them, then approve.");
   };
   openDlg("Upload an invoice", [
@@ -1828,6 +1886,15 @@ function brandKitCard(){
   if (LAST_KIT) showKit(LAST_KIT);
   return el("div",{class:"card", id:"kit-card", style:"margin-bottom:14px"}, el("h3",{text:"Brand kit"}), el("p",{text:"Have a logo or brand guide from a designer? Upload it and the app picks up your logo, colors and fonts."}), drop, result,
     b.font ? el("p",{class:"mini", style:"margin-top:8px"}, "Heading font: " + b.font + " ", el("button",{class:"linkbtn", type:"button", text:"Use standard font", onclick:() => { b.font = ""; save(); render(); }})) : null);
+}
+
+// Same supplier and invoice number, or (when there's no real number) same date, total and line count.
+function findDuplicateInvoice(r, doc){
+  const tot = x => Math.round(x.lines.reduce((t, l) => t + (n(l.qty) || 1) * (n(l.price) || 0), 0) * 100);
+  const realNo = no => no && !/^UP-\d+$/.test(no);
+  return r.inbox.find(o => o.id !== doc.id && o.kind === "invoice" && (o.supplier || "").trim().toLowerCase() === (doc.supplier || "").trim().toLowerCase() &&
+    ((realNo(o.number) && realNo(doc.number) && String(o.number).trim().toLowerCase() === String(doc.number).trim().toLowerCase()) ||
+     (o.date === doc.date && tot(o) === tot(doc) && o.lines.length === doc.lines.length))) || null;
 }
 
 boot();
