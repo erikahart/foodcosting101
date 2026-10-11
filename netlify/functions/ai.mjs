@@ -25,10 +25,22 @@ export default async (req) => {
   let body; try { body = await req.json(); } catch { return json(400, { error: "Not valid JSON" }); }
   const prompt = String(body?.prompt || "");
   if (!prompt || prompt.length > 30000) return json(400, { error: "Prompt missing or too long" });
+  // Optional invoice photo or PDF to read.
+  const content = [];
+  if (body?.file) {
+    const { data, mediaType } = body.file;
+    const ok = ["application/pdf", "image/jpeg", "image/png", "image/webp"].includes(mediaType);
+    if (!ok || typeof data !== "string" || data.length > 5_600_000) return json(400, { error: "Send a photo or PDF under 4 MB" });
+    content.push(mediaType === "application/pdf"
+      ? { type: "document", source: { type: "base64", media_type: mediaType, data } }
+      : { type: "image", source: { type: "base64", media_type: mediaType, data } });
+  }
+  content.push({ type: "text", text: prompt });
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5", max_tokens: 2000, messages: [{ role: "user", content: prompt }] }),
+    // A fast model by default: Netlify stops a function after about 10 seconds on standard plans.
+    body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-haiku-5-5", max_tokens: body?.file ? 4000 : 2000, messages: [{ role: "user", content }] }),
   });
   if (!res.ok) { console.error("Anthropic API error", res.status, (await res.text().catch(() => "")).slice(0, 300)); return json(502, { error: "AI service error" }); }
   const out = await res.json();
