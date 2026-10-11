@@ -7,3 +7,9 @@
   [headers.values]
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "same-origin"
+    X-Frame-Options = "DENY"
+
+[[headers]]
+  for = "/config.js"
+  [headers.values]
+    Cache-Control = "no-cache"

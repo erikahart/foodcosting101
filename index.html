@@ -158,17 +158,36 @@ dialog::backdrop{background:var(--shade)}
   .insight .imp{grid-column:2;text-align:left;padding:0 14px 14px 0}
 }
 @media (prefers-reduced-motion:reduce){.spin{animation:none}.toast{transition:none}}
+.gate{min-height:100vh;display:grid;place-items:center;padding:24px 16px}
+.gate .card{width:min(420px,100%);padding:24px}
+.gate .brandbox{margin-bottom:18px}
+.gate h1{font-size:1.4rem;margin:0 0 4px}
+.tabs2{display:flex;gap:6px;margin:14px 0 16px}
+.tabs2 button{flex:1;border:2px solid var(--line);background:var(--field);border-radius:10px;padding:9px;font-weight:800;cursor:pointer}
+.tabs2 button[aria-selected="true"]{border-color:var(--brand);background:var(--brand);color:var(--on-brand)}
+.msg{border-radius:10px;padding:10px 12px;margin-bottom:12px;font-weight:600}
+.msg.bad{background:var(--bad-soft);color:var(--bad)} .msg.good{background:var(--good-soft);color:var(--good)}
+.linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:4px 0;font-weight:600}
+.userbox{border-top:1px solid var(--line);padding-top:12px;font-size:.85rem;color:var(--muted);display:flex;flex-direction:column;gap:6px}
+.userbox b{color:var(--ink);word-break:break-all}
+.choice{display:grid;gap:8px;margin:6px 0 14px}
+.choice label{display:flex;gap:10px;align-items:flex-start;border:2px solid var(--line);border-radius:12px;padding:12px;cursor:pointer;font-weight:700}
+.choice label span{display:block;font-weight:400;color:var(--muted);font-size:.9rem}
+.choice input{margin-top:4px}
+@media (max-width:900px){.userbox{flex-direction:row;flex-wrap:wrap;align-items:center;border-top:0;padding-top:0}}
 </style>
 </head>
 <body>
-<div class="app">
+<div class="gate" id="gate"><div class="card" id="gate-card"><div class="spin"></div></div></div>
+<div class="app" id="app" hidden>
   <aside>
     <div class="brandbox"><div class="logo" id="logo"></div><div><b id="prod-name">PlateMargin</b><span id="prod-tag">Menu profit, made simple</span></div></div>
     <div class="acctrow">
-      <label class="mini" for="acct">Restaurant</label>
+      <label class="mini" for="acct">Location</label>
       <select class="acct" id="acct"></select>
     </div>
     <nav id="nav"></nav>
+    <div class="userbox" id="userbox"></div>
     <div class="powered" id="powered"></div>
   </aside>
   <main id="main"></main>
@@ -177,6 +196,8 @@ dialog::backdrop{background:var(--shade)}
 <dialog id="dlg"><div class="sheet"><div class="sheet-h"><h2 id="dlg-t"></h2><button class="x" id="dlg-x" aria-label="Close">×</button></div><div class="sheet-b" id="dlg-b"></div><div class="sheet-f" id="dlg-f"></div></div></dialog>
 <div class="toast" id="toast" role="status"></div>
 
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script>
 (function(){
 "use strict";
@@ -243,47 +264,183 @@ function emptyRestaurant(name){ return { id: uid("r"), name, target:0.30, tol:0.
 /* ================= State ================= */
 const KEY = "platemargin-proto-v1";
 let ST;
-const PIN_KEY = "platemargin-pin";
-const Remote = { on:false, version:0, timer:null, saving:false, again:false };
-const getPin = () => { try { return localStorage.getItem(PIN_KEY) || ""; } catch(e){ return ""; } };
-const askPin = msg => { const p = prompt(msg || "Enter the PIN to save changes for everyone"); if (p && p.trim()) { try { localStorage.setItem(PIN_KEY, p.trim()); } catch(e){} return true; } return false; };
-function freshDemo(){
-  const r = demoRestaurant();
-  return { brand:{ product:"PlateMargin", tagline:"Menu profit, made simple", color:"#1D7A5F", logo:"", powered:true, domain:"app.yourbrand.com" }, restaurants:{ [r.id]: r }, current: r.id, page:"home" };
-}
-async function load(){
-  ST = null;
-  // On the Netlify site, everything is shared through /api/data. Opened any other way, it stays in this browser.
-  try {
-    const res = await fetch("/api/data", { cache:"no-store" }), ct = res.headers.get("content-type") || "";
-    if (res.status === 200 && ct.includes("json")) { const d = await res.json(); ST = d.state; Remote.version = d.version || 0; Remote.on = true; }
-    else if (res.status === 204) Remote.on = true;
-  } catch(e){}
-  if (!ST && !Remote.on) { try { const s = localStorage.getItem(KEY); if (s) ST = JSON.parse(s); } catch(e){} }
-  if (!ST || !ST.restaurants) ST = freshDemo();
-  if (!ST.restaurants[ST.current]) ST.current = Object.keys(ST.restaurants)[0];
-  ST.page = ST.page || "home";
-}
+const CFG = window.APP_CONFIG || {};
+let sb = null, USER = null, ACCT = null, ACCOUNTS = [], VERSION = 0;
+const Sync = { timer:null, saving:false, again:false, dirty:false };
+const LAST_ACCT = "fc101-last-account";
+const DEFAULT_BRAND = () => ({ product:"PlateMargin", tagline:"Menu profit, made simple", color:"#1D7A5F", logo:"", powered:false, domain:"" });
+function freshDemo(){ const r = demoRestaurant(); return { brand: DEFAULT_BRAND(), restaurants:{ [r.id]: r }, current: r.id, page:"home" }; }
+function freshEmpty(name){ const r = emptyRestaurant(name || "Main kitchen"); return { brand: DEFAULT_BRAND(), restaurants:{ [r.id]: r }, current: r.id, page:"home" }; }
+const fillIn = (node, ...k) => node.replaceChildren(...k.flat().filter(x => x != null && x !== false));
+const plainErr = e => (e && (e.message || e.error_description)) || "Something went wrong";
+
 function save(){
-  try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch(e){}
-  if (!Remote.on) return;
-  clearTimeout(Remote.timer); Remote.timer = setTimeout(pushRemote, 700);
+  if (!ACCT) return;
+  Sync.dirty = true;
+  clearTimeout(Sync.timer); Sync.timer = setTimeout(pushState, 700);
 }
-async function pushRemote(){
-  if (Remote.saving){ Remote.again = true; return; }
-  Remote.saving = true;
-  let res;
-  try { res = await fetch("/api/data", { method:"PUT", headers:{ "content-type":"application/json", "x-edit-pin": getPin() }, body: JSON.stringify({ baseVersion: Remote.version, state: ST }) }); }
-  catch(e){ Remote.saving = false; toast("Not saved: no connection. Retrying…"); Remote.timer = setTimeout(pushRemote, 5000); return; }
-  Remote.saving = false;
-  if (res.ok){ Remote.version = (await res.json()).version; if (Remote.again){ Remote.again = false; pushRemote(); } return; }
-  if (res.status === 401){ if (askPin(getPin() ? "That PIN didn't work. Try again:" : "Enter the PIN to save changes for everyone")) pushRemote(); else toast("Not saved: PIN needed"); return; }
-  if (res.status === 409){
-    const d = await res.json().catch(() => null);
-    if (d && d.current){ const page = ST.page; ST = d.current.state; ST.page = page; Remote.version = d.current.version; render(); toast("Someone else just saved. Showing their latest; redo your last change."); }
+async function pushState(){
+  if (Sync.saving){ Sync.again = true; return; }
+  Sync.saving = true;
+  const page = ST.page; const { data, error } = await sb.rpc("save_state", { p_account: ACCT.id, p_state: Object.assign({}, ST, { page: "home" }), p_base_version: VERSION });
+  ST.page = page; Sync.saving = false;
+  if (!error){ VERSION = data; if (Sync.again){ Sync.again = false; pushState(); } else Sync.dirty = false; return; }
+  if (error.code === "40001"){ await reloadState("Someone else on your team just saved. Showing their latest; redo your last change."); return; }
+  if (error.code === "42501" || error.code === "28000"){ toast("You no longer have access to this kitchen."); await afterLogin(); return; }
+  toast("Not saved yet. Retrying…"); Sync.timer = setTimeout(pushState, 5000);
+}
+async function reloadState(msg){
+  const { data, error } = await sb.rpc("load_state", { p_account: ACCT.id });
+  if (error || !data || !data[0]) { toast(plainErr(error)); return; }
+  const page = ST ? ST.page : "home";
+  ST = normalizeState(data[0].state); ST.page = page; VERSION = data[0].version; ACCT.role = data[0].role; Sync.dirty = false;
+  if (!dlg.open) render();
+  if (msg) toast(msg);
+}
+function normalizeState(st){
+  st = st && st.restaurants ? st : freshEmpty(ACCT ? ACCT.name : "");
+  st.brand = Object.assign(DEFAULT_BRAND(), st.brand || {});
+  if (!st.restaurants[st.current]) st.current = Object.keys(st.restaurants)[0];
+  if (!st.current){ const r = emptyRestaurant(ACCT ? ACCT.name : "Main kitchen"); st.restaurants[r.id] = r; st.current = r.id; }
+  st.page = st.page || "home";
+  return st;
+}
+// Pick up teammates' changes every 30 seconds when you're not mid-edit.
+setInterval(async () => {
+  if (!ACCT || Sync.saving || Sync.dirty || document.hidden || dlg.open) return;
+  const { data } = await sb.rpc("state_version", { p_account: ACCT.id });
+  if (typeof data === "number" && data > VERSION) reloadState("Updated with your team's latest changes");
+}, 30000);
+
+/* ---------- Sign-in flow ---------- */
+const gate = () => { $("app").hidden = true; $("gate").hidden = false; return $("gate-card"); };
+function gateHeader(title, sub){
+  const lg = el("div",{class:"logo"}, "PM");
+  return [el("div",{class:"brandbox"}, lg, el("div",null, el("b",{text:"PlateMargin"}), el("span",{text:"Menu profit, made simple"}))), el("h1",{text:title}), sub ? el("p",{class:"lead", text:sub}) : null];
+}
+function showAuth(mode = "signin", note){
+  const card = gate(); const msg = el("div");
+  if (note) msg.replaceChildren(el("div",{class:"msg " + note[0], text:note[1]}));
+  const email = el("input",{class:"inp", type:"email", autocomplete:"email", placeholder:"you@example.com"});
+  const pass = el("input",{class:"inp", type:"password", autocomplete: mode === "signup" ? "new-password" : "current-password", placeholder: mode === "signup" ? "At least 8 characters" : ""});
+  const btn = el("button",{class:"btn primary", style:"width:100%", type:"submit", text: mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Sign in"});
+  const say = (kind, text) => msg.replaceChildren(el("div",{class:"msg " + kind, text}));
+  const form = el("form",{novalidate:""}, el("div",{class:"field"}, el("label",{text:"Email"}), email),
+    mode !== "forgot" ? el("div",{class:"field"}, el("label",{text:"Password"}), pass) : null, btn);
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const em = email.value.trim(), pw = pass.value;
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return say("bad", "Enter your email address.");
+    if (mode !== "forgot" && pw.length < (mode === "signup" ? 8 : 1)) return say("bad", mode === "signup" ? "Use at least 8 characters for your password." : "Enter your password.");
+    btn.disabled = true; btn.textContent = "One moment…";
+    try {
+      if (mode === "signin"){
+        const { error } = await sb.auth.signInWithPassword({ email: em, password: pw });
+        if (error) throw error;
+        await afterLogin();
+      } else if (mode === "signup"){
+        const { data, error } = await sb.auth.signUp({ email: em, password: pw, options:{ emailRedirectTo: location.origin } });
+        if (error) throw error;
+        if (data.session) await afterLogin();
+        else { showAuth("signin", ["good", "Check your email for a confirmation link from Supabase, then come back and sign in."]); return; }
+      } else {
+        const { error } = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin });
+        if (error) throw error;
+        showAuth("signin", ["good", "If that email has an account, a reset link is on its way."]); return;
+      }
+    } catch (e){
+      const m = plainErr(e);
+      say("bad", /invalid login/i.test(m) ? "That email and password don't match." : /not confirmed/i.test(m) ? "Confirm your email first: click the link Supabase sent you." : m);
+      btn.disabled = false; btn.textContent = mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Sign in";
+    }
+  });
+  const tab = (m, label) => el("button",{type:"button", role:"tab", "aria-selected": String(mode === m), onclick:() => showAuth(m), text:label});
+  fillIn(card, ...gateHeader(mode === "forgot" ? "Reset your password" : "Welcome"),
+    mode !== "forgot" ? el("div",{class:"tabs2", role:"tablist"}, tab("signin","Sign in"), tab("signup","Create account")) : null,
+    msg, form,
+    el("div",{class:"row", style:"justify-content:space-between;margin-top:10px"},
+      mode === "forgot" ? el("button",{class:"linkbtn", type:"button", text:"Back to sign in", onclick:() => showAuth("signin")}) : el("button",{class:"linkbtn", type:"button", text:"Forgot password?", onclick:() => showAuth("forgot")}),
+      mode === "signup" ? el("span",{class:"mini", text:"Joining a team? Use the email you were invited with."}) : null));
+  setTimeout(() => email.focus(), 30);
+}
+function showNewPassword(){
+  const card = gate(); const msg = el("div");
+  const pass = el("input",{class:"inp", type:"password", autocomplete:"new-password", placeholder:"At least 8 characters"});
+  const btn = el("button",{class:"btn primary", style:"width:100%", type:"submit", text:"Save new password"});
+  const form = el("form",null, el("div",{class:"field"}, el("label",{text:"New password"}), pass), btn);
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    if (pass.value.length < 8) return msg.replaceChildren(el("div",{class:"msg bad", text:"Use at least 8 characters."}));
+    btn.disabled = true;
+    const { error } = await sb.auth.updateUser({ password: pass.value });
+    if (error){ btn.disabled = false; return msg.replaceChildren(el("div",{class:"msg bad", text:plainErr(error)})); }
+    await afterLogin(); toast("Password changed");
+  });
+  fillIn(card, ...gateHeader("Choose a new password"), msg, form);
+}
+function showCreateKitchen(){
+  const card = gate();
+  const nm = el("input",{class:"inp", placeholder:"e.g. VFW Post 1234 Kitchen"});
+  let start = "empty";
+  const opt = (v, t, d) => { const r = el("input",{type:"radio", name:"start", value:v}); if (v === start) r.checked = true; r.onchange = () => start = v; return el("label",null, r, el("div",null, t, el("span",{text:d}))); };
+  const msg = el("div"), btn = el("button",{class:"btn primary", style:"width:100%", type:"submit", text:"Create kitchen"});
+  const form = el("form",null, el("div",{class:"field"}, el("label",{text:"Kitchen name"}), nm),
+    el("div",{class:"choice"}, opt("empty","Start empty","Add your own supplies and menu."), opt("demo","Start with sample data","A made-up diner to explore. Clear it later in Settings.")), btn);
+  form.addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const name = nm.value.trim(); if (!name) return msg.replaceChildren(el("div",{class:"msg bad", text:"Give your kitchen a name."}));
+    btn.disabled = true;
+    const st = start === "demo" ? freshDemo() : freshEmpty(name);
+    const { error } = await sb.rpc("create_account", { p_name: name, p_state: st });
+    if (error){ btn.disabled = false; return msg.replaceChildren(el("div",{class:"msg bad", text:plainErr(error)})); }
+    await afterLogin(name);
+  });
+  fillIn(card, ...gateHeader("Set up your kitchen", "Signed in as " + (USER && USER.email) + ". If someone invited you, ask them to check the email they used; you'll see their kitchen as soon as they do."),
+    msg, form, el("button",{class:"linkbtn", type:"button", style:"margin-top:10px", text:"Sign out", onclick:signOut}));
+  setTimeout(() => nm.focus(), 30);
+}
+async function afterLogin(preferName){
+  const { data: { user } } = await sb.auth.getUser();
+  if (!user){ showAuth(); return; }
+  USER = user;
+  await sb.rpc("accept_invites");
+  const { data, error } = await sb.rpc("my_accounts");
+  if (error){ showAuth("signin", ["bad", "Couldn't load your kitchens: " + plainErr(error)]); return; }
+  ACCOUNTS = data || [];
+  if (!ACCOUNTS.length){ ACCT = null; showCreateKitchen(); return; }
+  let last = null; try { last = localStorage.getItem(LAST_ACCT); } catch(e){}
+  ACCT = (preferName && ACCOUNTS.find(a => a.name === preferName)) || ACCOUNTS.find(a => a.id === last) || ACCOUNTS[0];
+  await openAccount(ACCT.id);
+}
+async function openAccount(id){
+  ACCT = Object.assign({}, ACCOUNTS.find(a => a.id === id));
+  try { localStorage.setItem(LAST_ACCT, id); } catch(e){}
+  ST = null; await reloadState();
+  if (!ST) return;
+  $("gate").hidden = true; $("app").hidden = false; render();
+}
+async function signOut(){ await sb.auth.signOut(); USER = null; ACCT = null; ST = null; showAuth("signin", ["good", "You're signed out."]); }
+function renderUserBox(){
+  const box = $("userbox"); if (!box || !USER) return;
+  const pick = ACCOUNTS.length > 1 ? el("select",{class:"acct", "aria-label":"Kitchen"}, ACCOUNTS.map(a => el("option",{value:a.id, text:a.name}))) : null;
+  if (pick){ pick.value = ACCT.id; pick.onchange = () => openAccount(pick.value); }
+  fillIn(box, el("div",null, "Kitchen: ", el("b",{text:ACCT ? ACCT.name : ""})), pick, el("div",null, el("b",{text:USER.email})),
+    el("button",{class:"linkbtn", type:"button", text:"Sign out", onclick:signOut}));
+}
+async function boot(){
+  if (!CFG.supabaseUrl || !CFG.supabaseAnonKey || /YOUR-/.test(CFG.supabaseUrl + CFG.supabaseAnonKey)){
+    fillIn(gate(), ...gateHeader("Almost there", "This site isn't connected to its database yet."), el("p",{text:"Open config.js and paste in your Supabase Project URL and anon key (Supabase > Project Settings > API), then redeploy."}));
     return;
   }
-  toast("Not saved (error " + res.status + ")");
+  if (!window.supabase || !window.supabase.createClient){ fillIn(gate(), ...gateHeader("Can't load", "The sign-in library didn't load. Check your connection and refresh.")); return; }
+  sb = window.supabase.createClient(CFG.supabaseUrl, CFG.supabaseAnonKey);
+  let recovering = /type=recovery/.test(location.hash + location.search);
+  sb.auth.onAuthStateChange(event => {
+    if (event === "PASSWORD_RECOVERY"){ recovering = true; showNewPassword(); }
+  });
+  const { data: { session } } = await sb.auth.getSession();
+  if (recovering) { showNewPassword(); return; }
+  if (session) await afterLogin(); else showAuth();
 }
 const R = () => ST.restaurants[ST.current];
 
@@ -355,9 +512,9 @@ async function getSample(){
   try { if (window.claude && window.claude.use){ const s = await window.claude.use("sample"); if (s) return s; } } catch(e){}
   if (location.protocol === "file:") return null;
   const call = async (prompt, retried) => {
-    const res = await fetch("/api/ai", { method:"POST", headers:{ "content-type":"application/json", "x-edit-pin": getPin() }, body: JSON.stringify({ prompt }) });
-    if (res.status === 401 && !retried && askPin("Enter the PIN to use the AI features")) return call(prompt, true);
-    if (res.status === 401) throw { code:"pin" };
+    const { data: { session } } = sb ? await sb.auth.getSession() : { data:{} };
+    const res = await fetch("/api/ai", { method:"POST", headers:{ "content-type":"application/json", "authorization": "Bearer " + (session ? session.access_token : "") }, body: JSON.stringify({ prompt }) });
+    if (res.status === 401) throw { code:"signin" };
     if (res.status === 404 || res.status === 501) throw { code:"unavailable" };
     if (!res.ok) throw { code:"error" };
     return (await res.json()).text || "";
@@ -367,7 +524,7 @@ async function getSample(){
   return f;
 }
 const aiProblem = e => e && e.code === "unavailable" ? "AI isn't switched on for this site yet. Whoever runs it needs to add an ANTHROPIC_API_KEY in Netlify."
-  : e && e.code === "pin" ? "That needs the PIN." : e && e.code === "not_granted" ? "This needs your OK to use Claude. Try again and allow it." : null;
+  : e && e.code === "signin" ? "Please sign out and back in, then try again." : e && e.code === "not_granted" ? "This needs your OK to use Claude. Try again and allow it." : null;
 
 /* ================= Branding ================= */
 function onColor(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return "#fff"; const v = parseInt(m[1],16), L = c => c <= .03928 ? c/12.92 : Math.pow((c+.055)/1.055, 2.4); const lum = .2126*L((v>>16)/255) + .7152*L((v>>8&255)/255) + .0722*L((v&255)/255); return lum > .45 ? "#14213D" : "#FFFFFF"; }
@@ -392,7 +549,7 @@ function renderNav(){
 }
 $("acct").onchange = e => { if (e.target.value === "__new"){ const nm = prompt("Restaurant name?"); if (nm && nm.trim()){ const r = emptyRestaurant(nm.trim()); ST.restaurants[r.id] = r; ST.current = r.id; } } else ST.current = e.target.value; save(); go("home"); };
 function go(p){ ST.page = p; render(); window.scrollTo(0,0); }
-function render(){ applyBrand(); renderNav(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, supplies, inbox, suppliers, brand })[ST.page](m); }
+function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, supplies, inbox, suppliers, brand })[ST.page](m); }
 
 /* ================= Pages ================= */
 function insightCard(ins, compact){
@@ -543,13 +700,50 @@ function brand(m){
       el("div",{class:"field"}, el("label",{text:"Your web address"}), el("span",{class:"hint", text:"Customers log in here. Set up once with your host."}), dom),
       el("label",{class:"row", style:"font-weight:700"}, pw, "Show \u201cPowered by\u201d in the menu")),
     el("div",null, el("div",{class:"mini", style:"margin-bottom:6px", text:"What your customers see"}), pv)));
-  m.append(el("h2",{text:"Restaurant accounts"}));
+  m.append(el("h2",{text:"Team"}));
+  const teamBox = el("div",{class:"card"}, el("div",{class:"spin"})); m.append(teamBox); drawTeam(teamBox);
+  m.append(el("h2",{text:"Locations"}));
   const tb = el("tbody");
   Object.values(ST.restaurants).forEach(r => { const live = SUPPLIERS.filter(s => r.conn[s.id] && r.conn[s.id].status === "active").length;
     tb.append(el("tr",{onclick:() => { ST.current = r.id; go("home"); }}, el("td",null, el("b",{text:r.name})), el("td",{class:"num", text:Object.keys(r.items).length}), el("td",{class:"num", text:Object.keys(r.supplies).length}), el("td",{class:"num", text:live}), el("td",null, el("span",{class:"pill good", text:"Active"})))); });
   m.append(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Restaurant","Recipes","Supplies","Live feeds","Plan"].map((h, i) => el("th",{class: i && i < 4 ? "num" : "", text:h})))), tb)),
     el("div",{class:"row", style:"margin-top:12px"}, el("button",{class:"btn quiet", text:"+ Add a restaurant", onclick:() => { const nm = prompt("Restaurant name?"); if (nm && nm.trim()){ const r = emptyRestaurant(nm.trim()); ST.restaurants[r.id] = r; save(); render(); } }}),
-      el("button",{class:"btn quiet", text:"Reset demo", onclick:() => { if (confirm("Reset everything to the demo? This replaces it for everyone.")){ ST = freshDemo(); save(); render(); } }})));
+      el("button",{class:"btn quiet", text:"Load sample data", onclick:() => { if (confirm("Replace everything in this kitchen with sample data? This affects everyone on your team.")){ ST = freshDemo(); save(); render(); } }}),
+      el("button",{class:"btn danger", text:"Clear all data", onclick:() => { if (confirm("Delete every supply, recipe and invoice in this kitchen? This affects everyone on your team and can't be undone.")){ ST = freshEmpty(ACCT.name); save(); render(); toast("Cleared"); } }})));
+}
+const ROLE_LABEL = { owner:"Owner", manager:"Manager", member:"Member" };
+async function drawTeam(box){
+  const { data, error } = await sb.rpc("team", { p_account: ACCT.id });
+  if (error){ box.replaceChildren(el("p",{style:"margin:0", text:"Couldn't load the team: " + plainErr(error)})); return; }
+  const canInvite = ACCT.role === "owner" || ACCT.role === "manager", isOwner = ACCT.role === "owner";
+  const rows = (data || []).map(t => {
+    const actions = el("div",{class:"row"});
+    if (t.kind === "invite" && canInvite) actions.append(el("button",{class:"btn quiet", text:"Cancel invite", onclick: async () => { const { error } = await sb.rpc("cancel_invite", { p_invite: t.invite_id }); if (error) toast(plainErr(error)); drawTeam(box); }}));
+    if (t.kind === "member" && isOwner && !t.is_me){
+      const sel = el("select",{class:"inp", style:"width:auto;min-height:40px", "aria-label":"Role for " + t.email}, ["owner","manager","member"].map(r => el("option",{value:r, text:ROLE_LABEL[r]}))); sel.value = t.role;
+      sel.onchange = async () => { const { error } = await sb.rpc("set_member_role", { p_account: ACCT.id, p_user: t.user_id, p_role: sel.value }); if (error) toast(plainErr(error)); drawTeam(box); };
+      actions.append(sel, el("button",{class:"btn danger", text:"Remove", onclick: async () => { if (!confirm("Remove " + t.email + " from this kitchen?")) return; const { error } = await sb.rpc("remove_member", { p_account: ACCT.id, p_user: t.user_id }); if (error) toast(plainErr(error)); drawTeam(box); }}));
+    }
+    if (t.kind === "member" && t.is_me && ACCOUNTS.length > 1) actions.append(el("button",{class:"btn quiet", text:"Leave kitchen", onclick: async () => { if (!confirm("Leave " + ACCT.name + "?")) return; const { error } = await sb.rpc("remove_member", { p_account: ACCT.id, p_user: t.user_id }); if (error) return toast(plainErr(error)); afterLogin(); }}));
+    return el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:t.email || "(no email)"}), t.is_me ? el("span",{class:"mini", text:"  you"}) : null),
+      el("td",null, t.kind === "invite" ? el("span",{class:"pill warn", text:"Invited, not joined yet"}) : el("span",{class:"pill", text:ROLE_LABEL[t.role]})), el("td",null, actions));
+  });
+  const parts = [el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Person"}), el("th",{text:"Role"}), el("th",{text:""}))), el("tbody",null, rows)))];
+  if (canInvite){
+    const em = el("input",{class:"inp", type:"email", placeholder:"cook@example.com"});
+    const rl = el("select",{class:"inp"}, el("option",{value:"member", text:"Member: can edit menu, supplies and invoices"}), el("option",{value:"manager", text:"Manager: also invites people"}));
+    const msg = el("div");
+    const go2 = async () => {
+      const { error } = await sb.rpc("invite_member", { p_account: ACCT.id, p_email: em.value, p_role: rl.value });
+      if (error) return msg.replaceChildren(el("div",{class:"msg bad", text:plainErr(error)}));
+      const link = location.origin;
+      msg.replaceChildren(el("div",{class:"msg good"}, "Invited. Tell them: go to ", el("b",{text:link}), ", choose Create account, and use " + em.value.trim() + ". They'll land in this kitchen."));
+      em.value = ""; setTimeout(() => drawTeam(box), 2500);
+    };
+    parts.push(el("h3",{style:"margin:16px 0 8px", text:"Invite someone"}), msg, el("div",{class:"g2"}, el("div",{class:"field"}, el("label",{text:"Their email"}), em), el("div",{class:"field"}, el("label",{text:"What they can do"}), rl)),
+      el("button",{class:"btn primary", text:"Send invite", onclick:go2}));
+  } else parts.push(el("p",{class:"mini", style:"margin-top:10px", text:"Ask an owner or manager to invite new people."}));
+  box.replaceChildren(...parts);
 }
 
 /* ================= Dialog ================= */
@@ -705,7 +899,7 @@ function uploadDemo(){
   ], [el("span"), el("button",{class:"btn primary", text:"Add sample photo invoice", onclick:() => { r.inbox.push({ id: uid("d"), kind:"invoice", source:"Photo", supplier:"Produce Market", number:"PM-" + Math.floor(1000 + Math.random()*9000), date: today(), status:"new", lines:[{ code:"", desc:"Romaine hearts 24ct", qty:1, price:41.25 },{ code:"", desc:"Tomatoes 5x6 25lb", qty:1, price:35.5 },{ code:"", desc:"Onions yellow jumbo 50lb", qty:1, price:33 }] }); save(); dlg.close(); go("inbox"); toast("Photo invoice added"); }})]);
 }
 
-load().then(render);
+boot();
 })();
 </script>
 </body>
