@@ -1294,15 +1294,15 @@ function openSupCategories(){
 }
 function inbox(m){
   const r = R();
-  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Invoices & orders"}), el("p",{class:"lead", text:"Everything suppliers send lands here. Approve an invoice and its prices flow into your recipes."})),
-    el("div",{class:"row"}, el("button",{class:"btn primary", text:"Upload an invoice", onclick:() => openUpload()}))));
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Invoices & orders"}), el("p",{class:"lead", text:"Invoices and price sheets land here. Approve one and its prices flow into your recipes."})),
+    el("div",{class:"row"}, el("button",{class:"btn primary", text:"Upload an invoice or price sheet", onclick:() => openUpload()}))));
   if (!r.inbox.length){ m.append(el("div",{class:"card empty", text:"Nothing yet. Tap \u201cUpload an invoice\u201d and snap a photo of your next delivery slip or invoice."})); return; }
   const tb = el("tbody");
   r.inbox.slice().sort((a,b) => (b.date||"").localeCompare(a.date||"")).forEach(d => {
-    const total = d.lines.reduce((a, l) => a + l.qty * l.price, 0);
-    const st = d.kind === "order" ? ["Arriving " + (d.eta || "soon"), "brand"] : d.status === "new" ? ["Needs review","warn"] : ["Approved","good"];
-    tb.append(el("tr",{onclick:() => openDoc(d.id)}, el("td",null, el("b",{text:d.supplier}), el("div",{class:"mini", text:(d.kind === "order" ? "Order " : "Invoice ") + d.number})),
-      el("td",{text:nice(d.date)}), el("td",null, el("span",{class:"pill", text:d.source})), el("td",{class:"num", text:d.lines.length}), el("td",{class:"num", text:$$(total)}), el("td",null, el("span",{class:"pill " + st[1], text:st[0]}))));
+    const total = d.kind === "pricelist" ? null : d.lines.reduce((a, l) => a + l.qty * l.price, 0);
+    const st = d.kind === "order" ? ["Arriving " + (d.eta || "soon"), "brand"] : d.status === "new" ? ["Needs review","warn"] : [d.kind === "pricelist" ? "Prices updated" : "Approved","good"];
+    tb.append(el("tr",{onclick:() => openDoc(d.id)}, el("td",null, el("b",{text:d.supplier}), el("div",{class:"mini", text: d.kind === "pricelist" ? "Price sheet" : (d.kind === "order" ? "Order " : "Invoice ") + d.number})),
+      el("td",{text:nice(d.date)}), el("td",null, el("span",{class:"pill", text:d.source})), el("td",{class:"num", text:d.lines.length}), el("td",{class:"num", text: total == null ? "\u2014" : $$(total)}), el("td",null, el("span",{class:"pill " + st[1], text:st[0]}))));
   });
   m.append(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["From","Date","Came in by","Lines","Total","Status"].map((h, i) => el("th",{class: i === 3 || i === 4 ? "num" : "", text:h})))), tb)));
 }
@@ -1556,9 +1556,38 @@ function matchLine(l, r){ const all = Object.values(r.supplies); if (l.code){ co
   const t = String(l.desc).toLowerCase().replace(/[^a-z ]/g," ").split(/\s+/).filter(w => w.length > 2);
   let best = null, bs = 0; all.forEach(s => { const w = s.name.toLowerCase().replace(/[^a-z ]/g," ").split(/\s+/).filter(x => x.length > 2); const hit = t.filter(a => w.some(b => b.startsWith(a.slice(0,4)) || a.startsWith(b.slice(0,4)) || (b.length > 3 && a.includes(b)) || (a.length > 3 && b.includes(a)))).length; const sc = hit / Math.max(w.length, 1); if (sc > bs){ bs = sc; best = s.id; } });
   return bs >= 0.5 ? best : null; }
+// A supplier's case may not be the same size as yours (their 4 x 1.5 lb case vs your 24 oz pack).
+// When both sizes are known in the same kind of unit, scale the price to your case size.
+function priceForSupply(l, su){
+  const out = { price: l.price, converted: false, check: false, packText: "" };
+  if (!su || !(l.price > 0)) return out;
+  const pk = parsePack(l.pack) || parsePack(l.desc);
+  const a = pk && UNITS[pk.unit], b = UNITS[su.unit];
+  if (pk && a && b && a[0] === b[0] && n(su.caseQty) > 0){
+    const theirs = pk.size * a[1] / b[1];                       // their case, in your units
+    if (theirs > 0 && Math.abs(theirs - su.caseQty) / su.caseQty > 0.02){
+      out.price = Math.round(l.price * su.caseQty / theirs * 100) / 100; out.converted = true;
+      out.packText = "$" + l.price.toFixed(2) + " for " + (Math.round(theirs * 100) / 100) + " " + su.unit + " = " + $$(out.price) + " for your " + su.caseQty + " " + su.unit;
+    }
+  }
+  // A change this big is usually a pack-size or per-pound mix-up rather than a real price move.
+  // Converted prices are understood, so only extreme swings are held; unconverted ones get a tighter check.
+  if (su.price > 0){ const ch = (out.price - su.price) / su.price; if (out.converted ? (ch > 1.5 || ch < -0.6) : (ch > 0.6 || ch < -0.45)) out.check = true; }
+  return out;
+}
+function strictMatch(l, r){
+  const all = Object.values(r.supplies);
+  if (l.code){ const m = all.find(s2 => s2.code && String(s2.code).trim() === String(l.code).trim()); if (m) return m.id; }
+  const d0 = String(l.desc || "").trim().toLowerCase();
+  const ex = all.find(s2 => s2.name.trim().toLowerCase() === d0 || supName(s2).toLowerCase() === d0); if (ex) return ex.id;
+  let best = null, bs = 0; all.forEach(s2 => { const sc = Math.max(simScore(l.desc, s2.name), simScore(l.desc, supName(s2))); if (sc > bs){ bs = sc; best = s2.id; } });
+  return bs >= 0.85 ? best : null;
+}
 function openDoc(id){
   const r = R(), d = r.inbox.find(x => x.id === id); if (!d) return;
-  d.lines.forEach(l => { if (l.match === undefined) l.match = matchLine(l, r) || (CHARGE_RE.test(l.desc) ? null : "__new"); });
+  const isPL = d.kind === "pricelist";
+  d.lines.forEach(l => { if (l.match === undefined) l.match = isPL ? strictMatch(l, r) : (matchLine(l, r) || (CHARGE_RE.test(l.desc) ? null : "__new")); });
+  if (d.status === "new") d.lines.forEach(l => { if (l.hold === undefined && l.match && r.supplies[l.match]) l.hold = priceForSupply(l, r.supplies[l.match]).check; });
   const opts = Object.values(r.supplies).sort((a,b) => a.name.localeCompare(b.name));
   const body = [el("p",{class:"lead", text: d.supplier + ", " + nice(d.date) + ", via " + d.source + (d.kind === "order" ? ". Arriving " + (d.eta || "soon") + ". The invoice will follow when it's delivered." : ".")})];
   const { lastIdx, firstIdx } = dupInfo(d);
@@ -1566,22 +1595,38 @@ function openDoc(id){
   if (twin) body.push(el("div",{class:"msg bad"}, "This looks like invoice " + twin.number + " from " + nice(twin.date) + (twin.status === "approved" ? ", which is already approved" : ", already in your inbox") + ". Approving it again won't double-count prices, but you can delete this copy. ",
     el("button",{class:"linkbtn", type:"button", text:"Open the earlier one", onclick:() => openDoc(twin.id)})));
   const newer = d.status === "new" ? d.lines.filter(l => { const su = l.match && l.match !== "__new" && r.supplies[l.match]; return su && (su.history || []).some(x => (x.date || "") > (d.date || "")); }).length : 0;
-  if (newer) body.push(el("div",{class:"msg good", text:"This invoice is dated " + nice(d.date) + ", but " + newer + (newer === 1 ? " item has" : " items have") + " a newer price already. " + (newer === 1 ? "It keeps" : "They keep") + " the newer price; this one goes into the price history."}));
+  if (newer) body.push(el("div",{class:"msg good", text:(isPL ? "These prices are dated " : "This invoice is dated ") + nice(d.date) + ", but " + newer + (newer === 1 ? " item has" : " items have") + " a newer price already. " + (newer === 1 ? "It keeps" : "They keep") + " the newer price; this one goes into the price history."}));
   const tb = el("tbody");
-  d.lines.forEach(l => {
-    const su = l.match && r.supplies[l.match], ch = su && su.price ? (l.price - su.price) / su.price : null;
+  let shownLines = d.lines;
+  if (isPL){
+    const matched = d.lines.filter(l => l.match), others = d.lines.filter(l => !l.match);
+    const pFor = l => priceForSupply(l, r.supplies[l.match]).price;
+    const ups = matched.filter(l => { const su = r.supplies[l.match]; return su && su.price && pFor(l) > su.price * 1.005; }).length, downs = matched.filter(l => { const su = r.supplies[l.match]; return su && su.price && pFor(l) < su.price * 0.995; }).length;
+    body.push(el("div",{class:"cost", style:"grid-template-columns:repeat(4,1fr);margin-bottom:12px"},
+      el("div",null, el("span",{text:"Items on sheet"}), el("b",{text:d.lines.length})), el("div",null, el("span",{text:"You stock"}), el("b",{text:matched.length})),
+      el("div",null, el("span",{text:"Going up"}), el("b",{class: ups ? "up" : "", text:ups})), el("div",null, el("span",{text:"Going down"}), el("b",{class: downs ? "down" : "", text:downs}))));
+    shownLines = d.showAll ? matched.concat(others) : matched;
+    if (!matched.length) body.push(el("p",{class:"msg good", text:"None of these items matched your supplies by item code or name. Show the full sheet to link or add the ones you buy."}));
+    if (others.length) body.push(el("p",{style:"margin:0 0 10px"}, others.length + " other items aren't in your supplies and will be skipped. ",
+      el("button",{class:"linkbtn", type:"button", text: d.showAll ? "Hide them" : "Show them to link or add", onclick:() => { d.showAll = !d.showAll; save(); openDoc(id); }})));
+  }
+  shownLines.forEach(l => {
+    const su = l.match && r.supplies[l.match], conv = priceForSupply(l, su), ch = su && su.price ? (conv.price - su.price) / su.price : null;
     const sel = el("select",{class:"inp", style:"min-width:180px", disabled: d.status !== "new" || d.kind === "order" ? "" : null}, el("option",{value:"", text:"Skip"}), el("option",{value:"__new", text:"+ Add as a new supply"}), opts.map(s => el("option",{value:s.id, text:supName(s) + (supName(s) !== s.name ? "  \u2014 " + s.name : "")}))); sel.value = l.match || "";
     sel.onchange = () => { l.match = sel.value || null; save(); openDoc(id); };
     const i = d.lines.indexOf(l), rep2 = l._k && lastIdx[l._k] !== firstIdx[l._k];
     const repNote = !rep2 ? null : lastIdx[l._k] === i ? "Repeated item: this last line's price is used" : "Repeated item: line " + (lastIdx[l._k] + 1) + "'s price is used instead";
-    tb.append(el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:l.desc}), el("div",{class:"mini", text:l.code ? "#" + l.code : ""}), repNote ? el("div",{class:"mini", style:"color:var(--warn);font-weight:700", text:repNote}) : null), el("td",{class:"num", text:l.qty}), el("td",{class:"num", text:$$(l.price)}),
-      el("td",null, sel), el("td",{class:"num"}, ch != null && Math.abs(ch) >= 0.005 ? el("span",{class: ch > 0 ? "up" : "down", text:(ch > 0 ? "+" : "") + pc(ch)}) : su ? "same" : "—")));
+    tb.append(el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:l.desc}), el("div",{class:"mini", text:l.code ? "#" + l.code : ""}), repNote ? el("div",{class:"mini", style:"color:var(--warn);font-weight:700", text:repNote}) : null), el("td",{class:"num", text: isPL ? (l.pack || "\u2014") : l.qty}), el("td",{class:"num", text:$$(l.price)}),
+      el("td",null, sel), el("td",{class:"num"}, ch != null && Math.abs(ch) >= 0.005 ? el("span",{class: ch > 0 ? "up" : "down", text:(ch > 0 ? "+" : "") + pc(ch)}) : su ? "same" : "—",
+        conv.converted ? el("div",{class:"mini", style:"white-space:normal;max-width:220px;margin-left:auto", text:conv.packText}) : null,
+        conv.check ? el("div",{class:"mini", style:"color:var(--warn);font-weight:600;white-space:normal;margin-top:4px"}, l.hold ? "Held: check the pack size first. " : "Will update. ",
+          d.status === "new" ? el("button",{class:"linkbtn", type:"button", text: l.hold ? "Apply anyway" : "Hold it", onclick:() => { l.hold = !l.hold; save(); openDoc(id); }}) : null) : null)));
   });
-  body.push(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Line","Qty","Case price","Matches supply","vs. now"].map((h, i) => el("th",{class: i === 1 || i === 2 || i === 4 ? "num" : "", text:h})))), tb)));
+  if (shownLines.length) body.push(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Line", isPL ? "Pack" : "Qty","Case price","Matches supply","vs. now"].map((h, i) => el("th",{class: i === 1 || i === 2 || i === 4 ? "num" : "", text:h})))), tb)));
   const foot = [el("button",{class:"btn danger", text:"Delete", onclick:() => { if (confirm("Delete this document?")){ r.inbox = r.inbox.filter(x => x.id !== id); save(); dlg.close(); } }})];
-  if (d.kind === "invoice" && d.status === "new") foot.push(el("button",{class:"btn primary", text:"Approve & update prices", onclick:() => approve(d)}));
+  if ((d.kind === "invoice" || isPL) && d.status === "new") foot.push(el("button",{class:"btn primary", text: isPL ? "Update " + d.lines.filter(l => l.match && !l.hold).length + " prices" : "Approve & update prices", onclick:() => approve(d)}));
   if (d.kind === "order") foot.push(el("button",{class:"btn primary", text:"Demo: mark delivered", onclick:() => { d.kind = "invoice"; d.status = "new"; d.number = d.number.replace("PO-","INV-"); save(); openDoc(id); toast("Delivered. The invoice is ready to review."); }}));
-  openDlg((d.kind === "order" ? "Order " : "Invoice ") + d.number, body, foot);
+  openDlg(isPL ? "Price sheet from " + d.supplier : (d.kind === "order" ? "Order " : "Invoice ") + d.number, body, foot);
 }
 // Record a price in a supply's history (kept in date order) and set the current price
 // to the most recent one. An older invoice never overwrites a newer price.
@@ -1626,23 +1671,25 @@ function approve(d){
     const su = l.match && r.supplies[l.match]; if (!su) return;
     seen[l.match] = (seen[l.match] || 0) + 1;
   });
-  const lastFor = {}; d.lines.forEach((l, i) => { if (l.match && r.supplies[l.match]) lastFor[l.match] = i; });
+  const lastFor = {}; let held = 0;
+  d.lines.forEach((l, i) => { if (l.match && r.supplies[l.match]){ if (l.hold){ held++; return; } lastFor[l.match] = i; } });
   Object.entries(lastFor).forEach(([sid, i]) => {
     const l = d.lines[i], su = r.supplies[sid];
     if (seen[sid] > 1) combined += seen[sid] - 1;
     if (l.code && !su.code) su.code = l.code;
-    const res = applyPrice(su, l.price, d.date, d.id);
+    const res = applyPrice(su, priceForSupply(l, su).price, d.date, d.id);
     if (res.changed) up++;
     if (res.older) older++;
   });
   const newIds = Object.values(madeFor);
-  d.combined = combined; d.older = older;
+  d.combined = combined; d.older = older; d.held = held;
   const linked = linkUnpriced(r, newIds);
   d.status = "approved";
   const changed = Object.values(r.items).map(it => ({ it, a: stats(it, r, before).plate, b: stats(it).plate })).filter(x => Math.abs(x.b - x.a) >= 0.005);
   save();
   openDlg("Invoice approved", [
     el("div",{class:"cost", style:"grid-template-columns:repeat(3,1fr)"}, el("div",null, el("span",{text:"Prices updated"}), el("b",{text:up})), el("div",null, el("span",{text:"New supplies"}), el("b",{text:added})), el("div",null, el("span",{text:"Recipes affected"}), el("b",{text:changed.length}))),
+    held ? el("div",{class:"msg bad", text: held + (held === 1 ? " line was" : " lines were") + " held because the price change looked like a pack-size mix-up. Open the supply to check its case size, then upload again or set the price by hand."}) : null,
     older ? el("div",{class:"msg good", text: older + (older === 1 ? " item already had" : " items already had") + " a newer price from a later invoice, so " + (older === 1 ? "it keeps" : "they keep") + " the newer price. This invoice's price is saved in the history."}) : null,
     combined ? el("p",{class:"mini", text: combined + (combined === 1 ? " repeated line was" : " repeated lines were") + " combined: when the same item appears more than once, the last line's price is used."}) : null,
     linked ? el("p",{class:"mini", text:"Linked " + linked + (linked === 1 ? " recipe ingredient that was" : " recipe ingredients that were") + " waiting for these supplies. Check the amounts on those recipes."}) : null,
@@ -1690,12 +1737,20 @@ function csvRows(text){
   if (cell || row.length){ row.push(cell); rows.push(row); }
   return rows.map(r2 => r2.map(c => c.trim())).filter(r2 => r2.some(Boolean));
 }
-function linesFromCSV(text){
-  const rows = csvRows(text); if (!rows.length) return [];
+function linesFromCSV(text){ return linesFromRows(csvRows(text)); }
+async function linesFromExcel(f){
+  await loadXLSX();
+  const sheets = readWorkbook(new Uint8Array(await f.arrayBuffer()));
+  // Use the first tab that has product lines.
+  for (const sh of sheets){ const rows = sh.rows.map(r2 => r2.map(c => cTxt(c))).filter(r2 => r2.some(Boolean)); const lines = linesFromRows(rows); if (lines.length) return lines; }
+  return [];
+}
+function linesFromRows(rows){
+  if (!rows.length) return [];
   const money = v => { const x = parseFloat(String(v || "").replace(/[$,\s]/g, "")); return isFinite(x) ? x : null; };
-  const hi = Math.max(0, rows.slice(0, 10).findIndex(r2 => r2.some(c => /desc|item|product/i.test(c))));
+  const hi = Math.max(0, rows.slice(0, 15).findIndex(r2 => r2.some(c => /desc|item|product/i.test(c))));
   const h = rows[hi].map(c => c.toLowerCase()), col = re => h.findIndex(c => re.test(c));
-  const cDesc = col(/desc|product name|item name|^item$|^product$/), cCode = col(/item ?#|item ?no|code|sku/), cQty = col(/qty|quantity|ship|cases/), cPrice = col(/unit price|case price|^price$|each/), cTotal = col(/ext|extended|line total|amount|^total$/), cPack = col(/pack|size/);
+  const cDesc = col(/desc|product name|item name|^item$|^product$/), cCode = col(/item ?#|item ?no|code|sku/), cQty = col(/qty|quantity|ship|cases/), cPrice = col(/unit price|case price|price ?\/ ?(case|cs)|^price$|each|^cost$|case cost|net price|your price|^sell/), cTotal = col(/ext|extended|line total|amount|^total$/), cPack = col(/pack|size/);
   if (cDesc < 0) return [];
   return rows.slice(hi + 1).map(r2 => { const qty = money(r2[cQty]) || 1, total = cTotal >= 0 ? money(r2[cTotal]) : null, price = cPrice >= 0 ? money(r2[cPrice]) : (total != null ? total / qty : null);
     return { code: cCode >= 0 ? r2[cCode] : "", desc: r2[cDesc], qty, price, pack: cPack >= 0 ? r2[cPack] : "" }; }).filter(l => l.desc && l.price != null && !/^(sub ?total|total)/i.test(l.desc));
@@ -1708,16 +1763,17 @@ async function shrinkImage(f){
   } finally { URL.revokeObjectURL(url); }
 }
 const b64 = blob => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result).split(",")[1]); fr.onerror = () => rej(new Error("Couldn't read the file.")); fr.readAsDataURL(blob); });
+const PRICE_PROMPT = 'This is a supplier price sheet or order guide for a restaurant. Return ONLY JSON, no other text: {"supplier": string|null, "invoiceDate": "YYYY-MM-DD effective date"|null, "lines": [{"code": string|null, "desc": string, "pack": string|null, "price": number}]}. "price" is the price for ONE case or unit as listed. Include every product with a price. Keep the JSON compact.';
 const READ_PROMPT = 'Read this supplier invoice for a restaurant or bar. Return ONLY JSON, no other text: {"supplier": string|null, "invoiceNumber": string|null, "invoiceDate": "YYYY-MM-DD"|null, "lines": [{"code": string|null, "desc": string, "qty": number, "pack": string|null, "price": number|null, "total": number|null}]}. "price" is the price for ONE case or unit as billed. "pack" is the pack size exactly as printed, such as "6/5 LB", "24/12 OZ" or "1/2 BBL". Include every product line, and also deposits and fees as their own lines. Leave out subtotal and tax.';
-async function readInvoiceFile(f){
+async function readInvoiceFile(f, kind){
   const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
   // Inside Claude's preview: use Claude directly (photos only). On the website: the site's AI function.
-  try { if (window.claude && window.claude.use){ const smp = await window.claude.use("sample"); if (smp){ if (isPdf) throw { code:"preview_pdf" }; return await smp.json(READ_PROMPT, { images:[await shrinkImage(f)] }); } } } catch(e){ if (e && e.code === "preview_pdf") throw e; }
+  try { if (window.claude && window.claude.use){ const smp = await window.claude.use("sample"); if (smp){ if (isPdf) throw { code:"preview_pdf" }; return await smp.json(kind === "pricelist" ? PRICE_PROMPT : READ_PROMPT, { images:[await shrinkImage(f)] }); } } } catch(e){ if (e && e.code === "preview_pdf") throw e; }
   const blob = isPdf ? f : await shrinkImage(f);
   if (blob.size > 4 * 1024 * 1024) throw { code:"too_big" };
   const { data: { session } } = sb ? await sb.auth.getSession() : { data:{} };
   const res = await fetch("/api/ai", { method:"POST", headers:{ "content-type":"application/json", authorization:"Bearer " + (session ? session.access_token : "") },
-    body: JSON.stringify({ prompt: READ_PROMPT, file: { data: await b64(blob), mediaType: isPdf ? "application/pdf" : "image/jpeg" } }) });
+    body: JSON.stringify({ prompt: kind === "pricelist" ? PRICE_PROMPT : READ_PROMPT, file: { data: await b64(blob), mediaType: isPdf ? "application/pdf" : "image/jpeg" } }) });
   if (res.status === 401) throw { code:"signin" };
   if (res.status === 404 || res.status === 501) throw { code:"unavailable" };
   if (!res.ok) throw { code:"error" };
@@ -1729,17 +1785,29 @@ function openUpload(supplier){
   const names = [...new Set(r.vendors.map(v => v.name).concat(SUPPLIERS.map(x => x.name), Object.values(r.supplies).map(x => x.supplier)).filter(Boolean))];
   const sup = el("input",{class:"inp", list:"up-sups", placeholder:"Who's it from?"}); sup.value = supplier || "";
   const date = el("input",{class:"inp", type:"date"}); date.value = today();
-  const file = el("input",{type:"file", accept:"image/*,.pdf,.csv", hidden:""});
+  const file = el("input",{type:"file", accept:"image/*,.pdf,.csv,.xlsx,.xls", hidden:""});
   const status = el("div");
+  let kind = "invoice";
   const pick = el("label",{class:"btn primary", style:"width:100%;min-height:64px;font-size:1.05rem"}, "Take a photo or choose a file", file);
+  const dateFld = fld("Invoice date", date, "Used if the invoice doesn't show one");
+  const kindRow = el("div",{class:"tabs2", role:"tablist", style:"margin:0 0 14px"});
+  const paintKind = () => {
+    kindRow.replaceChildren(...[["invoice","Invoice"],["pricelist","Price sheet"]].map(([k, t]) => el("button",{type:"button", role:"tab", "aria-selected": String(kind === k), onclick:() => { kind = k; paintKind(); }, text:t})));
+    dateFld.querySelector("label").textContent = kind === "pricelist" ? "Prices effective" : "Invoice date";
+    dateFld.querySelector(".hint").textContent = kind === "pricelist" ? "The date these prices start. Newer prices always win." : "Used if the invoice doesn't show one";
+    $("dlg-t").textContent = kind === "pricelist" ? "Upload a price sheet" : "Upload an invoice";
+    tip.textContent = kind === "pricelist" ? "Price sheets and order guides are usually long. Only items you already stock are updated; the rest are skipped unless you add them. Excel or CSV works best." : "Photos: lay the invoice flat, fill the frame, good light. Spreadsheets from a supplier's website are the most accurate. Nothing changes until you approve.";
+  };
+  const tip = el("p",{class:"mini", style:"margin-top:10px"});
   file.onchange = async () => {
     const f = file.files && file.files[0]; file.value = ""; if (!f) return;
-    if (!sup.value.trim()){ status.replaceChildren(el("div",{class:"msg bad", text:"Type who the invoice is from first."})); sup.focus(); return; }
+    if (!sup.value.trim()){ status.replaceChildren(el("div",{class:"msg bad", text:"Type who it's from first."})); sup.focus(); return; }
     status.replaceChildren(el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Reading " + f.name + "…"})); pick.hidden = true;
     let d;
     try {
       if (/\.csv$/i.test(f.name) || f.type === "text/csv") d = { lines: linesFromCSV(await f.text()) };
-      else d = await readInvoiceFile(f);
+      else if (/\.xlsx?$/i.test(f.name)) d = { lines: await linesFromExcel(f) };
+      else d = await readInvoiceFile(f, kind);
     } catch(e){
       pick.hidden = false;
       const m2 = e && e.code === "preview_pdf" ? "In this preview only photos can be read. PDFs work on your website." : e && e.code === "too_big" ? "That file is over 4 MB. Try a smaller photo or scan." : aiProblem(e) || "Couldn't read that one. Try a clearer, flatter photo in good light.";
@@ -1747,25 +1815,25 @@ function openUpload(supplier){
     }
     const lines = (d.lines || []).map(l => ({ code: String(l.code || ""), desc: String(l.desc || "").trim(), qty: n(l.qty) || 1, price: n(l.price) != null ? n(l.price) : (n(l.total) != null ? n(l.total) / (n(l.qty) || 1) : null), pack: l.pack || "" })).filter(l => l.desc && l.price != null);
     if (!lines.length){ pick.hidden = false; status.replaceChildren(el("div",{class:"msg bad", text:"No product lines were found. Try a clearer photo, or a spreadsheet."})); return; }
-    const doc = { id: uid("d"), kind:"invoice", source: /\.csv$/i.test(f.name) ? "Spreadsheet" : /\.pdf$/i.test(f.name) ? "PDF" : "Photo", supplier: sup.value.trim(), number: d.invoiceNumber || ("UP-" + Math.floor(1000 + Math.random() * 9000)),
+    const doc = { id: uid("d"), kind, source: /\.(csv|xlsx?)$/i.test(f.name) ? "Spreadsheet" : /\.pdf$/i.test(f.name) ? "PDF" : "Photo", supplier: sup.value.trim(), number: kind === "pricelist" ? "Price sheet" : (d.invoiceNumber || ("UP-" + Math.floor(1000 + Math.random() * 9000))),
       date: (d.invoiceDate && /^\d{4}-\d{2}-\d{2}$/.test(d.invoiceDate)) ? d.invoiceDate : date.value || today(), status:"new", lines };
     if (!r.vendors.some(v => v.name.toLowerCase() === doc.supplier.toLowerCase()) && !SUPPLIERS.some(x => x.name.toLowerCase() === doc.supplier.toLowerCase()))
       r.vendors.push({ id: uid("v"), name: doc.supplier, kind:"food", account:"", rep:"", repContact:"", order:"rep", invoices: doc.source === "Photo" ? "paper" : "pdf" });
     const twin = findDuplicateInvoice(r, doc);
     if (twin){
       openDlg("Already uploaded?", [
-        el("p",{class:"lead", text:"This looks like invoice " + twin.number + " from " + twin.supplier + ", dated " + nice(twin.date) + ", which you uploaded already" + (twin.status === "approved" ? " and approved." : ".")}),
+        el("p",{class:"lead", text:"This looks like " + (twin.kind === "pricelist" ? "the price sheet" : "invoice " + twin.number) + " from " + twin.supplier + ", dated " + nice(twin.date) + ", which you uploaded already" + (twin.status === "approved" ? " and approved." : ".")}),
         el("p",{text:"Uploading it again won't double-count anything, but it does clutter your inbox."})
       ], [el("button",{class:"btn quiet", text:"Keep both", onclick:() => { r.inbox.push(doc); save(); openDoc(doc.id); }}), el("button",{class:"btn primary", text:"Open the earlier one", onclick:() => openDoc(twin.id)})]);
       return;
     }
     r.inbox.push(doc); save(); openDoc(doc.id); toast("Read " + lines.length + " lines. Check them, then approve.");
   };
-  openDlg("Upload an invoice", [
-    el("div",{class:"g2"}, fld("From", sup), fld("Invoice date", date, "Used if the invoice doesn't show one")), el("datalist",{id:"up-sups"}, names.map(x => el("option",{value:x}))),
-    pick, status,
-    el("p",{class:"mini", style:"margin-top:10px", text:"Photos: lay the invoice flat, fill the frame, good light. Spreadsheets (CSV) from a supplier's website are the most accurate. Nothing changes until you approve."})
+  openDlg("Upload an invoice", [kindRow,
+    el("div",{class:"g2"}, fld("From", sup), dateFld), el("datalist",{id:"up-sups"}, names.map(x => el("option",{value:x}))),
+    pick, status, tip
   ], []);
+  paintKind();
 }
 
 /* ================= Menu import ================= */
@@ -2346,7 +2414,7 @@ function brandKitCard(){
 function findDuplicateInvoice(r, doc){
   const tot = x => Math.round(x.lines.reduce((t, l) => t + (n(l.qty) || 1) * (n(l.price) || 0), 0) * 100);
   const realNo = no => no && !/^UP-\d+$/.test(no);
-  return r.inbox.find(o => o.id !== doc.id && o.kind === "invoice" && (o.supplier || "").trim().toLowerCase() === (doc.supplier || "").trim().toLowerCase() &&
+  return r.inbox.find(o => o.id !== doc.id && o.kind === doc.kind && (o.supplier || "").trim().toLowerCase() === (doc.supplier || "").trim().toLowerCase() &&
     ((realNo(o.number) && realNo(doc.number) && String(o.number).trim().toLowerCase() === String(doc.number).trim().toLowerCase()) ||
      (o.date === doc.date && tot(o) === tot(doc) && o.lines.length === doc.lines.length))) || null;
 }
