@@ -195,6 +195,68 @@ dialog::backdrop{background:var(--shade)}
 @media (max-width:1250px){.menu-t .c-sug,.menu-t .c-cls{display:none}}
 @media (max-width:1050px){.menu-t .c-sold,.menu-t .c-prof{display:none}}
 @media (max-width:640px){.menu-t .c-plate{display:none}}
+/* ---- Fit any screen ---- */
+:root{--brand-font:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+h1,h2,h3,.brandbox b{font-family:var(--brand-font)}
+main{min-width:0}
+.tw{max-width:100%}
+.tw table td{overflow-wrap:anywhere}
+.spread > div:first-child{min-width:0;flex:1 1 320px}
+@media (max-width:900px){
+  .app{display:block}
+  aside{flex-direction:column;gap:8px;padding:10px 12px;position:sticky;top:0;z-index:20;box-shadow:0 1px 0 var(--line)}
+  aside .brandbox{gap:8px}
+  aside .brandbox .logo{width:34px;height:34px;font-size:.85rem}
+  aside .brandbox span{display:none}
+  .acctrow{display:flex;gap:8px;align-items:center}
+  .acctrow .mini{display:none}
+  .acct{min-height:38px;padding:6px 8px}
+  nav{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:2px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  nav::-webkit-scrollbar{display:none}
+  nav button{white-space:nowrap;padding:8px 12px;font-size:.92rem}
+  .userbox{display:none}
+  main{padding:16px 14px 70px}
+  h1{font-size:1.4rem}
+  .lead{font-size:.95rem}
+  .chips{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin;-webkit-overflow-scrolling:touch}
+  .filters .row{flex-wrap:wrap}
+  .filters .search{flex:1 1 100%}
+}
+@media (max-width:700px){
+  /* Tables become stacked cards */
+  .tw{border:0;background:transparent;overflow:visible}
+  .tw table{background:transparent}
+  .tw thead{display:none}
+  .tw tbody tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;position:relative}
+  .tw tbody td{display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;padding:2px 0;white-space:normal;text-align:right;min-width:0}
+  .tw tbody td::before{content:attr(data-label);color:var(--muted);font-size:.78rem;font-weight:700;text-align:left}
+  .tw tbody td.cell-main{grid-column:1/-1;display:block;text-align:left;font-size:1.02rem;padding-right:34px}
+  .tw tbody td.cell-main::before,.tw tbody td.cell-pick::before,.tw tbody td.cell-wide::before{display:none}
+  .tw tbody td.cell-pick{position:absolute;top:10px;right:12px;padding:0}
+  .tw tbody td.cell-wide{grid-column:1/-1;display:block;text-align:left}
+  .tw tbody td.cell-wide select,.tw tbody td.cell-wide .inp{width:100%}
+  .tw tbody td:empty{display:none}
+  .menu-t .c-plate,.menu-t .c-sug,.menu-t .c-sold,.menu-t .c-cls{display:none}
+  .menu-t .c-prof{display:flex}
+  .grp-h{margin-top:18px}
+  .bulk{border-radius:10px}
+  /* Pop-ups go full screen */
+  .sheet{width:100%;max-height:100%;height:100%;border-radius:0;top:0;left:0;transform:none}
+  .sheet-f{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+  .cost b{font-size:1.1rem}
+  .btn{min-height:42px}
+  .spread{align-items:stretch}
+  .spread > .row,.spread > .btn{width:100%}
+  .spread > .row .btn{flex:1 1 auto}
+}
+/* Brand kit */
+.kit-drop{display:block;border:3px dashed var(--line);border-radius:14px;padding:18px;text-align:center;cursor:pointer;background:var(--field)}
+.kit-drop.over{border-color:var(--brand)}
+.kit-drop b{display:block;font-size:1.05rem;margin-bottom:2px}
+.palette{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+.palette button{display:flex;flex-direction:column;align-items:center;gap:4px;border:2px solid var(--line);background:var(--panel);border-radius:10px;padding:6px;cursor:pointer;font-size:.72rem;font-weight:700;min-width:64px}
+.palette button[aria-pressed="true"]{border-color:var(--ink)}
+.palette i{display:block;width:44px;height:30px;border-radius:6px;border:1px solid rgba(0,0,0,.1)}
 </style>
 </head>
 <body>
@@ -562,6 +624,14 @@ function applyBrand(){
   $("prod-name").textContent = b.product || "PlateMargin"; $("prod-tag").textContent = b.tagline || "";
   document.title = b.product || "PlateMargin"; paintLogo($("logo"));
   $("powered").textContent = b.powered ? "Powered by PlateMargin" : "";
+  applyFont(b.font);
+}
+function applyFont(fam){
+  const stack = '"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif';
+  if (!fam){ document.documentElement.style.setProperty("--brand-font", stack); return; }
+  const id = "brandfont-" + fam.replace(/[^a-z0-9]/gi, "");
+  if (!document.getElementById(id)){ const l = document.createElement("link"); l.id = id; l.rel = "stylesheet"; l.href = "https://fonts.googleapis.com/css2?family=" + encodeURIComponent(fam).replace(/%20/g, "+") + ":wght@400;700;800&display=swap"; document.head.append(l); }
+  document.documentElement.style.setProperty("--brand-font", '"' + fam.replace(/"/g, "") + '",' + stack);
 }
 
 /* ================= Shell ================= */
@@ -575,7 +645,19 @@ function renderNav(){
 }
 $("acct").onchange = e => { if (e.target.value === "__new"){ const nm = prompt("Restaurant name?"); if (nm && nm.trim()){ const r = emptyRestaurant(nm.trim()); ST.restaurants[r.id] = r; ST.current = r.id; } } else ST.current = e.target.value; save(); go("home"); };
 function go(p){ ST.page = p; render(); window.scrollTo(0,0); }
-function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, supplies, inbox, suppliers, brand })[ST.page](m); }
+function labelTables(root){
+  root.querySelectorAll(".tw table").forEach(t => {
+    const heads = [...t.querySelectorAll("thead th")].map(th => th.textContent.trim());
+    let main = heads.findIndex(h => /^(item|supply|from|person|line|recipe|restaurant|tab)$/i.test(h)); if (main < 0) main = heads.findIndex(h => h);
+    t.querySelectorAll("tbody tr").forEach(tr => [...tr.children].forEach((td, i) => {
+      td.setAttribute("data-label", heads[i] || "");
+      if (td.querySelector('input[type="checkbox"]') && !heads[i]) td.classList.add("cell-pick");
+      else if (i === main) td.classList.add("cell-main");
+      else if (td.querySelector("select, input.inp")) td.classList.add("cell-wide");
+    }));
+  });
+}
+function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, supplies, inbox, suppliers, brand })[ST.page](m); labelTables(m); }
 
 /* ================= Pages ================= */
 function insightCard(ins, compact){
@@ -869,7 +951,8 @@ function brand(m){
   const pv = el("div",{class:"preview"});
   function prev(){ const lg = el("div",{class:"logo"}); paintLogo(lg); pv.replaceChildren(el("div",{class:"ph"}, lg, el("div",null, el("b",{text:b.product || "Your product"}), el("div",{class:"mini", style:"color:inherit;opacity:.85", text:b.domain || ""}))), el("div",{class:"pb"}, el("p",{style:"margin:0 0 10px", text:"Good morning! 2 items are priced too low and Sysco raised bacon 10%."}), el("button",{class:"btn primary", text:"See what to fix"}))); }
   prev();
-  m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fit,minmax(300px,1fr))"},
+  m.append(brandKitCard());
+  m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))"},
     el("div",{class:"card"},
       el("div",{class:"field"}, el("label",{text:"Product name"}), name), el("div",{class:"field"}, el("label",{text:"Tagline"}), tag),
       el("div",{class:"field"}, el("span",{class:"q", text:"Logo"}), el("div",{class:"row"}, el("label",{class:"btn quiet"}, "Upload logo", file), b.logo ? el("button",{class:"btn quiet", text:"Remove", onclick:() => { b.logo = ""; save(); render(); }}) : null)),
@@ -933,7 +1016,8 @@ async function drawTeam(box){
 
 /* ================= Dialog ================= */
 const dlg = $("dlg"); $("dlg-x").onclick = () => dlg.close(); dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); }); dlg.addEventListener("close", () => render());
-function openDlg(title, body, foot){ $("dlg-t").textContent = title; $("dlg-b").replaceChildren(...body); $("dlg-f").replaceChildren(...(foot || [])); if (!dlg.open) dlg.showModal(); $("dlg-b").scrollTop = 0; }
+function openDlg(title, body, foot){ $("dlg-t").textContent = title; $("dlg-b").replaceChildren(...body.filter(x => x != null && x !== false)); $("dlg-f").replaceChildren(...(foot || []).filter(x => x != null && x !== false)); if (!dlg.open) dlg.showModal(); $("dlg-b").scrollTop = 0; labelTables($("dlg-b")); }
+new MutationObserver(() => labelTables($("dlg-b"))).observe($("dlg-b"), { childList:true, subtree:true });
 const fld = (label, input, hint) => el("div",{class:"field"}, el("label",{text:label}), hint ? el("span",{class:"hint", text:hint}) : null, input);
 
 /* Recipe builder */
@@ -1632,6 +1716,118 @@ function commitSheetImport(res, mode, fileName){
       el("div",null, el("span",{text:"Menu items"}), el("b",{text: itAdded + " new" + (itUpdated ? ", " + itUpdated + " updated" : "")}))),
     el("p",{text:"From now on, upload invoices to keep prices current; your spreadsheet isn't needed any more. Add plates sold on each menu item to get the Profit Coach's advice."})
   ], [el("button",{class:"btn quiet", text:"See supplies", onclick:() => { dlg.close(); go("supplies"); }}), el("button",{class:"btn primary", text:"See my menu", onclick:() => { dlg.close(); go("menu"); }})]);
+}
+
+/* ================= Brand kit ================= */
+// Accepts a logo image, an SVG, a brand guide PDF, or a ZIP of brand files.
+const JSZIP_URL = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+function loadJSZip(){ return window.JSZip ? Promise.resolve() : new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = JSZIP_URL; sc.onload = res; sc.onerror = () => rej({ code:"lib" }); document.head.append(sc); }); }
+async function imageFromBlob(blob){
+  const url = URL.createObjectURL(blob);
+  try { return await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("Couldn't open that image")); i.src = url; }); }
+  finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
+}
+async function logoDataURL(blob){
+  const img = await imageFromBlob(blob);
+  const w = img.naturalWidth || img.width || 256, h = img.naturalHeight || img.height || 256, sc = Math.min(1, 256 / Math.max(w, h));
+  const c = document.createElement("canvas"); c.width = Math.max(1, Math.round(w * sc)); c.height = Math.max(1, Math.round(h * sc));
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return { url: c.toDataURL("image/png"), canvas: c };
+}
+// Most-used colors in a logo, skipping see-through, near-white and near-duplicate shades.
+function paletteFromCanvas(c){
+  const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data, buckets = new Map();
+  for (let i = 0; i < d.length; i += 4){
+    if (d[i + 3] < 200) continue;
+    const r2 = d[i], g = d[i + 1], b = d[i + 2];
+    if (r2 > 240 && g > 240 && b > 240) continue;
+    const k = (r2 >> 4) + "," + (g >> 4) + "," + (b >> 4); const e = buckets.get(k) || { n:0, r:0, g:0, b:0 };
+    e.n++; e.r += r2; e.g += g; e.b += b; buckets.set(k, e);
+  }
+  const hex = v => Math.round(v).toString(16).padStart(2, "0");
+  const out = [], total = [...buckets.values()].reduce((t, e) => t + e.n, 0) || 1;
+  [...buckets.values()].sort((a, b) => b.n - a.n).filter(e => e.n / total >= 0.03).forEach(e => {
+    const col = [e.r / e.n, e.g / e.n, e.b / e.n];
+    if (out.some(o => Math.abs(o.rgb[0] - col[0]) + Math.abs(o.rgb[1] - col[1]) + Math.abs(o.rgb[2] - col[2]) < 60)) return;
+    if (out.length < 6) out.push({ rgb: col, hex: "#" + col.map(hex).join("").toUpperCase(), name: "" });
+  });
+  // Put the most colorful first: it usually makes the best button color.
+  const sat = ([r2, g, b]) => { const mx = Math.max(r2, g, b), mn = Math.min(r2, g, b); return mx ? (mx - mn) / mx : 0; };
+  return out.sort((a, b) => sat(b.rgb) - sat(a.rgb));
+}
+const KIT_PROMPT = 'This is a brand kit or brand guidelines document. Return ONLY JSON: {"name": brand name or null, "tagline": tagline or null, "colors": [{"hex": "#RRGGBB", "name": color name or null, "role": "primary"|"secondary"|"accent"|"background"|"text"}], "fonts": [{"family": font family name, "use": "headings"|"body"}]}. List the official brand colors only, at most 8.';
+async function readBrandKit(f){
+  const found = { logo:null, colors:[], fonts:[], name:null, tagline:null, notes:[] };
+  const isZip = /\.zip$/i.test(f.name) || f.type === "application/zip" || f.type === "application/x-zip-compressed";
+  const isPdf = /\.pdf$/i.test(f.name) || f.type === "application/pdf";
+  const takeLogo = async blob => { const { url, canvas } = await logoDataURL(blob); found.logo = url; paletteFromCanvas(canvas).forEach(p => found.colors.push({ hex:p.hex, name:"From logo", role:"" })); };
+  const takeGuide = async blob => {
+    try { const d = await aiJSON(KIT_PROMPT, blob); found.name = d.name || found.name; found.tagline = d.tagline || found.tagline;
+      const rank = { primary:0, secondary:1, accent:2, text:3, background:4 };
+      const guide = (d.colors || []).filter(c => /^#?[0-9a-f]{6}$/i.test(c.hex || "")).map(c => ({ hex: ("#" + c.hex.replace("#", "")).toUpperCase(), name: c.name || "", role: c.role || "" }))
+        .sort((a, b) => (rank[a.role] ?? 5) - (rank[b.role] ?? 5));
+      found.colors = guide.concat(found.colors);
+      found.fonts = (d.fonts || []).filter(x => x && x.family);
+    } catch(e){ found.notes.push(e && e.code === "preview_pdf" ? "PDF guides can be read on your website (not in this preview)." : aiProblem(e) || "Couldn't read the brand guide."); }
+  };
+  if (isZip){
+    await loadJSZip();
+    const zip = await JSZip.loadAsync(await f.arrayBuffer());
+    const files = Object.values(zip.files).filter(z => !z.dir && !/__MACOSX|\/\._|^\._/.test(z.name));
+    const imgs = files.filter(z => /\.(png|jpe?g|svg|webp)$/i.test(z.name));
+    const score = z => (/logo|mark|icon/i.test(z.name) ? 10 : 0) + (/\.svg$/i.test(z.name) ? 3 : /\.png$/i.test(z.name) ? 2 : 0) - (/white|reverse|knockout|negative|mono|black/i.test(z.name) ? 5 : 0) - (/pattern|photo|banner|background/i.test(z.name) ? 6 : 0);
+    const best = imgs.sort((a, b) => score(b) - score(a))[0];
+    if (best){ const type = /\.svg$/i.test(best.name) ? "image/svg+xml" : /\.png$/i.test(best.name) ? "image/png" : /\.webp$/i.test(best.name) ? "image/webp" : "image/jpeg"; await takeLogo(new Blob([await best.async("uint8array")], { type })); found.notes.push("Logo: " + best.name.split("/").pop()); }
+    const pdf = files.find(z => /\.pdf$/i.test(z.name));
+    if (pdf) await takeGuide(new File([await pdf.async("uint8array")], pdf.name.split("/").pop(), { type:"application/pdf" }));
+    const txt = files.filter(z => /\.(txt|json|css|ase)$/i.test(z.name) && !/\.ase$/i.test(z.name));
+    for (const t of txt.slice(0, 5)){ const body = await t.async("string"); (body.match(/#[0-9a-f]{6}\b/gi) || []).slice(0, 8).forEach(h => found.colors.push({ hex:h.toUpperCase(), name: t.name.split("/").pop(), role:"" })); }
+    if (!best && !pdf) found.notes.push("No logo images or PDF guide were found in that ZIP.");
+  } else if (isPdf) await takeGuide(f);
+  else if (/^image\//.test(f.type) || /\.(png|jpe?g|svg|webp)$/i.test(f.name)) await takeLogo(f.type ? f : new Blob([await f.arrayBuffer()], { type: /\.svg$/i.test(f.name) ? "image/svg+xml" : "image/png" }));
+  else throw new Error("Use a logo image, a PDF brand guide, or a ZIP of brand files.");
+  const seen = new Set(); found.colors = found.colors.filter(c => { const k = c.hex.toUpperCase(); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 10);
+  return found;
+}
+let LAST_KIT = null;
+function brandKitCard(){
+  const b = ST.brand;
+  const file = el("input",{type:"file", accept:"image/*,.svg,.pdf,.zip", hidden:""});
+  const result = el("div");
+  const drop = el("label",{class:"kit-drop"}, el("b",{text:"Upload your brand kit"}), el("span",{class:"mini", text:"A logo (PNG, JPG, SVG), a brand guide PDF, or a ZIP of brand files"}), file);
+  ["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+  ["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+  drop.addEventListener("drop", e => { const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) handle(f); });
+  file.onchange = () => { const f = file.files && file.files[0]; file.value = ""; if (f) handle(f); };
+  async function handle(f){
+    result.replaceChildren(el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Reading " + f.name + "…"}));
+    let k; try { k = await readBrandKit(f); } catch(e){ result.replaceChildren(el("div",{class:"msg bad", text: e && e.code === "lib" ? "Couldn't load the ZIP reader. Check your connection." : (e && e.message) || "Couldn't read that file."})); return; }
+    if (k.logo){ b.logo = k.logo; }
+    const main = k.colors.find(c => c.role === "primary") || k.colors[0];
+    if (main) b.color = main.hex;
+    save(); LAST_KIT = k; render();
+  }
+  function showKit(k){
+    const pal = el("div",{class:"palette"});
+    const paintPal = () => pal.replaceChildren(...k.colors.map(c => el("button",{type:"button", "aria-pressed": String(b.color.toUpperCase() === c.hex), title: c.name || c.hex, onclick:() => { b.color = c.hex; save(); render(); }},
+      el("i",{style:"background:" + c.hex}), c.role || c.name || "", el("span",{class:"mini", text:c.hex}))));
+    paintPal();
+    const parts = [el("div",{class:"msg good", text:"Brand kit read." + (k.logo ? " Logo updated." : "") + (k.colors.length ? " Tap a color to make it your main color." : "")})];
+    if (k.colors.length) parts.push(el("div",{class:"q", style:"font-weight:800", text:"Colors found"}), pal, el("p",{class:"mini", text:"Your main color is used for buttons, the header line and highlights. Text on it switches between light and dark automatically so it stays readable."}));
+    if (k.name || k.tagline) parts.push(el("div",{class:"row", style:"margin:6px 0"}, el("span",{text:[k.name, k.tagline].filter(Boolean).join(" \u2014 ")}),
+      el("button",{class:"btn quiet", text:"Use this name", onclick:() => { if (k.name) b.product = k.name; if (k.tagline) b.tagline = k.tagline; save(); render(); toast("Name updated"); }})));
+    const head = k.fonts.find(x => /head/i.test(x.use || "")) || k.fonts[0];
+    if (head) parts.push(el("div",{class:"row", style:"margin:6px 0"}, el("span",null, "Heading font: ", el("b",{text:head.family})),
+      el("button",{class:"btn quiet", text: b.font === head.family ? "In use" : "Use this font", onclick:() => { b.font = head.family; save(); applyBrand(); toast("Font applied if it's available on Google Fonts"); render(); }}),
+      b.font ? el("button",{class:"btn quiet", text:"Use standard font", onclick:() => { b.font = ""; save(); applyBrand(); render(); }}) : null));
+    k.notes.forEach(nt => parts.push(el("p",{class:"mini", text:nt})));
+    parts.push(el("button",{class:"linkbtn", type:"button", text:"Hide these results", onclick:() => { LAST_KIT = null; render(); }}));
+    result.replaceChildren(...parts);
+  }
+  result.className = "kit-result";
+  if (LAST_KIT) showKit(LAST_KIT);
+  return el("div",{class:"card", id:"kit-card", style:"margin-bottom:14px"}, el("h3",{text:"Brand kit"}), el("p",{text:"Have a logo or brand guide from a designer? Upload it and the app picks up your logo, colors and fonts."}), drop, result,
+    b.font ? el("p",{class:"mini", style:"margin-top:8px"}, "Heading font: " + b.font + " ", el("button",{class:"linkbtn", type:"button", text:"Use standard font", onclick:() => { b.font = ""; save(); render(); }})) : null);
 }
 
 boot();
