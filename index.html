@@ -2877,22 +2877,91 @@ function rangeFromRows(rows){
   const a = parse(m0[1]), b = parse(m0[2]); if (!a || !b || b < a) return null;
   return { from: isoDay(a), to: isoDay(b) };
 }
-function salesFromRows(rows){
+const NAME_HDR = /item|name|product|description|menu|article|dish|plate/i, NAME_BAD = /(^|\s)(id|sku|code|upc|plu|category|categories|group|order|employee|customer|tender|device|tax|discount|modifier group|note)s?($|\s|#)/i;
+const QTY_HDR = /items? sold|# ?sold|sold|qty|quantity|count|cnt|units|number of|^#$/i, QTY_BAD = /order count|orders|refund|void|price|amount|sales|\$/i;
+// Work out the header row and which columns hold the item name and quantity.
+function autoSalesMap(rows){
   rows = rows.map(r2 => r2.map(c => String(c == null ? "" : c).trim()));
-  const isHead = r2 => r2.some(c => /^(item|item name|name|product|menu item|items?)$/i.test(c) || /item name/i.test(c)) && r2.some(c => /sold|qty|quantity|count|units/i.test(c));
-  const hi = rows.slice(0, 25).findIndex(isHead); if (hi < 0) return [];
-  const h = rows[hi].map(c => c.toLowerCase()), col = re => h.findIndex(c => re.test(c));
-  const cName = col(/item name|^name$|^item$|^product|menu item|^items?$/), cQty = col(/items? sold|# ?sold|^sold|qty|quantity|units|count/), cSales = col(/net sales|gross sales|^sales|revenue|amount|total/), cCat = col(/categor/);
-  if (cName < 0 || cQty < 0) return [];
+  for (let hi = 0; hi < Math.min(rows.length, 60); hi++){
+    const h = rows[hi]; if (h.filter(Boolean).length < 2) continue;
+    const pick = (good, bad, prefer) => { let best = -1, bs = 0; h.forEach((c, i) => { if (!c || !good.test(c) || bad.test(c)) return; const sc = 1 + (prefer && prefer.test(c) ? 1 : 0); if (sc > bs){ bs = sc; best = i; } }); return best; };
+    const cName = pick(NAME_HDR, NAME_BAD, /item name|^name$|^item$|line item/i), cQty = pick(QTY_HDR, QTY_BAD, /items? sold|# ?sold|^qty|quantity/i);
+    if (cName < 0) continue;
+    const body = rows.slice(hi + 1, hi + 40).filter(r2 => r2[cName]);
+    if (body.length < 2) continue;
+    if (cQty >= 0 && body.filter(r2 => isFinite(parseFloat(String(r2[cQty]).replace(/[,\s]/g, "")))).length >= body.length * 0.6) return { hi, cName, cQty, perRow: false };
+    // Order-level exports: many rows, item names repeat, maybe no quantity column.
+    if (cQty < 0 && h.some(c => /order|date|time|receipt|ticket/i.test(c))) return { hi, cName, cQty: -1, perRow: true };
+  }
+  return null;
+}
+// Order-by-order exports: take the period from the earliest and latest order dates.
+function rangeFromDateColumn(rows, hi){
+  const h = rows[hi] || [], c = h.findIndex(x => /date|time|opened|closed|created/i.test(String(x || ""))); if (c < 0) return null;
+  let lo = null, hiD = null;
+  rows.slice(hi + 1).forEach(r2 => { const d = new Date(String(r2[c] || "").replace(/(\d)(st|nd|rd|th)/, "$1")); if (isNaN(d) || d.getFullYear() < 2000) return; if (!lo || d < lo) lo = d; if (!hiD || d > hiD) hiD = d; });
+  return lo && hiD ? { from: isoDay(lo), to: isoDay(hiD) } : null;
+}
+function salesFromRows(rows, map){
+  rows = rows.map(r2 => r2.map(c => String(c == null ? "" : c).trim()));
+  map = map || autoSalesMap(rows); if (!map) return [];
+  const h = rows[map.hi] || [], cCat = h.findIndex(c => /categor/i.test(c)), cSales = h.findIndex(c => /net sales|gross sales|^sales|revenue|amount|total/i.test(c));
   const num = v => { const x = parseFloat(String(v || "").replace(/[$,\s]/g, "")); return isFinite(x) ? x : null; };
   const agg = new Map();
-  rows.slice(hi + 1).forEach(r2 => {
-    const name = r2[cName], qty = num(r2[cQty]);
-    if (!name || qty == null || qty <= 0 || /^(total|totals|grand total|subtotal|all items|summary)$/i.test(name)) return;
+  rows.slice(map.hi + 1).forEach(r2 => {
+    const name = r2[map.cName]; const qty = map.perRow ? 1 : num(r2[map.cQty]);
+    if (!name || qty == null || qty <= 0 || /^(total|totals|grand total|subtotal|all items|summary|items? total)$/i.test(name)) return;
     const k = name.toLowerCase(); const e = agg.get(k) || { name, qty: 0, sales: 0, cat: cCat >= 0 ? r2[cCat] : "" };
-    e.qty += qty; e.sales += num(r2[cSales]) || 0; agg.set(k, e);
+    e.qty += qty; e.sales += cSales >= 0 ? (num(r2[cSales]) || 0) : 0; agg.set(k, e);
   });
   return [...agg.values()].sort((a, b) => b.qty - a.qty);
+}
+const colLetter = i => { let s2 = "", x = i + 1; while (x > 0){ const m0 = (x - 1) % 26; s2 = String.fromCharCode(65 + m0) + s2; x = Math.floor((x - 1) / 26); } return s2; };
+const salesSig = row => row.map(c => String(c || "").trim().toLowerCase()).filter(Boolean).join("|");
+// When the layout isn't recognized: show the file and let the person point at the two columns.
+function mapSalesColumns(sheets, from, to, fileName){
+  const r = R();
+  let si = Math.max(0, sheets.findIndex(sh => sh.rows.length > 1));
+  const sheetSel = sheets.length > 1 ? el("select",{class:"inp", "aria-label":"Tab"}, sheets.map((sh, i) => el("option",{value:i, text:sh.name || "Tab " + (i + 1)}))) : null;
+  const box = el("div");
+  const draw = () => {
+    const rows = sheets[si].rows;
+    // Header guess: the row with the most filled text cells near the top.
+    let hi = 0, bs = -1; rows.slice(0, 40).forEach((r2, i) => { const sc = r2.filter(c => c && isNaN(parseFloat(String(c).replace(/[$,]/g, "")))).length; if (sc > bs){ bs = sc; hi = i; } });
+    const width = Math.max(...rows.slice(hi, hi + 30).map(r2 => r2.length), 1);
+    const label = i => colLetter(i) + (rows[hi][i] ? " \u2013 " + String(rows[hi][i]).slice(0, 30) : "");
+    const hdrSel = el("select",{class:"inp", "aria-label":"Header row"}, rows.slice(0, 40).map((r2, i) => el("option",{value:i, text:"Row " + (i + 1) + ": " + r2.filter(Boolean).slice(0, 4).join(", ").slice(0, 60)})));
+    hdrSel.value = hi;
+    const nameSel = el("select",{class:"inp", "aria-label":"Item name column"}, [...Array(width).keys()].map(i => el("option",{value:i, text:label(i)})));
+    const qtySel = el("select",{class:"inp", "aria-label":"Quantity column"}, el("option",{value:"row", text:"Each row is one item sold"}), [...Array(width).keys()].map(i => el("option",{value:i, text:label(i)})));
+    const guessName = rows[hi].findIndex(c => c && NAME_HDR.test(c) && !NAME_BAD.test(c)); if (guessName >= 0) nameSel.value = guessName;
+    const guessQty = rows[hi].findIndex(c => c && QTY_HDR.test(c) && !QTY_BAD.test(c)); if (guessQty >= 0) qtySel.value = guessQty;
+    hdrSel.onchange = () => { hi = +hdrSel.value; draw2(); };
+    const prev = el("div");
+    const draw2 = () => {
+      const body = rows.slice(hi, hi + 7);
+      prev.replaceChildren(el("div",{class:"tw", style:"margin-top:10px"}, el("table",null,
+        el("thead",null, el("tr",null, [...Array(Math.min(width, 8)).keys()].map(i => el("th",{text:colLetter(i)})))),
+        el("tbody",null, body.map((r2, ri) => el("tr",{style:"cursor:default" + (ri === 0 ? ";font-weight:700" : "")}, [...Array(Math.min(width, 8)).keys()].map(i => el("td",{text:String(r2[i] == null ? "" : r2[i]).slice(0, 28)}))))))));
+    };
+    draw2();
+    const go2 = el("button",{class:"btn primary", text:"Use these columns", onclick:() => {
+      const map = { hi: +hdrSel.value, cName: +nameSel.value, cQty: qtySel.value === "row" ? -1 : +qtySel.value, perRow: qtySel.value === "row" };
+      const lines = salesFromRows(rows, map);
+      if (!lines.length) return toast("No items found with those columns. Try another column for the quantity.");
+      r.salesMaps = r.salesMaps || {}; r.salesMaps[salesSig(rows[map.hi])] = { cName: map.cName, cQty: map.cQty, perRow: map.perRow }; save();
+      const found = rangeFromRows(rows) || (map.perRow ? rangeFromDateColumn(rows, map.hi) : null);
+      reviewSales(lines, found ? found.from : from, found ? found.to : to, !!found, fileName);
+    }});
+    box.replaceChildren(
+      sheetSel ? fld("Tab", sheetSel) : el("span"),
+      fld("Which row has the column headings?", hdrSel),
+      el("div",{class:"g2"}, fld("Item name column", nameSel), fld("Quantity sold column", qtySel, "Pick \u201cEach row is one item sold\u201d for order-by-order exports")),
+      prev, el("div",{class:"row", style:"justify-content:flex-end;margin-top:12px"}, go2));
+  };
+  if (sheetSel) sheetSel.onchange = () => { si = +sheetSel.value; draw(); };
+  draw();
+  openDlg("Which columns are which?", [el("p",{class:"lead", text:"This report's layout is new to the app. Point at the item name and quantity columns once; it remembers them for next time."}), box], []);
 }
 function openSalesImport(){
   const r = R();
@@ -2905,12 +2974,21 @@ function openSalesImport(){
     const f = file.files && file.files[0]; file.value = ""; if (!f) return;
     pick.hidden = true; status.replaceChildren(el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Reading " + f.name + "…"}));
     try {
-      let rows;
-      if (/\.xlsx?$/i.test(f.name)){ await loadXLSX(); const sheets = readWorkbook(new Uint8Array(await f.arrayBuffer())); rows = (sheets.find(sh => salesFromRows(sh.rows.map(r2 => r2.map(c => cTxt(c)))).length) || sheets[0]).rows.map(r2 => r2.map(c => cTxt(c))); }
-      else rows = csvRows(await f.text());
-      const lines = salesFromRows(rows);
-      if (!lines.length) throw new Error("No item names with quantities were found. In Clover, export the Item sales report (not the Orders list), then upload that file.");
-      const found = rangeFromRows(rows);
+      let sheets;
+      if (/\.xlsx?$/i.test(f.name)){ await loadXLSX(); sheets = readWorkbook(new Uint8Array(await f.arrayBuffer())).map(sh => ({ name: sh.name, rows: sh.rows.map(r2 => r2.map(c => cTxt(c))) })); }
+      else sheets = [{ name: f.name, rows: csvRows(await f.text()) }];
+      sheets = sheets.filter(sh => sh.rows.some(r2 => r2.some(Boolean)));
+      if (!sheets.length) throw new Error("That file looks empty. Export the report again and upload the new file.");
+      // A layout you've mapped before, then automatic recognition, on every tab.
+      const r0 = R(); let hit = null;
+      for (const sh of sheets){
+        for (let hi = 0; hi < Math.min(sh.rows.length, 60) && !hit; hi++){ const memo = (r0.salesMaps || {})[salesSig(sh.rows[hi])]; if (memo) hit = { sh, map: Object.assign({ hi }, memo) }; }
+        if (!hit){ const map = autoSalesMap(sh.rows); if (map) hit = { sh, map }; }
+        if (hit) break;
+      }
+      const lines = hit ? salesFromRows(hit.sh.rows, hit.map) : [];
+      if (!lines.length){ mapSalesColumns(sheets, fromIn.value, toIn.value, f.name); return; }
+      const found = rangeFromRows(hit.sh.rows) || (hit.map.perRow ? rangeFromDateColumn(hit.sh.rows, hit.map.hi) : null);
       reviewSales(lines, found ? found.from : fromIn.value, found ? found.to : toIn.value, !!found, f.name);
     } catch(e){
       pick.hidden = false;
