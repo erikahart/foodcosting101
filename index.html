@@ -476,7 +476,8 @@ const $0 = v => (v < 0 ? "-$" : "$") + Math.round(Math.abs(v)).toLocaleString();
 const pc = v => isFinite(v) ? Math.round(v * 100) + "%" : "—";
 const uid = p => p + Math.random().toString(36).slice(2, 9);
 const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); };
-const nice = d => { try { return new Date(d + "T12:00:00").toLocaleDateString(undefined, { month:"short", day:"numeric" }); } catch(e){ return d; } };
+// Show the year only when it isn't this year ("Jun 1, 2025").
+const nice = d => { try { const dt = new Date(d + "T12:00:00"); return dt.toLocaleDateString(undefined, dt.getFullYear() === new Date().getFullYear() ? { month:"short", day:"numeric" } : { month:"short", day:"numeric", year:"numeric" }); } catch(e){ return d; } };
 function toast(m){ const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 1800); }
 
 /* ================= Units ================= */
@@ -1537,7 +1538,7 @@ function openSupply(id){
   const supList = el("datalist",{id:"vendor-list"}, [...new Set((r.vendors || []).map(v => v.name).concat(Object.values(r.supplies).map(x => x.supplier)).filter(Boolean))].map(v2 => el("option",{value:v2})));
   function calc(){ const c = supCostPerUnit(s), used = usedBy(s.id); out.replaceChildren(el("b",{text: c != null ? "$" + c.toFixed(4) + " per usable " + s.unit : "Enter case price and size"}), used.length ? "Used in " + used.map(i => i.name).join(", ") + "." : "Not in any recipe yet."); }
   calc();
-  const hist = (s.history || []).slice(-6).reverse().map(h => nice(h.date) + " " + $$(h.price)).join("   ");
+  const hist = (s.history || []).slice().sort((p, q) => hkey(p).localeCompare(hkey(q))).slice(-6).reverse().map(h => ((h.doc || h.src === "manual") ? nice(h.date) : "From spreadsheet") + " " + $$(h.price)).join(", ");
   openDlg(isNew ? "New supply" : supName(s), [
     el("div",{class:"g2"}, fld("Display name", titleIn, "What you and your cooks see"), fld("Name on invoices", inp("name"), "Used to match invoices. Leave it as the supplier writes it.")),
     fld("Supplier", supIn), supList,
@@ -1547,7 +1548,7 @@ function openSupply(id){
     fld("Category", catSel), catList,
     out, hist ? el("p",{class:"mini", text:"Price history: " + hist}) : null
   ], [ !isNew ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (confirm("Delete " + s.name + "?")){ Object.values(r.items).forEach(i => i.lines.forEach(l => { if (l.s === s.id) { l.label = s.name; l.s = null; } })); delete r.supplies[s.id]; save(); dlg.close(); } }}) : el("span"),
-       el("button",{class:"btn primary", text:"Save", onclick:() => { if (!s.name.trim()) return toast("Give it a name"); if (!s.cat) s.cat = guessCat(s.name); const old = r.supplies[s.id]; if (!old || old.price !== s.price){ s.history = (s.history || []).concat([{ date: today(), price: s.price }]); } r.supplies[s.id] = s; const linked = isNew ? linkUnpriced(r, [s.id]) : 0; save(); dlg.close(); toast(linked ? "Saved and linked to " + linked + (linked === 1 ? " recipe line" : " recipe lines") : "Saved"); }}) ]);
+       el("button",{class:"btn primary", text:"Save", onclick:() => { if (!s.name.trim()) return toast("Give it a name"); if (!s.cat) s.cat = guessCat(s.name); const old = r.supplies[s.id]; if (!old || old.price !== s.price){ s.history = (s.history || []).concat([{ date: today(), price: s.price, src:"manual" }]); } r.supplies[s.id] = s; const linked = isNew ? linkUnpriced(r, [s.id]) : 0; save(); dlg.close(); toast(linked ? "Saved and linked to " + linked + (linked === 1 ? " recipe line" : " recipe lines") : "Saved"); }}) ]);
 }
 // Keg yields allow for foam and line loss; packaged drinks are 100%.
 const PACKS = [["\u00bd bbl keg", 1984, 0.9], ["\u00bc bbl keg", 992, 0.9], ["\u2159 bbl keg", 661, 0.9], ["24 \u00d7 12 oz", 288, 1], ["24 \u00d7 16 oz", 384, 1], ["12 \u00d7 750 ml", 304.3, 1], ["6 \u00d7 1.75 L", 355, 1]];
@@ -1563,17 +1564,64 @@ function priceForSupply(l, su){
   if (!su || !(l.price > 0)) return out;
   const pk = parsePack(l.pack) || parsePack(l.desc);
   const a = pk && UNITS[pk.unit], b = UNITS[su.unit];
+  const opts = [{ p: l.price, txt: "" }];
+  let primary = opts[0];
   if (pk && a && b && a[0] === b[0] && n(su.caseQty) > 0){
     const theirs = pk.size * a[1] / b[1];                       // their case, in your units
     if (theirs > 0 && Math.abs(theirs - su.caseQty) / su.caseQty > 0.02){
-      out.price = Math.round(l.price * su.caseQty / theirs * 100) / 100; out.converted = true;
-      out.packText = "$" + l.price.toFixed(2) + " for " + (Math.round(theirs * 100) / 100) + " " + su.unit + " = " + $$(out.price) + " for your " + su.caseQty + " " + su.unit;
+      const p = Math.round(l.price * su.caseQty / theirs * 100) / 100;
+      primary = { p, txt: "$" + l.price.toFixed(2) + " for " + (Math.round(theirs * 100) / 100) + " " + su.unit + " = " + $$(p) + " for your " + su.caseQty + " " + su.unit };
+      opts.push(primary);
+      opts[0].txt = "The listed price lines up with your case as is";
     }
   }
-  // A change this big is usually a pack-size or per-pound mix-up rather than a real price move.
-  // Converted prices are understood, so only extreme swings are held; unconverted ones get a tighter check.
-  if (su.price > 0){ const ch = (out.price - su.price) / su.price; if (out.converted ? (ch > 1.5 || ch < -0.6) : (ch > 0.6 || ch < -0.45)) out.check = true; }
+  // Catch-weight items (bacon, wings, deli meat) are often listed as CASE but priced per pound.
+  if (pk && pk.unit === "oz" && pk.size >= 32){
+    const lbs = Math.round(pk.size / 16 * 100) / 100, raw = Math.round(l.price * lbs * 100) / 100;
+    opts.push({ p: raw, txt: "Priced per lb: $" + l.price.toFixed(2) + " \u00d7 " + lbs + " lb = " + $$(raw) });
+    if (b && b[0] === "w" && n(su.caseQty) > 0){ const sc = Math.round(raw * su.caseQty / (pk.size / b[1]) * 100) / 100; opts.push({ p: sc, txt: "Priced per lb, scaled to your case = " + $$(sc) }); }
+  }
+  const pick = o => { out.price = o.p; out.converted = !!o.txt; out.packText = o.txt; };
+  pick(primary);
+  if (!(su.price > 0)) return out;
+  const chg = p => (p - su.price) / su.price;
+  const plausible = (o, wide) => { const c = chg(o.p); return wide ? (c <= 1.5 && c >= -0.6) : (c <= 0.6 && c >= -0.45); };
+  if (plausible(primary, false)) return out;
+  // The first reading looks like a mix-up: use another reading that lands close to today's price.
+  const alt = opts.filter(o => o !== primary && Math.abs(chg(o.p)) <= 0.25).sort((x, y) => Math.abs(chg(x.p)) - Math.abs(chg(y.p)))[0];
+  if (alt){ pick(alt); return out; }
+  if (!(primary.txt && plausible(primary, true))) out.check = true;
   return out;
+}
+// Small typos and truncation: "shreded" ~ "shredded", "chedda" ~ "cheddar".
+function nearWord(x, y){
+  if (wordHit(x, y)) return true;
+  if (x.length < 5 || y.length < 5 || Math.abs(x.length - y.length) > 1) return false;
+  let i = 0, j = 0, edits = 0;
+  while (i < x.length && j < y.length){ if (x[i] === y[j]){ i++; j++; continue; } if (++edits > 1) return false; if (x.length > y.length) i++; else if (y.length > x.length) j++; else { i++; j++; } }
+  return edits + (x.length - i) + (y.length - j) <= 1;
+}
+function matchPriceSheet(d, r){
+  const sup = (d.supplier || "").trim().toLowerCase();
+  const pool = Object.values(r.supplies).filter(su => !su.supplier || su.supplier.trim().toLowerCase() === sup);
+  const taken = new Set(), cands = [];
+  d.lines.forEach((l, li) => {
+    if (l.match !== undefined) { if (l.match) taken.add(l.match); return; }
+    if (l.code){ const m0 = Object.values(r.supplies).find(s2 => s2.code && String(s2.code).trim() === String(l.code).trim()); if (m0){ l.match = m0.id; l.how = "code"; taken.add(m0.id); return; } }
+    const dw = [...new Set(words(l.desc))];
+    pool.forEach(su => {
+      const sw = [...new Set(words(su.name).concat(words(supName(su))))]; if (!sw.length || !dw.length) return;
+      const nameW = [...new Set(words(supName(su)))].length ? [...new Set(words(supName(su)))] : sw;
+      const cover = nameW.filter(x => dw.some(y => nearWord(x, y))).length / nameW.length;
+      const exact = su.name.trim().toLowerCase() === l.desc.trim().toLowerCase() || supName(su).toLowerCase() === l.desc.trim().toLowerCase();
+      const need = nameW.length >= 3 ? 0.66 : 1;
+      if (exact || cover >= need) cands.push({ li, su, sc: (exact ? 3 : cover) - dw.length * 0.01 });
+    });
+  });
+  cands.sort((x, y) => y.sc - x.sc);
+  const doneLine = new Set();
+  cands.forEach(c => { if (doneLine.has(c.li) || taken.has(c.su.id)) return; const l = d.lines[c.li]; l.match = c.su.id; l.how = c.sc >= 3 ? "name" : "similar"; doneLine.add(c.li); taken.add(c.su.id); });
+  d.lines.forEach(l => { if (l.match === undefined) l.match = null; });
 }
 function strictMatch(l, r){
   const all = Object.values(r.supplies);
@@ -1586,7 +1634,8 @@ function strictMatch(l, r){
 function openDoc(id){
   const r = R(), d = r.inbox.find(x => x.id === id); if (!d) return;
   const isPL = d.kind === "pricelist";
-  d.lines.forEach(l => { if (l.match === undefined) l.match = isPL ? strictMatch(l, r) : (matchLine(l, r) || (CHARGE_RE.test(l.desc) ? null : "__new")); });
+  if (isPL) matchPriceSheet(d, r);
+  else d.lines.forEach(l => { if (l.match === undefined) l.match = matchLine(l, r) || (CHARGE_RE.test(l.desc) ? null : "__new"); });
   if (d.status === "new") d.lines.forEach(l => { if (l.hold === undefined && l.match && r.supplies[l.match]) l.hold = priceForSupply(l, r.supplies[l.match]).check; });
   const opts = Object.values(r.supplies).sort((a,b) => a.name.localeCompare(b.name));
   const body = [el("p",{class:"lead", text: d.supplier + ", " + nice(d.date) + ", via " + d.source + (d.kind === "order" ? ". Arriving " + (d.eta || "soon") + ". The invoice will follow when it's delivered." : ".")})];
@@ -1594,7 +1643,7 @@ function openDoc(id){
   const twin = d.status === "new" ? findDuplicateInvoice(r, d) : null;
   if (twin) body.push(el("div",{class:"msg bad"}, "This looks like invoice " + twin.number + " from " + nice(twin.date) + (twin.status === "approved" ? ", which is already approved" : ", already in your inbox") + ". Approving it again won't double-count prices, but you can delete this copy. ",
     el("button",{class:"linkbtn", type:"button", text:"Open the earlier one", onclick:() => openDoc(twin.id)})));
-  const newer = d.status === "new" ? d.lines.filter(l => { const su = l.match && l.match !== "__new" && r.supplies[l.match]; return su && (su.history || []).some(x => (x.date || "") > (d.date || "")); }).length : 0;
+  const newer = d.status === "new" ? d.lines.filter(l => { const su = l.match && l.match !== "__new" && r.supplies[l.match]; return su && (su.history || []).some(x => hkey(x) > (d.date || "")); }).length : 0;
   if (newer) body.push(el("div",{class:"msg good", text:(isPL ? "These prices are dated " : "This invoice is dated ") + nice(d.date) + ", but " + newer + (newer === 1 ? " item has" : " items have") + " a newer price already. " + (newer === 1 ? "It keeps" : "They keep") + " the newer price; this one goes into the price history."}));
   const tb = el("tbody");
   let shownLines = d.lines;
@@ -1616,7 +1665,7 @@ function openDoc(id){
     sel.onchange = () => { l.match = sel.value || null; save(); openDoc(id); };
     const i = d.lines.indexOf(l), rep2 = l._k && lastIdx[l._k] !== firstIdx[l._k];
     const repNote = !rep2 ? null : lastIdx[l._k] === i ? "Repeated item: this last line's price is used" : "Repeated item: line " + (lastIdx[l._k] + 1) + "'s price is used instead";
-    tb.append(el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:l.desc}), el("div",{class:"mini", text:l.code ? "#" + l.code : ""}), repNote ? el("div",{class:"mini", style:"color:var(--warn);font-weight:700", text:repNote}) : null), el("td",{class:"num", text: isPL ? (l.pack || "\u2014") : l.qty}), el("td",{class:"num", text:$$(l.price)}),
+    tb.append(el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:l.desc}), el("div",{class:"mini", text:[l.code ? "#" + l.code : "", isPL && l.how === "similar" && l.match ? "similar name, check it" : ""].filter(Boolean).join(", ")}), repNote ? el("div",{class:"mini", style:"color:var(--warn);font-weight:700", text:repNote}) : null), el("td",{class:"num", text: isPL ? (l.pack || "\u2014") : l.qty}), el("td",{class:"num", text:$$(l.price)}),
       el("td",null, sel), el("td",{class:"num"}, ch != null && Math.abs(ch) >= 0.005 ? el("span",{class: ch > 0 ? "up" : "down", text:(ch > 0 ? "+" : "") + pc(ch)}) : su ? "same" : "—",
         conv.converted ? el("div",{class:"mini", style:"white-space:normal;max-width:220px;margin-left:auto", text:conv.packText}) : null,
         conv.check ? el("div",{class:"mini", style:"color:var(--warn);font-weight:600;white-space:normal;margin-top:4px"}, l.hold ? "Held: check the pack size first. " : "Will update. ",
@@ -1630,11 +1679,13 @@ function openDoc(id){
 }
 // Record a price in a supply's history (kept in date order) and set the current price
 // to the most recent one. An older invoice never overwrites a newer price.
+// Prices from documents or typed by hand carry real dates; spreadsheet imports don't, so they sort first.
+const hkey = x => (x.doc || x.src === "manual") ? (x.date || "") : "0000-" + (x.date || "");
 function applyPrice(su, price, date, docId){
-  const h = su.history = (su.history || []).slice();
+  const h = su.history = (su.history || []).slice().sort((p, q) => hkey(p).localeCompare(hkey(q)));
   if (docId && h.some(x => x.doc === docId)) return { changed:false, older:false, skipped:true };      // this invoice already counted
   if (h.some(x => x.date === date && Math.abs(x.price - price) < 0.005)) return { changed:false, older:false, skipped:true };   // same price, same day
-  let at = h.length; while (at > 0 && (h[at - 1].date || "") > (date || "")) at--;
+  let at = h.length; while (at > 0 && hkey(h[at - 1]) > (date || "")) at--;
   h.splice(at, 0, { date, price, doc: docId || null });
   const older = at < h.length - 1;
   const latest = h[h.length - 1].price, changed = su.price !== latest;
@@ -1767,6 +1818,18 @@ const PRICE_PROMPT = 'This is a supplier price sheet or order guide for a restau
 const READ_PROMPT = 'Read this supplier invoice for a restaurant or bar. Return ONLY JSON, no other text: {"supplier": string|null, "invoiceNumber": string|null, "invoiceDate": "YYYY-MM-DD"|null, "lines": [{"code": string|null, "desc": string, "qty": number, "pack": string|null, "price": number|null, "total": number|null}]}. "price" is the price for ONE case or unit as billed. "pack" is the pack size exactly as printed, such as "6/5 LB", "24/12 OZ" or "1/2 BBL". Include every product line, and also deposits and fees as their own lines. Leave out subtotal and tax.';
 async function readInvoiceFile(f, kind){
   const isPdf = f.type === "application/pdf" || /\.pdf$/i.test(f.name);
+  if (isPdf){
+    let lines = null;
+    try { lines = await pdfLines(f); } catch(e){ lines = null; }
+    if (lines && lines.join("").length > 200){                  // a text PDF, not a scan
+      if (kind === "pricelist"){
+        const rows = parsePriceReport(lines);
+        if (rows.length >= 5) return { lines: rows, invoiceDate: effectiveDateFrom(lines), reader: "built-in" };
+      }
+      const viaAI = await aiTextChunks(lines, kind);
+      if (viaAI.lines.length) return Object.assign(viaAI, { reader: "ai-text", invoiceDate: viaAI.invoiceDate || effectiveDateFrom(lines) });
+    }
+  }
   // Inside Claude's preview: use Claude directly (photos only). On the website: the site's AI function.
   try { if (window.claude && window.claude.use){ const smp = await window.claude.use("sample"); if (smp){ if (isPdf) throw { code:"preview_pdf" }; return await smp.json(kind === "pricelist" ? PRICE_PROMPT : READ_PROMPT, { images:[await shrinkImage(f)] }); } } } catch(e){ if (e && e.code === "preview_pdf") throw e; }
   const blob = isPdf ? f : await shrinkImage(f);
@@ -1777,8 +1840,92 @@ async function readInvoiceFile(f, kind){
   if (res.status === 401) throw { code:"signin" };
   if (res.status === 404 || res.status === 501) throw { code:"unavailable" };
   if (!res.ok) throw { code:"error" };
-  const t = ((await res.json()).text || "").replace(/```json|```/g, "");
-  return JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
+  return parseLoose((await res.json()).text || "");
+}
+// Parse an AI answer; if it was cut off mid-list, keep every complete line instead of failing.
+function parseLoose(text){
+  const t = String(text).replace(/```json|```/g, "");
+  try { return JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1)); } catch(e){}
+  const out = { lines: [] };
+  const head = t.match(/"invoiceDate"\s*:\s*"(\d{4}-\d{2}-\d{2})"/); if (head) out.invoiceDate = head[1];
+  const num = t.match(/"invoiceNumber"\s*:\s*"([^"]+)"/); if (num) out.invoiceNumber = num[1];
+  (t.match(/\{[^{}]*"desc"[^{}]*\}/g) || []).forEach(m0 => { try { out.lines.push(JSON.parse(m0)); } catch(e){} });
+  if (!out.lines.length) throw { code:"unreadable" };
+  return out;
+}
+/* ---- Reading text PDFs in the browser ---- */
+const PDFJS_URL = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js", PDFJS_WORKER = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+function loadPdfJs(){ return window.pdfjsLib ? Promise.resolve() : new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = PDFJS_URL; sc.onload = () => { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; res(); }; sc.onerror = () => rej({ code:"lib" }); document.head.append(sc); }); }
+// Rebuild the lines of each page from positioned text; big horizontal gaps become double spaces (column breaks).
+async function pdfLines(f){
+  await loadPdfJs();
+  const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
+  const lines = [];
+  for (let p = 1; p <= Math.min(pdf.numPages, 60); p++){
+    const tc = await (await pdf.getPage(p)).getTextContent();
+    const rows = [];
+    tc.items.filter(it => it.str && it.str.trim()).forEach(it => {
+      const y = it.transform[5], x = it.transform[4];
+      let row = rows.find(r2 => Math.abs(r2.y - y) < 3); if (!row){ row = { y, items: [] }; rows.push(row); }
+      row.items.push({ x, w: it.width || it.str.length * 4, s: it.str });
+    });
+    rows.sort((a, b) => b.y - a.y).forEach(row => {
+      row.items.sort((a, b) => a.x - b.x);
+      let line = "", end = null;
+      row.items.forEach(it => { if (end != null){ const gap = it.x - end; line += gap > 12 ? "   " : gap > 1.5 ? " " : ""; } line += it.s; end = it.x + it.w; });
+      lines.push(line.replace(/\s+$/, ""));
+    });
+  }
+  return lines;
+}
+// Price reports in columns: [Y/N] ITEM# DESCRIPTION PACK CLASS UNIT PRICE
+const PACK_TOK = /^(\d+\/[\d.]+\S*|\d+(\.\d+)?(#|oz|z|lb|lbs|gal|gl|g|qt|pt|ct|dz|ea|pk|l|ml|kg)[a-z.]*|\d+#c|\d+\/[a-z]+)$/i;
+const UOM_RE = "CASE|CS|EACH|EA|LB|LBS|BOX|BX|BAG|BG|DZ|DOZ|GAL|PK|PACK|CT|PC|BTL|JAR|TUB|PAIL";
+function parsePriceReport(lines){
+  const re = new RegExp("^\\s*(?:[YN]\\s+)?([A-Z0-9][A-Z0-9-]{2,})\\s+(.+?)\\s+(" + UOM_RE + ")\\s+\\$?(\\d[\\d,]*\\.\\d{2})\\s*$", "i");
+  const out = [];
+  lines.forEach(raw => {
+    const m0 = raw.match(re); if (!m0) return;
+    const code = m0[1]; if (!/\d/.test(code)) return;
+    const middle = m0[2].trim(), price = parseFloat(m0[4].replace(/,/g, ""));
+    // Prefer the column layout (2+ spaces) when present.
+    const segs = middle.split(/\s{2,}/).map(x => x.trim()).filter(Boolean);
+    let desc = middle, pack = "";
+    if (segs.length >= 2 && PACK_TOK.test(segs[1].split(/\s+/)[0])){ desc = segs[0]; pack = segs[1].split(/\s+/)[0]; }
+    else {
+      const toks = middle.split(/\s+/);
+      let pi = -1;
+      toks.forEach((t2, i) => { if (i >= 1 && (PACK_TOK.test(t2) || (/^\d+$/.test(t2) && i >= 2))) pi = i; });
+      if (pi > 0){
+        desc = toks.slice(0, pi).join(" "); pack = toks[pi];
+        if (/^(oz|lb|lbs|gallon|gal|ct)$/i.test(toks[pi + 1] || "")) pack += " " + toks[pi + 1];
+      }
+    }
+    if (!/[A-Za-z]{2}/.test(desc) || !(price > 0)) return;
+    out.push({ code, desc: desc.replace(/\s+/g, " ").trim(), pack, price, uom: m0[3].toUpperCase() });
+  });
+  return out;
+}
+function effectiveDateFrom(lines){
+  const txt = lines.slice(0, 40).join(" ");
+  const m0 = txt.match(/(?:effective|eff\.?|valid from|prices? as of)\s*:?\s*(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i);
+  if (!m0) return null;
+  const y = m0[3].length === 2 ? "20" + m0[3] : m0[3];
+  return y + "-" + m0[1].padStart(2, "0") + "-" + m0[2].padStart(2, "0");
+}
+// Send long text to AI in small pieces so answers never get cut off.
+async function aiTextChunks(lines, kind){
+  const body = lines.filter(l => /\d/.test(l) && /[A-Za-z]/.test(l));
+  const head = lines.slice(0, 15).join("\n");
+  const chunks = []; for (let k = 0; k < body.length; k += 45) chunks.push(body.slice(k, k + 45));
+  const prompt = (kind === "pricelist" ? PRICE_PROMPT : READ_PROMPT).replace("Read this", "Read this text from a").replace("This is a", "This is text from a");
+  const results = [];
+  for (let k = 0; k < chunks.length; k += 3){
+    const batch = await Promise.all(chunks.slice(k, k + 3).map(c => aiJSON(prompt + "\n\nDocument header:\n" + head + "\n\nLines:\n" + c.join("\n")).catch(e => { if (e && (e.code === "unavailable" || e.code === "signin")) throw e; return { lines: [] }; })));
+    results.push(...batch);
+  }
+  const first = results.find(x => x.invoiceDate || x.invoiceNumber) || {};
+  return { invoiceNumber: first.invoiceNumber || null, invoiceDate: first.invoiceDate || null, lines: results.flatMap(x => x.lines || []) };
 }
 function openUpload(supplier){
   const r = R(); r.vendors = r.vendors || [];
@@ -1810,7 +1957,7 @@ function openUpload(supplier){
       else d = await readInvoiceFile(f, kind);
     } catch(e){
       pick.hidden = false;
-      const m2 = e && e.code === "preview_pdf" ? "In this preview only photos can be read. PDFs work on your website." : e && e.code === "too_big" ? "That file is over 4 MB. Try a smaller photo or scan." : aiProblem(e) || "Couldn't read that one. Try a clearer, flatter photo in good light.";
+      const m2 = e && e.code === "preview_pdf" ? "In this preview only photos can be read. PDFs work on your website." : e && e.code === "too_big" ? "That file is over 4 MB. Try a smaller photo or scan." : aiProblem(e) || (/\.pdf$/i.test(f.name) ? "Couldn't read the items in that PDF. If it came from a supplier's website, try downloading it as Excel or CSV instead." : "Couldn't read that one. Try a clearer, flatter photo in good light.");
       status.replaceChildren(el("div",{class:"msg bad", text:m2})); return;
     }
     const lines = (d.lines || []).map(l => ({ code: String(l.code || ""), desc: String(l.desc || "").trim(), qty: n(l.qty) || 1, price: n(l.price) != null ? n(l.price) : (n(l.total) != null ? n(l.total) / (n(l.qty) || 1) : null), pack: l.pack || "" })).filter(l => l.desc && l.price != null);
@@ -1847,8 +1994,7 @@ async function aiJSON(prompt, f){
   if (res.status === 401) throw { code:"signin" };
   if (res.status === 404 || res.status === 501) throw { code:"unavailable" };
   if (!res.ok) throw { code:"error" };
-  const t = ((await res.json()).text || "").replace(/```json|```/g, "");
-  return JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
+  return parseLoose((await res.json()).text || "");
 }
 const MENU_PROMPT = 'Read this restaurant or bar menu. Return ONLY JSON: {"items":[{"name": string, "section": string, "price": number|null, "desc": string}]}. "section" is the menu heading the item sits under (such as Appetizers, Burgers, Dinners, Drinks). If an item has several sizes or prices, make one item per size, such as "Wings (6)" and "Wings (12)". Keep "desc" under 15 words. Leave out add-ons and extras like "add cheese $1". Keep the JSON compact.';
 function menuFromCSV(text){
