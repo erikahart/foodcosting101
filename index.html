@@ -569,11 +569,11 @@ function usedBy(sid, r = R()){ return Object.values(r.items).filter(i => (i.line
 /* ================= Profit coach (rules engine) ================= */
 function insights(r = R()){
   const out = [], per = r.period, eng = engineering(r);
-  const noRecipe = Object.values(r.items).filter(it => !(it.lines || []).length);
+  const noRecipe = Object.values(r.items).filter(it => !(it.lines || []).length), missingItems = [];
   if (noRecipe.length) out.push({ sev:"warn", tag:"Set up", title: noRecipe.length + (noRecipe.length === 1 ? " menu item has" : " menu items have") + " no recipe yet", text:"The coach can't judge an item's price until it knows what goes on the plate. Start with your best sellers: " + noRecipe.slice().sort((a, b) => (n(b.sold) || 0) - (n(a.sold) || 0)).slice(0, 3).map(i => i.name).join(", ") + ".", impact:null, score: 70, goMenu: "norecipe" });
   Object.values(r.items).forEach(it => {
     const s = stats(it, r), sold = n(it.sold) || 0, cls = eng.cls[it.id];
-    if (s.status === "missing") out.push({ sev:"warn", tag:"Cost is incomplete", title: it.name + " is missing " + s.missing + (s.missing === 1 ? " cost" : " costs"), text:"Its real cost is higher than shown, so every number for this item is too rosy. Link the missing part to a supply.", impact:null, item:it.id, score: 50 });
+    if (s.status === "missing") missingItems.push(it);
     if (s.status === "bad"){
       const gap = s.suggested - s.price;
       const lcs = (it.lines || []).map(l => ({ l, c: lineCost(l, r) || 0 }));
@@ -587,6 +587,7 @@ function insights(r = R()){
     if (cls === "Dog") out.push({ sev:"warn", tag:"Rethink", title: it.name + " sells little and earns little", text:"Rework it with cheaper parts, bundle it, or take it off to simplify prep and ordering.", impact:null, item:it.id, score: 40 });
     if (cls === "Star" && s.status === "good") out.push({ sev:"good", tag:"Star", title: it.name + " is a star", text:"Popular and profitable. Keep the recipe and price steady and give it the best spot on the menu.", impact: s.profit * sold, impactLabel:"profit per " + per, item:it.id, score: 10 });
   });
+  if (missingItems.length) out.push({ sev:"warn", tag:"Costs incomplete", title: missingItems.length + (missingItems.length === 1 ? " item is" : " items are") + " missing ingredient costs", text:"Their ingredients aren't linked to supplies yet, so their numbers are too rosy. Linking takes one click and you check the matches.", impact:null, score: 75, linkAll: true });
   Object.values(r.supplies).forEach(su => {
     const h = su.history || []; if (h.length < 2) return;
     const a = h[h.length-2].price, b = h[h.length-1].price, ch = (b - a) / a; if (ch <= 0.05) return;
@@ -666,6 +667,7 @@ function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); 
 /* ================= Pages ================= */
 function insightCard(ins, compact){
   const acts = el("div",{class:"row acts"});
+  if (ins.linkAll) acts.append(el("button",{class:"btn primary", text:"Link ingredients to supplies", onclick:() => openLinkIngredients()}));
   if (ins.goMenu) acts.append(el("button",{class:"btn primary", text:"Show those items", onclick:() => { MV.status = ins.goMenu; MV.cat = "all"; go("menu"); }}));
   if (ins.item) acts.append(el("button",{class:"btn quiet", text:"Open recipe", onclick:() => openRecipe(ins.item)}));
   if (ins.item && ins.sev === "bad" && ins.tag === "Losing margin") acts.append(el("button",{class:"btn primary", text:"Apply suggested price", onclick:() => { const it = R().items[ins.item]; it.price = stats(it).suggested; save(); render(); toast("Price updated"); }}));
@@ -736,6 +738,10 @@ function menu(m){
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Menu & recipes"}), el("p",{class:"lead", text:"Tap an item to edit its recipe. Costs update when supplier prices change."})),
     el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn quiet", text:"Import menu", onclick:() => openMenuImport()}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)}))));
   const all = Object.values(r.items);
+  const unpricedNames = unpricedGroups(r).length;
+  if (unpricedNames && Object.keys(r.supplies).length) m.append(el("div",{class:"card", style:"margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between"},
+    el("div",{style:"flex:1 1 280px"}, el("b",{text: unpricedNames + (unpricedNames === 1 ? " ingredient isn't" : " ingredients aren't") + " linked to a supply yet,"}), " so those recipes can't be costed. Match them to your supplies automatically, then check the matches."),
+    el("button",{class:"btn primary", text:"Link ingredients to supplies", onclick:() => openLinkIngredients()})));
   if (!all.length){ m.append(el("div",{class:"card empty", text:"No recipes yet. Already keep costs in a spreadsheet? Tap \u201cImport spreadsheet\u201d. Otherwise \u201cImport menu\u201d brings in your menu from a photo or PDF."})); return; }
   const order = sectionOrder(r);
   if (MV.cat !== "all" && !order.includes(MV.cat)) MV.cat = "all";
@@ -796,9 +802,9 @@ function menu(m){
         el("td",{onclick: e => e.stopPropagation()}, cb),
         el("td",{style:"white-space:normal"}, el("b",{text:it.name}), MV.cat === "all" && MV.sort !== "menu" ? el("div",{class:"mini", text:it.section}) : null),
         el("td",{class:"num", text: s2.price ? $$(s2.price) : "\u2014"}),
-        el("td",{class:"num c-plate"}, none ? dash() : $$(s2.plate)),
-        el("td",{class:"num"}, none || !s2.price ? dash() : pc(s2.fc)),
-        el("td",{class:"num c-prof"}, none ? dash() : $$(s2.profit)),
+        el("td",{class:"num c-plate"}, none || (s2.missing && !(s2.plate > 0)) ? dash() : s2.missing ? el("span",{title:"Plus " + s2.missing + " ingredient(s) not priced yet"}, $$(s2.plate) + "+") : $$(s2.plate)),
+        el("td",{class:"num"}, none || !s2.price || s2.missing ? dash() : pc(s2.fc)),
+        el("td",{class:"num c-prof"}, none || s2.missing ? dash() : $$(s2.profit)),
         el("td",{class:"num c-sug"}, s2.status === "bad" || s2.status === "warn" ? $$(s2.suggested) : dash()),
         el("td",{class:"num c-sold"}, n(it.sold) || dash()),
         el("td",null, el("span",{class:"pill " + st[1], text:st[0]})),
@@ -1692,6 +1698,7 @@ function analyzeSheets(sheets){
     // Summary tabs mostly repeat other tabs (column A is formulas pointing elsewhere): skip them.
     const aCells = body.map(r2 => r2[0]).filter(c => c && (c.v != null || c.f));
     const refsElsewhere = aCells.filter(c => c.f && /!/.test(c.f)).length;
+    if (/master|summary|overview|dashboard|totals|recap/i.test(sh.name)){ out.role = "summary"; out.why = "Summary tab, so it's skipped"; return out; }
     if (aCells.length && refsElsewhere / aCells.length > 0.4){ out.role = "summary"; out.why = "Repeats other tabs, so it's skipped"; return out; }
     const sm = supplyCols(h), rm = recipeCols(h.slice());
     const isSupply = sm.name >= 0 && (sm.total >= 0 || sm.casePrice >= 0) && (sm.cases >= 0 || sm.caseSize >= 0);
@@ -1853,7 +1860,7 @@ function openSheetImport(){
 }
 const ROLE_NAMES = { supplies:"Supplies", recipes:"Recipes", menu:"Menu prices only", summary:"Summary (skip)", skip:"Skip" };
 function reviewSheetImport(fileName, sheets, analysis){
-  const r = R(); let mode = "update";
+  const r = R(); let mode = "update", usePairs = true;
   const body = el("div");
   const draw = () => {
     const res = buildImport(analysis);
@@ -1861,7 +1868,8 @@ function reviewSheetImport(fileName, sheets, analysis){
     const waiting = res.items.reduce((t, it) => t + it.lines.filter(l => !l.s && !(n(l.cost) > 0)).length, 0);
     const okN = res.checks.filter(c => c.ok).length, bad = res.checks.filter(c => !c.ok);
     const existingSup = new Set(Object.values(r.supplies).map(x => x.name.trim().toLowerCase())), existingIt = new Set(Object.values(r.items).map(x => x.name.trim().toLowerCase()));
-    const supDup = res.supplies.filter(x => existingSup.has(x.name.toLowerCase())).length, itDup = res.items.filter(x => existingIt.has(x.name.toLowerCase())).length;
+    res.pairs = usePairs ? pairItems(res.items, Object.values(r.items).filter(x => !existingIt.has(x.name.toLowerCase()) || true)) : new Map();
+    const supDup = res.supplies.filter(x => existingSup.has(x.name.toLowerCase())).length, itDup = res.items.filter(x => existingIt.has(x.name.toLowerCase()) && !res.pairs.has(x)).length;
     const tb = el("tbody");
     analysis.forEach((a, i) => {
       const sel = el("select",{class:"inp", style:"min-height:38px;width:auto"}, ["supplies","recipes","menu","skip"].concat(a.role === "summary" ? ["summary"] : []).map(k => el("option",{value:k, text:ROLE_NAMES[k]})));
@@ -1899,6 +1907,13 @@ function reviewSheetImport(fileName, sheets, analysis){
       bad.length ? el("p",{class:"mini", text:"Usually a formula in the spreadsheet adds an extra amount by hand, or points at a different column. You can adjust these recipes after importing."}) : null,
       fixed ? el("p",{class:"mini", text:fixed + (fixed === 1 ? " ingredient had a cost" : " ingredients had a cost") + " typed in by hand with no supply behind it. " + (fixed === 1 ? "It comes" : "They come") + " in as a fixed cost."}) : null,
       waiting ? el("p",{class:"mini", text:waiting + (waiting === 1 ? " ingredient" : " ingredients") + " had no cost in the spreadsheet and will show as \u201cnot priced\u201d until a supply is linked. Invoices link them automatically by name."}) : null,
+      res.pairs.size || !usePairs ? el("div",{class:"card", style:"margin-top:12px"},
+        el("label",{class:"row", style:"font-weight:800"}, (() => { const cb = el("input",{type:"checkbox"}); cb.checked = usePairs; cb.onchange = () => { usePairs = cb.checked; draw(); }; return cb; })(),
+          "Put spreadsheet recipes on matching menu items (" + res.pairs.size + " found)"),
+        el("p",{class:"mini", text:"Your menu keeps its own names, prices and categories; only the recipe comes from the spreadsheet. Matches that look wrong can be fixed after."}),
+        res.pairs.size ? el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Spreadsheet"}), el("th",{text:"Your menu item"}))),
+          el("tbody",null, [...res.pairs.entries()].slice(0, 15).map(([sh, id]) => el("tr",{style:"cursor:default"}, el("td",{text:sh.name}), el("td",{text: r.items[id] ? r.items[id].name : ""})))))) : null,
+        res.pairs.size > 15 ? el("p",{class:"mini", text:"and " + (res.pairs.size - 15) + " more"}) : null) : null,
       (supDup || itDup) ? el("div",null, el("p",{style:"margin:12px 0 4px;font-weight:800", text:(supDup + itDup) + " already in the app (" + supDup + " supplies, " + itDup + " items)"}), modeSel) : null);
     addBtn.disabled = !(res.supplies.length || res.items.length);
     addBtn.onclick = () => commitSheetImport(res, mode, fileName);
@@ -1913,7 +1928,8 @@ function reviewSheetImport(fileName, sheets, analysis){
 }
 function commitSheetImport(res, mode, fileName){
   const r = R(); r.vendors = r.vendors || [];
-  const idMap = {}; let supAdded = 0, supUpdated = 0, itAdded = 0, itUpdated = 0;
+  const pairs = res.pairs || new Map();
+  const idMap = {}; let supAdded = 0, supUpdated = 0, itAdded = 0, itUpdated = 0, itMerged = 0;
   res.supplies.forEach(x => {
     const ex = Object.values(r.supplies).find(s2 => s2.name.trim().toLowerCase() === x.name.toLowerCase() || (x.code && s2.code && s2.code === x.code));
     if (ex){
@@ -1931,15 +1947,20 @@ function commitSheetImport(res, mode, fileName){
   let order = Math.max(0, ...Object.values(r.items).map(i => i.order || 0));
   res.items.forEach(it => {
     const lines = it.lines.map(l => { const o = { s: l.s ? (idMap[l.s] || null) : null, label: l.label, qty: l.qty, unit: l.unit }; if (n(l.cost) > 0) o.cost = l.cost; return o; });
+    const paired = pairs.get(it) && r.items[pairs.get(it)];
+    if (paired){ paired.lines = lines; paired.fromSheet = it.name; itMerged++; return; }      // keep your menu's name, price and category
     const ex = Object.values(r.items).find(x => x.name.trim().toLowerCase() === it.name.toLowerCase());
     if (ex){ if (mode === "update"){ Object.assign(ex, { price: it.price, section: it.section || ex.section, lines }); itUpdated++; } }
     else { const ni = { id: uid("m"), name: it.name, section: it.section, price: it.price, sold: 0, portions: 1, lines, order: ++order }; r.items[ni.id] = ni; itAdded++; }
   });
   save();
+  let linkedAfter = 0;
   openDlg("Spreadsheet imported", [
     el("div",{class:"cost", style:"grid-template-columns:repeat(2,1fr)"},
       el("div",null, el("span",{text:"Supplies"}), el("b",{text: supAdded + " new" + (supUpdated ? ", " + supUpdated + " updated" : "")})),
-      el("div",null, el("span",{text:"Menu items"}), el("b",{text: itAdded + " new" + (itUpdated ? ", " + itUpdated + " updated" : "")}))),
+      el("div",null, el("span",{text:"Menu items"}), el("b",{text: itAdded + " new" + (itUpdated ? ", " + itUpdated + " updated" : "") + (itMerged ? ", " + itMerged + " recipes added to your menu items" : "")}))),
+    (linkedAfter = linkAllUnpriced(r)) ? el("div",{class:"msg good", text:"Also linked " + linkedAfter + " ingredients on your existing recipes to these supplies."}) : null,
+    unpricedGroups(r).length ? el("p",null, unpricedGroups(r).length + " ingredient names still need a supply. ", el("button",{class:"linkbtn", type:"button", text:"Review and link them", onclick:() => openLinkIngredients()})) : null,
     el("p",{text:"From now on, upload invoices to keep prices current; your spreadsheet isn't needed any more. Add plates sold on each menu item to get the Profit Coach's advice."})
   ], [el("button",{class:"btn quiet", text:"See supplies", onclick:() => { dlg.close(); go("supplies"); }}), el("button",{class:"btn primary", text:"See my menu", onclick:() => { dlg.close(); go("menu"); }})]);
 }
@@ -2063,6 +2084,114 @@ function findDuplicateInvoice(r, doc){
   return r.inbox.find(o => o.id !== doc.id && o.kind === "invoice" && (o.supplier || "").trim().toLowerCase() === (doc.supplier || "").trim().toLowerCase() &&
     ((realNo(o.number) && realNo(doc.number) && String(o.number).trim().toLowerCase() === String(doc.number).trim().toLowerCase()) ||
      (o.date === doc.date && tot(o) === tot(doc) && o.lines.length === doc.lines.length))) || null;
+}
+
+/* ================= Matching names ================= */
+const NUMWORDS = { 1:"one", 2:"two", 3:"three", 4:"four", 5:"five", 6:"six", 8:"eight", 10:"ten", 12:"twelve" };
+const ABBR = { chs:"cheese", stk:"steak", chix:"chicken", chkn:"chicken", bf:"beef", pot:"potato", hb:"hashbrowns", tst:"toast", sws:"swiss", amer:"american", brst:"breast", bnls:"boneless", sau:"sauce", mush:"mushroom", tom:"tomato", let:"lettuce", yw:"your way" };
+function words(t){
+  return String(t || "").toLowerCase().replace(/\b(\d+)\b/g, (m0, d) => NUMWORDS[d] || d).replace(/[^a-z0-9 ]+/g, " ").split(/\s+/)
+    .map(w => ABBR[w] || w).join(" ").split(/\s+/).filter(w => (w.length > 2 || /\d/.test(w) && /[a-z]/.test(w)) && !/^(the|and|with|your|for|our|fresh)$/.test(w))
+    .map(w => w.replace(/(ies)$/, "y").replace(/(es|s)$/, ""));
+}
+// Same word, one word inside the other (hashbrown/hashbrowns), or the same 5-letter start with similar length.
+const wordHit = (x, y) => x === y || (Math.min(x.length, y.length) >= 4 && Math.abs(x.length - y.length) <= 2 && (x.startsWith(y) || y.startsWith(x)));
+function simScore(a, b){
+  const A = [...new Set(words(a))], B = [...new Set(words(b))]; if (!A.length || !B.length) return 0;
+  const common = A.filter(x => B.some(y => wordHit(x, y))).length;
+  return 2 * common / (A.length + B.length);
+}
+// Pair spreadsheet items with your menu items one-to-one, best matches first.
+function pairItems(sheetItems, menuItems){
+  const cands = [];
+  sheetItems.forEach(si => menuItems.forEach(mi => {
+    if (mi.name.trim().toLowerCase() === si.name.trim().toLowerCase()) return;      // exact names are handled as updates
+    let sc = simScore(si.name, mi.name); if (si.price && mi.price && Math.abs(si.price - mi.price) < 0.01) sc += 0.1;
+    if (sc >= 0.6) cands.push({ si, mi, sc });
+  }));
+  cands.sort((a, b) => b.sc - a.sc);
+  const out = new Map(), usedMenu = new Set();
+  cands.forEach(c => { if (out.has(c.si) || usedMenu.has(c.mi.id)) return; out.set(c.si, c.mi.id); usedMenu.add(c.mi.id); });
+  return out;
+}
+/* ================= Link ingredients to supplies ================= */
+function unpricedGroups(r){
+  const g = new Map();
+  Object.values(r.items).forEach(it => (it.lines || []).forEach(l => {
+    if (l.s || n(l.cost) > 0 || !(l.label || "").trim()) return;
+    const k = l.label.trim().toLowerCase(); const e = g.get(k) || { label: l.label.trim(), lines: [], items: new Set() };
+    e.lines.push(l); e.items.add(it.id); g.set(k, e);
+  }));
+  return [...g.values()].sort((a, b) => b.items.size - a.items.size || a.label.localeCompare(b.label));
+}
+function bestSupplyFor(r, label){
+  const useCount = {}; Object.values(r.items).forEach(it => (it.lines || []).forEach(l => { if (l.s) useCount[l.s] = (useCount[l.s] || 0) + 1; }));
+  let best = null, bs = 0, fullCover = 0;
+  Object.values(r.supplies).forEach(su => {
+    const L = [...new Set(words(label))], S = [...new Set(words(su.name))]; if (!L.length || !S.length) return;
+    const cover = L.filter(x => S.some(y => wordHit(x, y))).length / L.length;      // how much of the ingredient name the supply covers
+    if (!cover) return;
+    if (cover === 1) fullCover++;
+    const sc = cover + (cover === 1 ? 0.15 * (L.length / S.length) : 0) + Math.min(0.1, (useCount[su.id] || 0) * 0.01);
+    if (sc > bs){ bs = sc; best = su; }
+  });
+  // "Strong" only when exactly one supply fits the whole name; several fits (Fries: curly or straight?) need a person.
+  return best && bs >= 0.75 ? { su: best, strength: bs >= 1.05 && fullCover === 1 ? "Strong" : "Likely" } : null;
+}
+function applyLink(lines, su){
+  lines.forEach(l => { l.s = su.id; if (l.unit && UNITS[l.unit] && UNITS[su.unit] && UNITS[l.unit][0] !== UNITS[su.unit][0]){ l.note = "was " + l.qty + " " + l.unit; l.unit = null; } });
+}
+function linkAllUnpriced(r){
+  let nLinked = 0;
+  unpricedGroups(r).forEach(g => { const m2 = bestSupplyFor(r, g.label); if (m2 && m2.strength === "Strong"){ applyLink(g.lines, m2.su); nLinked += g.lines.length; } });
+  if (nLinked) save();
+  return nLinked;
+}
+function openLinkIngredients(){
+  const r = R();
+  const groups = unpricedGroups(r);
+  if (!groups.length){ toast("Every ingredient is already linked"); return; }
+  const opts = Object.values(r.supplies).sort((a, b) => a.name.localeCompare(b.name));
+  const rows = groups.map(g => { const m2 = bestSupplyFor(r, g.label); return { g, pick: m2 ? m2.su.id : "", strength: m2 ? m2.strength : "" }; });
+  const tb = el("tbody"), countEl = el("b");
+  const linkBtn = el("button",{class:"btn primary"});
+  const paint = () => { const k = rows.filter(x => x.pick).length; countEl.textContent = k + " of " + rows.length; linkBtn.textContent = "Link " + k + (k === 1 ? " ingredient" : " ingredients"); linkBtn.disabled = !k; };
+  const draw = () => {
+    tb.replaceChildren(...rows.map(x => {
+      const sel = el("select",{class:"inp", style:"min-height:38px", "aria-label":"Supply for " + x.g.label}, el("option",{value:"", text:"Don't link yet"}), opts.map(su => el("option",{value:su.id, text:su.name + (su.supplier ? "  (" + su.supplier + ")" : "")})));
+      sel.value = x.pick; sel.onchange = () => { x.pick = sel.value; x.strength = sel.value ? "You chose" : ""; paint(); };
+      return el("tr",{style:"cursor:default"}, el("td",{style:"white-space:normal"}, el("b",{text:x.g.label})), el("td",{class:"num", text: x.g.items.size}), el("td",null, sel),
+        el("td",null, x.strength ? el("span",{class:"pill" + (x.strength === "Strong" || x.strength === "You chose" ? " good" : x.strength === "AI" ? " brand" : " warn"), text:x.strength}) : el("span",{class:"dash", text:"\u2014"})));
+    }));
+    paint();
+  };
+  const aiBtn = el("button",{class:"btn quiet", text:"Ask AI to match the rest", onclick: async () => {
+    const left = rows.filter(x => !x.pick); if (!left.length) return toast("Everything has a match");
+    aiBtn.disabled = true; aiBtn.textContent = "Matching…";
+    const supNames = opts.map(su => su.name);
+    try {
+      for (let k = 0; k < left.length; k += 50){
+        const batch = left.slice(k, k + 50);
+        const d = await aiJSON("Match each recipe ingredient to the restaurant supply it comes from. Supplies (exact names; distributor abbreviations like FR = frozen, DY = dairy, CHS = cheese, STK = steak):\n" + supNames.join("\n") +
+          "\n\nIngredients:\n" + batch.map(x => x.g.label).join("\n") + "\n\nReturn ONLY JSON: {\"match\": {\"<ingredient exactly as given>\": \"<supply name exactly as listed, or empty string if none fits>\"}}. Only match when it's clearly the same product.");
+        batch.forEach(x => { const nm = d.match && d.match[x.g.label]; const su = nm && opts.find(o => o.name === nm); if (su){ x.pick = su.id; x.strength = "AI"; } });
+      }
+    } catch(e){ toast(aiProblem(e) || "AI couldn't match the rest"); }
+    aiBtn.disabled = false; aiBtn.textContent = "Ask AI to match the rest"; draw();
+  }});
+  linkBtn.onclick = () => {
+    let nLines = 0;
+    rows.forEach(x => { if (!x.pick) return; const su = r.supplies[x.pick]; if (!su) return; applyLink(x.g.lines, su); nLines += x.g.lines.length; });
+    save(); dlg.close(); render();
+    const flagged = Object.values(r.items).reduce((t, it) => t + (it.lines || []).filter(l => l.note).length, 0);
+    toast("Linked " + nLines + " recipe lines" + (flagged ? ". Amounts to check are outlined in orange" : ""));
+  };
+  draw();
+  openDlg("Link ingredients to supplies", [
+    el("p",{class:"lead"}, "Each ingredient name below appears in your recipes without a supply. ", countEl, " have a suggested match. Check them, change any that are wrong, then link."),
+    el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Ingredient"}), el("th",{class:"num", text:"Recipes"}), el("th",{text:"Link to supply"}), el("th",{text:"Match"}))), tb)),
+    el("p",{class:"mini", text:"Linking sets the ingredient's cost from that supply's latest price. If the recipe amount is in a different unit than the supply (say 2 slices vs. a supply bought by the ounce), the amount is outlined in orange for you to check."})
+  ], [aiBtn, linkBtn]);
 }
 
 boot();
