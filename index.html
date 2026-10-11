@@ -614,9 +614,9 @@ async function aiPlan(box, ins){
 const STATUS = { good:["On target","good"], warn:["Watch","warn"], bad:["Raise price","bad"], missing:["Missing costs","warn"], noprice:["Needs price","warn"] };
 function menu(m){
   const r = R(), eng = engineering();
-  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Menu & recipes"}), el("p",{class:"lead", text:"Tap an item to edit its recipe. Costs update when supplier prices change."})), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)})));
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Menu & recipes"}), el("p",{class:"lead", text:"Tap an item to edit its recipe. Costs update when supplier prices change."})), el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import menu", onclick:() => openMenuImport()}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)}))));
   const items = Object.values(r.items);
-  if (!items.length){ m.append(el("div",{class:"card empty", text:"No recipes yet. Tap \u201cNew recipe\u201d and describe a dish."})); return; }
+  if (!items.length){ m.append(el("div",{class:"card empty", text:"No recipes yet. Tap \u201cImport menu\u201d to bring in your whole menu from a photo, PDF or spreadsheet, or \u201cNew recipe\u201d to add one dish."})); return; }
   const tb = el("tbody");
   items.sort((a,b) => (a.section||"").localeCompare(b.section||"") || a.name.localeCompare(b.name)).forEach(it => {
     const s = stats(it), st = STATUS[s.status];
@@ -833,8 +833,9 @@ function openRecipe(id){
       const su = l.s && r.supplies[l.s];
       const un = el("select",{"aria-label":"Unit"}, UNIT_NAMES.filter(u => !su || UNITS[u][0] === UNITS[su.unit][0]).map(u => el("option",{value:u, text:u}))); un.value = l.unit || (su ? su.unit : "each");
       const c = lineCost(l), lc = el("span",{class:"lc", text: c != null ? $$(c) : "—"});
+      if (l.note){ q.title = "Check this amount (" + l.note + ")"; q.style.borderColor = "var(--warn)"; }
       sel.onchange = () => { l.s = sel.value || null; l.unit = null; drawLines(); paint(); };
-      q.oninput = () => { l.qty = n(q.value); lc.textContent = lineCost(l) != null ? $$(lineCost(l)) : "—"; paint(); };
+      q.oninput = () => { l.qty = n(q.value); delete l.note; q.style.borderColor = ""; q.title = ""; lc.textContent = lineCost(l) != null ? $$(lineCost(l)) : "—"; paint(); };
       un.onchange = () => { l.unit = un.value; lc.textContent = lineCost(l) != null ? $$(lineCost(l)) : "—"; paint(); };
       linesBox.append(el("div",{class:"line" + (c == null ? " bad" : "")}, sel, q, un, lc, el("button",{class:"ix", "aria-label":"Remove", text:"×", onclick:() => { it.lines.splice(i,1); drawLines(); paint(); }})));
     });
@@ -890,7 +891,7 @@ function openSupply(id){
     el("div",{class:"g2"}, fld("Yield %", yl, "Usable share after trimming or cooking"), fld("Item code", inp("code"), "Used to match supplier feeds")),
     out, hist ? el("p",{class:"mini", text:"Price history: " + hist}) : null
   ], [ !isNew ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (confirm("Delete " + s.name + "?")){ Object.values(r.items).forEach(i => i.lines.forEach(l => { if (l.s === s.id) { l.label = s.name; l.s = null; } })); delete r.supplies[s.id]; save(); dlg.close(); } }}) : el("span"),
-       el("button",{class:"btn primary", text:"Save", onclick:() => { if (!s.name.trim()) return toast("Give it a name"); const old = r.supplies[s.id]; if (!old || old.price !== s.price){ s.history = (s.history || []).concat([{ date: today(), price: s.price }]); } r.supplies[s.id] = s; save(); dlg.close(); toast("Saved"); }}) ]);
+       el("button",{class:"btn primary", text:"Save", onclick:() => { if (!s.name.trim()) return toast("Give it a name"); const old = r.supplies[s.id]; if (!old || old.price !== s.price){ s.history = (s.history || []).concat([{ date: today(), price: s.price }]); } r.supplies[s.id] = s; const linked = isNew ? linkUnpriced(r, [s.id]) : 0; save(); dlg.close(); toast(linked ? "Saved and linked to " + linked + (linked === 1 ? " recipe line" : " recipe lines") : "Saved"); }}) ]);
 }
 // Keg yields allow for foam and line loss; packaged drinks are 100%.
 const PACKS = [["\u00bd bbl keg", 1984, 0.9], ["\u00bc bbl keg", 992, 0.9], ["\u2159 bbl keg", 661, 0.9], ["24 \u00d7 12 oz", 288, 1], ["24 \u00d7 16 oz", 384, 1], ["12 \u00d7 750 ml", 304.3, 1], ["6 \u00d7 1.75 L", 355, 1]];
@@ -931,11 +932,14 @@ function approve(d){
     r.supplies[ns.id] = ns; l.match = ns.id; added++;
   });
   d.lines.forEach(l => { const s = l.match && r.supplies[l.match]; if (!s) return; if (s.history && s.history.length === 1 && s.history[0].date === d.date && s.price === l.price) return; if (s.price !== l.price){ s.price = l.price; s.history = (s.history || []).concat([{ date: d.date, price: l.price }]); up++; } if (l.code && !s.code) s.code = l.code; });
+  const newIds = d.lines.filter(l => l.match && r.supplies[l.match] && r.supplies[l.match].history && r.supplies[l.match].history.length === 1 && r.supplies[l.match].history[0].date === d.date).map(l => l.match);
+  const linked = linkUnpriced(r, newIds);
   d.status = "approved";
   const changed = Object.values(r.items).map(it => ({ it, a: stats(it, r, before).plate, b: stats(it).plate })).filter(x => Math.abs(x.b - x.a) >= 0.005);
   save();
   openDlg("Invoice approved", [
     el("div",{class:"cost", style:"grid-template-columns:repeat(3,1fr)"}, el("div",null, el("span",{text:"Prices updated"}), el("b",{text:up})), el("div",null, el("span",{text:"New supplies"}), el("b",{text:added})), el("div",null, el("span",{text:"Recipes affected"}), el("b",{text:changed.length}))),
+    linked ? el("p",{class:"mini", text:"Linked " + linked + (linked === 1 ? " recipe ingredient that was" : " recipe ingredients that were") + " waiting for these supplies. Check the amounts on those recipes."}) : null,
     added ? el("p",{class:"mini", text:"New supplies need a case size before they can cost a recipe. Check them on the Supplies tab."}) : null,
     changed.length ? el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Recipe","Plate cost","Change","Status"].map((h,i) => el("th",{class: i === 1 || i === 2 ? "num" : "", text:h})))),
       el("tbody",null, changed.map(x => { const s = stats(x.it), st = STATUS[s.status]; return el("tr",{onclick:() => openRecipe(x.it.id)}, el("td",{text:x.it.name}), el("td",{class:"num", text:$$(x.b)}), el("td",{class:"num"}, el("span",{class: x.b > x.a ? "up" : "down", text:(x.b > x.a ? "+" : "") + $$(x.b - x.a)})), el("td",null, el("span",{class:"pill " + st[1], text:st[0]}))); })))) : el("p",{text:"No recipe costs changed."})
@@ -1048,6 +1052,136 @@ function openUpload(supplier){
     pick, status,
     el("p",{class:"mini", style:"margin-top:10px", text:"Photos: lay the invoice flat, fill the frame, good light. Spreadsheets (CSV) from a supplier's website are the most accurate. Nothing changes until you approve."})
   ], []);
+}
+
+/* ================= Menu import ================= */
+async function aiJSON(prompt, f){
+  const isPdf = f && (f.type === "application/pdf" || /\.pdf$/i.test(f.name));
+  try { if (window.claude && window.claude.use){ const smp = await window.claude.use("sample"); if (smp){ if (isPdf) throw { code:"preview_pdf" }; return await smp.json(prompt, f ? { images:[await shrinkImage(f)] } : {}); } } } catch(e){ if (e && e.code) throw e; }
+  let file;
+  if (f){ const blob = isPdf ? f : await shrinkImage(f); if (blob.size > 4 * 1024 * 1024) throw { code:"too_big" }; file = { data: await b64(blob), mediaType: isPdf ? "application/pdf" : "image/jpeg" }; }
+  const { data: { session } } = sb ? await sb.auth.getSession() : { data:{} };
+  const res = await fetch("/api/ai", { method:"POST", headers:{ "content-type":"application/json", authorization:"Bearer " + (session ? session.access_token : "") }, body: JSON.stringify(file ? { prompt, file } : { prompt }) });
+  if (res.status === 401) throw { code:"signin" };
+  if (res.status === 404 || res.status === 501) throw { code:"unavailable" };
+  if (!res.ok) throw { code:"error" };
+  const t = ((await res.json()).text || "").replace(/```json|```/g, "");
+  return JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
+}
+const MENU_PROMPT = 'Read this restaurant or bar menu. Return ONLY JSON: {"items":[{"name": string, "section": string, "price": number|null, "desc": string}]}. "section" is the menu heading the item sits under (such as Appetizers, Burgers, Dinners, Drinks). If an item has several sizes or prices, make one item per size, such as "Wings (6)" and "Wings (12)". Keep "desc" under 15 words. Leave out add-ons and extras like "add cheese $1". Keep the JSON compact.';
+function menuFromCSV(text){
+  const rows = csvRows(text); if (!rows.length) return [];
+  const hi = Math.max(0, rows.slice(0, 10).findIndex(r2 => r2.some(c => /name|item/i.test(c))));
+  const h = rows[hi].map(c => c.toLowerCase()), col = re => h.findIndex(c => re.test(c));
+  const cName = col(/item name|^name$|^item$|menu item|product/), cSec = col(/categor|section|group|menu$/), cPrice = col(/price|amount/), cDesc = col(/desc/);
+  if (cName < 0) return [];
+  return rows.slice(hi + 1).map(r2 => ({ name: r2[cName], section: cSec >= 0 ? r2[cSec] : "", price: cPrice >= 0 ? parseFloat(String(r2[cPrice]).replace(/[$,\s]/g, "")) : null, desc: cDesc >= 0 ? r2[cDesc] : "" })).filter(x => x.name);
+}
+function openMenuImport(){
+  const r = R();
+  const file = el("input",{type:"file", accept:"image/*,.pdf,.csv", hidden:""});
+  const paste = el("textarea",{class:"inp", placeholder:"Or paste your menu here: copy it from your website or a document"});
+  const status = el("div");
+  const pick = el("label",{class:"btn primary", style:"width:100%;min-height:60px;font-size:1.05rem"}, "Photo, PDF or spreadsheet of your menu", file);
+  const readBtn = el("button",{class:"btn quiet", type:"button", text:"Read pasted menu"});
+  const busy = t => { pick.hidden = true; readBtn.disabled = true; status.replaceChildren(el("div",{class:"spin"}), el("p",{style:"text-align:center", text:t})); };
+  const fail = e => { pick.hidden = false; readBtn.disabled = false; status.replaceChildren(el("div",{class:"msg bad", text: e && e.code === "preview_pdf" ? "In this preview only photos can be read. PDFs work on your website." : e && e.code === "too_big" ? "That file is over 4 MB. Try a smaller photo or a PDF of fewer pages." : aiProblem(e) || "Couldn't read that menu. Try a clearer photo, or paste the text instead."})); };
+  file.onchange = async () => {
+    const f = file.files && file.files[0]; file.value = ""; if (!f) return;
+    busy("Reading " + f.name + ". A full menu can take up to half a minute…");
+    try { const items = /\.csv$/i.test(f.name) || f.type === "text/csv" ? menuFromCSV(await f.text()) : ((await aiJSON(MENU_PROMPT, f)).items || []); reviewMenu(items); } catch(e){ fail(e); }
+  };
+  readBtn.onclick = async () => {
+    const t = paste.value.trim(); if (!t) return paste.focus();
+    busy("Reading your menu…");
+    try { reviewMenu((await aiJSON(MENU_PROMPT + "\n\nMenu text:\n" + t.slice(0, 20000))).items || []); } catch(e){ fail(e); }
+  };
+  openDlg("Import your menu", [
+    el("p",{class:"lead", text:"Bring in every item with its price, then let the app draft the ingredients. You'll check everything before it's saved."}),
+    pick, el("div",{style:"margin:14px 0 6px"}, paste), readBtn, status,
+    el("p",{class:"mini", style:"margin-top:10px", text:"Tip: a menu export from your register or POS (CSV with item name, category and price) is the most accurate."})
+  ], []);
+}
+function reviewMenu(raw){
+  const r = R();
+  const have = new Set(Object.values(r.items).map(i => i.name.trim().toLowerCase()));
+  const items = raw.map(x => ({ name: String(x.name || "").trim(), section: String(x.section || "").trim() || "Menu", price: isFinite(+x.price) && +x.price > 0 ? +x.price : null, desc: String(x.desc || x.description || "").trim() }))
+    .filter(x => x.name).map(x => Object.assign(x, { dup: have.has(x.name.toLowerCase()), keep: !have.has(x.name.toLowerCase()) }));
+  if (!items.length){ openDlg("Import your menu", [el("div",{class:"msg bad", text:"No menu items were found. Try a clearer photo, or paste the menu text."})], [el("span"), el("button",{class:"btn primary", text:"Try again", onclick:openMenuImport})]); return; }
+  const draft = el("input",{type:"checkbox"}); draft.checked = true;
+  const count = el("b");
+  const paintCount = () => { const k = items.filter(i => i.keep).length; count.textContent = k; addBtn.textContent = "Add " + k + (k === 1 ? " item" : " items"); addBtn.disabled = !k; };
+  const tb = el("tbody");
+  items.forEach(it => {
+    const cb = el("input",{type:"checkbox", "aria-label":"Include " + it.name}); cb.checked = it.keep; cb.onchange = () => { it.keep = cb.checked; paintCount(); };
+    const nm = el("input",{class:"inp", style:"min-height:38px"}); nm.value = it.name; nm.oninput = () => it.name = nm.value;
+    const sc = el("input",{class:"inp", style:"min-height:38px;width:130px"}); sc.value = it.section; sc.oninput = () => it.section = sc.value;
+    const pr = el("input",{class:"inp", type:"number", step:"0.25", min:"0", style:"min-height:38px;width:90px"}); pr.value = it.price ?? ""; pr.oninput = () => it.price = n(pr.value);
+    tb.append(el("tr",{style:"cursor:default"}, el("td",null, cb), el("td",{style:"white-space:normal;min-width:200px"}, nm, it.desc ? el("div",{class:"mini", style:"margin-top:3px", text:it.desc}) : null, it.dup ? el("span",{class:"pill warn", style:"margin-top:4px", text:"Already on your menu"}) : null), el("td",null, sc), el("td",null, pr)));
+  });
+  const addBtn = el("button",{class:"btn primary", onclick:() => addMenuItems(items.filter(i => i.keep && i.name.trim()), draft.checked)});
+  openDlg("Check your menu", [
+    el("p",{class:"lead"}, "Found " + items.length + " items. ", count, " selected. Fix any names, sections or prices, and untick anything you don't want."),
+    el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th"), el("th",{text:"Item"}), el("th",{text:"Section"}), el("th",{text:"Price"}))), tb)),
+    el("label",{class:"row", style:"margin-top:14px;font-weight:700"}, draft, "Draft the ingredients for each item with AI (you can adjust them after)")
+  ], [el("button",{class:"btn quiet", text:"Start over", onclick:openMenuImport}), addBtn]);
+  paintCount();
+}
+async function addMenuItems(list, draftThem){
+  const r = R();
+  let order = Math.max(0, ...Object.values(r.items).map(i => i.order || 0));
+  const made = list.map(x => { const it = { id: uid("m"), name: x.name.trim(), section: x.section.trim() || "Menu", price: x.price || 0, sold: 0, portions: 1, lines: [], desc: x.desc || "", order: ++order }; r.items[it.id] = it; return it; });
+  save();
+  if (!draftThem){ dlg.close(); go("menu"); toast("Added " + made.length + " items"); return; }
+  const bar = el("div",{style:"height:10px;background:var(--line);border-radius:999px;overflow:hidden"}, el("div",{style:"height:100%;width:0%;background:var(--brand);transition:width .3s"}));
+  const label = el("p",{style:"text-align:center", text:"Drafting ingredients…"});
+  openDlg("Drafting ingredients", [label, bar, el("p",{class:"mini", style:"margin-top:10px", text:"About 6 items at a time. Keep this open; it's saving as it goes."})], []);
+  const supList = Object.values(r.supplies).map(x => x.name + " [" + x.unit + "]").join("; ") || "(none yet)";
+  const byName = {}; Object.values(r.supplies).forEach(x => byName[x.name.toLowerCase()] = x.id);
+  let done = 0, drafted = 0, failed = 0;
+  for (let k = 0; k < made.length; k += 6){
+    const batch = made.slice(k, k + 6);
+    const prompt = "You build restaurant and bar recipes for food costing. For each menu item below, list its ingredients for ONE serving with realistic restaurant portions.\nAvailable supplies (name [unit]): " + supList +
+      "\nUse a supply's exact name when one fits; otherwise use null for supply and a short generic ingredient name as label (such as \"Chicken wings\" or \"Hamburger bun\"). Unit is one of: " + UNIT_NAMES.join(", ") + ". Use the supply's kind of unit (weight, volume or count). For draft beer and poured drinks, give the pour in fl oz. Skip salt, pepper and oil used for cooking.\nReturn ONLY compact JSON: {\"recipes\":[{\"name\": item name exactly as given, \"lines\":[{\"supply\": string|null, \"label\": string, \"qty\": number, \"unit\": string}]}]}\nItems:\n" +
+      batch.map((it, i) => (i + 1) + ". " + it.name + (it.desc ? " (" + it.desc + ")" : "") + " [" + it.section + "]").join("\n");
+    try {
+      const d = await aiJSON(prompt);
+      (d.recipes || []).forEach(rc => {
+        const it = batch.find(b => b.name.toLowerCase() === String(rc.name || "").trim().toLowerCase()) || batch[(d.recipes || []).indexOf(rc)];
+        if (!it) return;
+        it.lines = (rc.lines || []).map(l => { const sid = l.supply ? byName[String(l.supply).toLowerCase()] : null, su = sid && r.supplies[sid]; let unit = UNITS[l.unit] ? l.unit : null;
+          if (su && unit && UNITS[unit][0] !== UNITS[su.unit][0]) unit = null; return { s: sid || null, label: l.label || l.supply || "", qty: n(l.qty) || 1, unit }; }).filter(l => l.label || l.s);
+        if (it.lines.length) drafted++;
+      });
+    } catch(e){ failed += batch.length; if (e && (e.code === "unavailable" || e.code === "signin")){ label.textContent = aiProblem(e); break; } }
+    done += batch.length; bar.firstChild.style.width = Math.round(done / made.length * 100) + "%"; label.textContent = "Drafted " + Math.min(done, made.length) + " of " + made.length + "…";
+    save();
+  }
+  const missing = made.reduce((a, it) => a + it.lines.filter(l => !l.s).length, 0);
+  openDlg("Menu imported", [
+    el("div",{class:"cost", style:"grid-template-columns:repeat(3,1fr)"}, el("div",null, el("span",{text:"Items added"}), el("b",{text:made.length})), el("div",null, el("span",{text:"Ingredients drafted"}), el("b",{text:drafted})), el("div",null, el("span",{text:"Waiting for supplies"}), el("b",{text:missing}))),
+    el("p",{text: missing ? "Ingredients you don't have as supplies yet show as \u201cnot priced.\u201d When an invoice adds that supply, they link up by themselves." : "Every ingredient matched one of your supplies."}),
+    failed ? el("p",{class:"mini", text: failed + " items couldn't be drafted. Open them and use \u201cDraft recipe\u201d to try again, or add ingredients by hand."}) : null,
+    el("p",{class:"mini", text:"AI amounts are a starting point. Check portions against what your kitchen actually serves."})
+  ], [el("span"), el("button",{class:"btn primary", text:"See my menu", onclick:() => { dlg.close(); go("menu"); }})]);
+}
+// Link recipe ingredients that were waiting for a supply (matched by name).
+function nameScore(a, b){
+  const wa = String(a).toLowerCase().replace(/[^a-z ]/g, " ").split(/\s+/).filter(w => w.length > 2), wb = String(b).toLowerCase().replace(/[^a-z ]/g, " ").split(/\s+/).filter(w => w.length > 2);
+  if (!wa.length || !wb.length) return 0;
+  const hit = wa.filter(x => wb.some(y => y === x || y.startsWith(x.slice(0, 4)) || x.startsWith(y.slice(0, 4)) || (y.length > 3 && x.includes(y)) || (x.length > 3 && y.includes(x)))).length;
+  return hit / Math.max(wa.length, 1);
+}
+function linkUnpriced(r, supplyIds){
+  if (!supplyIds || !supplyIds.length) return 0;
+  let n2 = 0;
+  Object.values(r.items).forEach(it => (it.lines || []).forEach(l => {
+    if (l.s || !l.label) return;
+    let best = null, bs = 0;
+    supplyIds.forEach(id => { const su = r.supplies[id]; if (!su) return; const sc = nameScore(l.label, su.name); if (sc > bs){ bs = sc; best = id; } });
+    if (best && bs >= 0.6){ l.s = best; const su = r.supplies[best]; if (l.unit && UNITS[l.unit] && UNITS[su.unit] && UNITS[l.unit][0] !== UNITS[su.unit][0]){ l.note = "was " + l.qty + " " + l.unit; l.unit = null; } n2++; }
+  }));
+  return n2;
 }
 
 boot();

@@ -39,7 +39,7 @@ export default async (req) => {
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
-    // A fast model by default: Netlify stops a function after about 10 seconds on standard plans.
+    // A fast model by default: Netlify stops a function after 30 seconds.
     body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-haiku-5-5", max_tokens: body?.file ? 4000 : 2000, messages: [{ role: "user", content }] }),
   });
   if (!res.ok) { console.error("Anthropic API error", res.status, (await res.text().catch(() => "")).slice(0, 300)); return json(502, { error: "AI service error" }); }
