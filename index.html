@@ -3284,7 +3284,8 @@ function menuMap(r = R(), opts = {}){
   const rawMinX = Math.min(...pts.map(p => p.x));
   let xMin = 0, xMax, xTicks;
   if (spread){
-    const cands = [0, 1, 2, 3, 5, 7, 10, 15, 20, 30, 40, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000];
+    // Round ticks on the full view; finer ones only when zoomed into a filter.
+    const cands = filtered ? [0, 1, 2, 3, 5, 7, 10, 15, 20, 30, 40, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000] : [0, 5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000];
     xMax = cands.find(c => c >= rawMaxX * 1.04) || rawMaxX * 1.1;
     if (filtered) xMin = [...cands].reverse().find(c => c <= rawMinX * 0.85) || 0;
     xTicks = cands.filter(c => c >= xMin && c <= xMax);
