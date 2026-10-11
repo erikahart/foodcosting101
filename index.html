@@ -579,6 +579,13 @@ kbd{font-family:var(--font);font-size:.7rem;border:1px solid currentColor;border
 
 /* Menu map */
 .mm{border:1px solid var(--line);border-radius:var(--r-panel);background:var(--panel);padding:16px 18px 6px;margin-top:18px}
+.mm-h{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap}
+.mm-h > div:first-child{flex:1 1 320px}
+.seg{display:inline-flex;border:1px solid var(--line-2);border-radius:var(--r-ctl);overflow:hidden;flex:none}
+.seg button{border:0;background:var(--panel);color:var(--ink-2);font-weight:600;font-size:.82rem;padding:6px 12px;cursor:pointer}
+.seg button + button{border-left:1px solid var(--line-2)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.mm-grid.v{opacity:.5}
 .mm-h h2{margin:0 0 2px;font-size:1.05rem}
 .mm-h .mini{margin:0 0 6px}
 .mm-svg{width:100%;height:auto;display:block}
@@ -3242,45 +3249,73 @@ document.addEventListener("keydown", e => {
 $("qsearch").onclick = cmdkOpen;
 
 /* ================= Menu map (popularity x profit per plate) ================= */
+let MM_SCALE = "spread";
 function menuMap(r = R(), opts = {}){
   const eng = engineering(r), ids = Object.keys(eng.cls);
   if (ids.length < 3) return null;
   const pts = ids.map(id => { const it = r.items[id], st = stats(it, r); return { it, x: n(it.sold), y: st.profit, cls: eng.cls[id] }; });
-  const W = 860, H = 380, L = 58, R2 = 24, T = 22, B = 46;
-  // Round axis steps (1, 2, 2.5 or 5 times a power of ten) so the scale reads like a person drew it.
+  const many = pts.length;
+  const W = 900, H = Math.round(380 + Math.min(220, Math.max(0, many - 10) * 5)), L = 60, R2 = 28, T = 24, B = 48;
+  const spread = MM_SCALE === "spread";
+  // X: square-root scale spreads out the crowded low end while big sellers still fit.
+  const xs = spread ? (v => Math.sqrt(Math.max(0, v))) : (v => v);
+  const rawMaxX = Math.max(...pts.map(p => p.x)) || 1;
   const niceStep = span => { const raw = span / 4, p = Math.pow(10, Math.floor(Math.log10(raw || 1))), f = raw / p; return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10) * p; };
-  const xStep = niceStep(Math.max(...pts.map(p => p.x)) * 1.05 || 1), xMax = Math.ceil(Math.max(...pts.map(p => p.x)) * 1.05 / xStep) * xStep || 1;
-  const yLo = Math.min(0, ...pts.map(p => p.y)), yStep = niceStep((Math.max(...pts.map(p => p.y)) * 1.08 - yLo) || 1);
-  const yMin = Math.floor(yLo / yStep) * yStep, yMax = Math.ceil(Math.max(...pts.map(p => p.y)) * 1.08 / yStep) * yStep || 1;
-  const X = v => L + (v / xMax) * (W - L - R2), Y = v => T + (1 - (v - yMin) / (yMax - yMin)) * (H - T - B);
+  let xMax, xTicks;
+  if (spread){
+    const cands = [0, 5, 10, 20, 30, 50, 75, 100, 150, 200, 300, 500, 750, 1000, 1500, 2000, 3000, 5000];
+    xMax = cands.find(c => c >= rawMaxX * 1.04) || rawMaxX * 1.1;
+    xTicks = cands.filter(c => c <= xMax);
+  } else { const st = niceStep(rawMaxX * 1.05); xMax = Math.ceil(rawMaxX * 1.05 / st) * st; xTicks = []; for (let v = 0; v <= xMax + 1e-9; v += st) xTicks.push(v); }
+  // Y: start near the lowest dish rather than always at $0, so the middle isn't squashed.
+  const lo = Math.min(...pts.map(p => p.y)), hi = Math.max(...pts.map(p => p.y));
+  const yStep = niceStep((hi - Math.min(0, lo)) * 1.08 || 1);
+  const yMin = lo > yStep ? Math.floor((lo - yStep * 0.4) / yStep) * yStep : Math.min(0, Math.floor(lo / yStep) * yStep);
+  const yMax = Math.ceil((hi + yStep * 0.12) / yStep) * yStep;
+  const X = v => L + (xs(v) / xs(xMax)) * (W - L - R2), Y = v => T + (1 - (v - yMin) / (yMax - yMin)) * (H - T - B);
   const popX = eng.popLine * eng.totalSold, cmY = eng.avgCM;
   const NS = "http://www.w3.org/2000/svg", mk = (tag, at, txt) => { const e2 = document.createElementNS(NS, tag); Object.entries(at || {}).forEach(([k, v]) => e2.setAttribute(k, v)); if (txt != null) e2.textContent = txt; return e2; };
   const svg = mk("svg", { viewBox:"0 0 " + W + " " + H, class:"mm-svg", role:"img", "aria-label":"Menu map: each dish by plates sold and profit per plate" });
-  // Quadrant tints
-  const qx = X(popX), qy = Y(cmY);
+  const qx = X(popX), qy = Math.max(T, Math.min(H - B, Y(cmY)));
   [["star", qx, T, W - R2 - qx, qy - T], ["puzzle", L, T, qx - L, qy - T], ["plow", qx, qy, W - R2 - qx, H - B - qy], ["dog", L, qy, qx - L, H - B - qy]].forEach(([c, x, y, w, h]) => { if (w > 0 && h > 0) svg.append(mk("rect", { x, y, width:w, height:h, class:"mm-q " + c })); });
-  // Grid and axes
   for (let v = yMin; v <= yMax + 1e-9; v += yStep){ const yy = Y(v); svg.append(mk("line", { x1:L, x2:W - R2, y1:yy, y2:yy, class:"mm-grid" })); svg.append(mk("text", { x:L - 8, y:yy + 4, class:"mm-tick", "text-anchor":"end" }, "$" + (Number.isInteger(v) ? v : v.toFixed(2)))); }
-  for (let v = 0; v <= xMax + 1e-9; v += xStep){ svg.append(mk("text", { x:X(v), y:H - B + 18, class:"mm-tick", "text-anchor":"middle" }, Math.round(v))); }
+  let lastTickX = -99; xTicks.forEach(v => { const xx = X(v); if (xx - lastTickX < 34 && v !== xMax) return; lastTickX = xx; svg.append(mk("line", { x1:xx, x2:xx, y1:T, y2:H - B, class:"mm-grid v" })); svg.append(mk("text", { x:xx, y:H - B + 18, class:"mm-tick", "text-anchor":"middle" }, Math.round(v))); });
   svg.append(mk("line", { x1:qx, x2:qx, y1:T, y2:H - B, class:"mm-div" })); svg.append(mk("line", { x1:L, x2:W - R2, y1:qy, y2:qy, class:"mm-div" }));
-  svg.append(mk("text", { x:(L + W - R2) / 2, y:H - 8, class:"mm-axis", "text-anchor":"middle" }, "Plates sold per " + r.period + " \u2192"));
-  const yl = mk("text", { x:16, y:(T + H - B) / 2, class:"mm-axis", "text-anchor":"middle", transform:"rotate(-90 16 " + ((T + H - B) / 2) + ")" }, "Profit per plate \u2192"); svg.append(yl);
-  // Corner labels with the class symbols
+  svg.append(mk("text", { x:(L + W - R2) / 2, y:H - 8, class:"mm-axis", "text-anchor":"middle" }, "Plates sold per " + r.period + (spread ? " (spread-out scale)" : "") + " \u2192"));
+  svg.append(mk("text", { x:16, y:(T + H - B) / 2, class:"mm-axis", "text-anchor":"middle", transform:"rotate(-90 16 " + ((T + H - B) / 2) + ")" }, "Profit per plate \u2192"));
   const corner = (cls, x, y, anchor) => { const g = mk("g", { class:"mm-corner " + CLASS_INFO[cls].c }); const ic = mk("svg", { x: anchor === "end" ? x - 16 : x, y: y - 12, width:14, height:14, viewBox:"0 0 24 24" }); ic.innerHTML = CLASS_INFO[cls].svg; g.append(ic, mk("text", { x: anchor === "end" ? x - 20 : x + 18, y, "text-anchor": anchor === "end" ? "end" : "start" }, cls + "s")); svg.append(g); };
   corner("Star", W - R2 - 8, T + 18, "end"); corner("Puzzle", L + 8, T + 18, "start"); corner("Plowhorse", W - R2 - 8, H - B - 10, "end"); corner("Dog", L + 8, H - B - 10, "start");
-  // Points: label the busiest ones, everything gets a hover title and opens on click
-  const labelSet = new Set(pts.slice().sort((a, b) => b.x - a.x).slice(0, opts.labels || 10).map(p => p.it.id));
+  // Screen positions, nudging apart dishes that would sit on top of each other.
+  const placed = [];
+  pts.slice().sort((a, b) => b.x - a.x || b.y - a.y).forEach(p => {
+    let px = X(p.x), py = Y(p.y), tries = 0;
+    while (tries < 12 && placed.some(q => Math.hypot(q.px - px, q.py - py) < 11)){ const ang = tries * 2.4; px = X(p.x) + Math.cos(ang) * (6 + tries * 1.5); py = Y(p.y) + Math.sin(ang) * (6 + tries * 1.5); tries++; }
+    p.px = px; p.py = py; placed.push(p);
+  });
+  // Labels: busiest and most extreme first; each takes the first spot (right, left, above, below) that's clear.
+  const boxes = [], R = 7;
+  const hits = b => boxes.some(o => b.x < o.x + o.w && b.x + b.w > o.x && b.y < o.y + o.h && b.y + b.h > o.y) || b.x < L || b.x + b.w > W - R2 || b.y < T || b.y + b.h > H - B ||
+    pts.some(q => q.px > b.x - R && q.px < b.x + b.w + R && q.py > b.y - R && q.py < b.y + b.h + R && !b.own.includes(q));
+  const pri = pts.slice().sort((a, b) => (b.x / rawMaxX + Math.abs(b.y - cmY) / (hi - lo || 1)) - (a.x / rawMaxX + Math.abs(a.y - cmY) / (hi - lo || 1)));
+  const labelFor = new Map();
+  pri.forEach(p => {
+    const name = p.it.name.length > 24 ? p.it.name.slice(0, 23) + "\u2026" : p.it.name, w = name.length * 6.9 + 6, h = 15;
+    const spots = [[p.px + 11, p.py - 7, "start", p.px + 11, p.py + 4], [p.px - 11 - w, p.py - 7, "end", p.px - 11, p.py + 4], [p.px - w / 2, p.py - 24, "middle", p.px, p.py - 13], [p.px - w / 2, p.py + 10, "middle", p.px, p.py + 21]];
+    for (const [bx, by, anchor, tx, ty] of spots){ const b = { x: bx, y: by, w, h, own: [p] }; if (!hits(b)){ boxes.push(b); labelFor.set(p, { anchor, tx, ty, name }); break; } }
+  });
   pts.forEach(p => {
     const g = mk("g", { class:"mm-pt " + CLASS_INFO[p.cls].c, tabindex:"0", role:"button", "aria-label": p.it.name + ", " + p.cls + ", " + p.x + " sold, " + $$(p.y) + " profit per plate" });
     g.append(mk("title", null, p.it.name + "\n" + p.cls + ": " + CLASS_INFO[p.cls].say + "\n" + p.x + " sold per " + r.period + ", " + $$(p.y) + " profit per plate"));
-    g.append(mk("circle", { cx:X(p.x), cy:Y(p.y), r:7 }));
-    if (labelSet.has(p.it.id)){ const right = X(p.x) < W - 170; g.append(mk("text", { x: X(p.x) + (right ? 11 : -11), y: Y(p.y) + 4, "text-anchor": right ? "start" : "end", class:"mm-label" }, p.it.name.length > 26 ? p.it.name.slice(0, 25) + "\u2026" : p.it.name)); }
+    g.append(mk("circle", { cx:p.px, cy:p.py, r: many > 40 ? 5.5 : 7 }));
+    const lab = labelFor.get(p); if (lab) g.append(mk("text", { x:lab.tx, y:lab.ty, "text-anchor":lab.anchor, class:"mm-label" }, lab.name));
     const open = () => openRecipe(p.it.id); g.addEventListener("click", open); g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); open(); } });
     svg.append(g);
   });
-  return el("div",{class:"mm"}, el("div",{class:"mm-h"}, el("div",null, el("h2",{text: opts.title || "Your menu at a glance"}), el("p",{class:"mini", text:"Each dot is a dish. Further right sells more; higher up earns more per plate. Lines mark your average. Click a dot to open its recipe."}))), svg);
+  const unlabeled = pts.length - labelFor.size;
+  const toggle = el("div",{class:"seg", role:"group", "aria-label":"Scale"}, [["spread","Spread out"],["even","Even"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String(MM_SCALE === k), text:t, onclick:() => { MM_SCALE = k; render(); }})));
+  return el("div",{class:"mm"}, el("div",{class:"mm-h"}, el("div",null, el("h2",{text: opts.title || "Your menu at a glance"}),
+    el("p",{class:"mini", text:"Each dot is a dish. Further right sells more; higher up earns more per plate. Dashed lines mark your averages. Click a dot to open its recipe." + (unlabeled ? " Hover a dot to see names that didn't fit (" + unlabeled + ")." : "")})), toggle), svg);
 }
-
 /* ================= Count-up on Home's key numbers ================= */
 let countedOnce = false;
 function countUp(root){
