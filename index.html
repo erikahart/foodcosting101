@@ -261,6 +261,7 @@ main{min-width:0}
 .palette button{display:flex;flex-direction:column;align-items:center;gap:4px;border:2px solid var(--line);background:var(--panel);border-radius:10px;padding:6px;cursor:pointer;font-size:.72rem;font-weight:700;min-width:64px}
 .palette button[aria-pressed="true"]{border-color:var(--ink)}
 .palette i{display:block;width:44px;height:30px;border-radius:6px;border:1px solid rgba(0,0,0,.1)}
+.order-name{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.74rem;letter-spacing:.01em;opacity:.85}
 </style>
 </head>
 <body>
@@ -854,6 +855,65 @@ function openCategories(){
     el("p",{class:"mini", text:"To move single items, tick them on the menu page and use \u201cMove to\u201d. Categories with no items disappear on their own."})
   ], [el("span"), el("button",{class:"btn primary", text:"Done", onclick:() => dlg.close()})]);
 }
+/* ================= Friendly supply names ================= */
+// Distributor descriptions ("BEEF STK PHLL BRKAWAY MT") become plain names ("Philly Steak, Breakaway").
+// The original stays as su.name for invoice matching; su.title holds a custom or AI-tidied name.
+const DIST_ABBR = { stk:"steak", phll:"philly", brkaway:"breakaway", srln:"sirloin", cc:"center cut", sws:"swiss", slcd:"sliced", slcng:"slicing", aptzr:"appetizer",
+  mozz:"mozzarella", stix:"sticks", batrd:"battered", "r/c":"regular cut", lng:"long", coatd:"coated", chowd:"chowder", bstn:"boston", conc:"condensed", ckd:"cooked",
+  "w/a":"water added", nat:"natural", whl:"whole", preckd:"precooked", fncy:"fancy", orig:"original", rip:"ripple",
+  btrmlk:"buttermilk", ez:"easy", splt:"split", dehy:"dehydrated", bf:"beef", chix:"chicken", chkn:"chicken", rstd:"roasted", liq:"liquid", fren:"french", van:"vanilla", grvy:"gravy",
+  strawb:"strawberry", pkt:"packet", prtn:"portion", souff:"souffle", transl:"translucent", pwdfr:"powder-free", blu:"blue", lrg:"large", med:"medium", sm:"small",
+  plas:"plastic", reclosable:"reclosable", frzer:"freezer", gal:"gallon", noper:"non-perforated", wht:"white", "p&d":"peeled & deveined", "t-on":"tail-on", smkd:"smoked",
+  rnd:"round", asst:"assorted", grk:"greek", vol:"volume", pk:"pack", crmd:"creamed", brst:"breast", bnls:"boneless", sknls:"skinless", frz:"frozen", shrd:"shredded",
+  chs:"cheese", amer:"american", ched:"cheddar", ylw:"yellow", grn:"green", rd:"red", veg:"vegetable", tom:"tomato", mush:"mushroom", sau:"sauce", hollandaise:"hollandaise",
+  mayonnaise:"mayonnaise", chip:"chip", bbq:"BBQ", msg:"MSG", iqf:"IQF", "4sv":"" };
+const SUFFIX_CODES = /^(GR|MT|DY|FR|DS|SF|PR|BK|CN|PRD|DRY|FRZ)$/;
+// When a distributor puts the main noun first ("SAUCE BBQ"), move it to the end.
+const NOUN_FIRST = /^(cheese|sauce|bean|beans|muffin|soup|bag|cup|glove|towel|placemat|toothpick|jam|creamer|base|pepper|entree|chip|chips|biscuit|fries|ketchup|shrimp)$/;
+function autoTitle(name){
+  const raw = String(name || "").trim(); if (!raw) return "";
+  if (/[a-z]/.test(raw)) return raw;                                          // already written for people
+  let toks = raw.replace(/\bCHIP POT\b/i, "CHIP POTATO").replace(/\bW\/(?!A\b)/gi, "WITH ").split(/\s+/).filter(Boolean);
+  if (toks.length > 1 && SUFFIX_CODES.test(toks[toks.length - 1])) toks.pop();
+  // Keep portion sizes like 2Z / .75Z (ounces) so similar items stay distinguishable; drop other pack and count codes.
+  const sizeTok = toks.find(t => /^\d*\.?\d+Z$/i.test(t));
+  const size = sizeTok ? (sizeTok.replace(/Z$/i, "").replace(/^\./, "0.")) + " oz" : "";
+  toks = toks.filter(t => !/\d/.test(t) || /^w\/a$/i.test(t));
+  let words2 = toks.map(t => { const k = t.toLowerCase(); return k in DIST_ABBR ? DIST_ABBR[k] : k; }).join(" ").split(/\s+/).filter(Boolean);
+  if (!words2.length) return raw;
+  if (words2.length >= 2 && NOUN_FIRST.test(words2[0])){
+    const noun = words2.shift();
+    if (noun === "entree") words2 = words2;                                  // "ENTREE CHIPPED BEEF CRMD" -> "Chipped Beef Creamed"
+    else if (noun === "chip" && words2[0] === "potato"){ words2.shift(); words2 = ["potato", "chips"].concat(words2.length ? [","].concat(words2) : []); }
+    else {
+      // Keep words that belong with the noun: "sauce mix", "towel roll", "jam packet".
+      const tail = []; ["mix", "roll", "packet", "pack"].forEach(w => { const i = words2.indexOf(w); if (i >= 0){ words2.splice(i, 1); tail.push(w); } });
+      words2 = words2.concat([noun], tail);
+    }
+  }
+  if (size) words2 = words2.concat([",", size]);
+  const title = words2.join(" ").replace(/\s+,/g, ",").replace(/\b([a-z])/g, (m0, c) => c.toUpperCase()).replace(/\bWith\b/g, "with").replace(/\bBbq\b/g, "BBQ").replace(/\bMsg\b/g, "MSG").replace(/\bIqf\b/g, "IQF").replace(/\bOz\b/g, "oz");
+  return title.length >= 3 ? title : raw;
+}
+const supName = su => (su && (su.title || autoTitle(su.name))) || "";
+const isDistName = su => su && !su.title && !/[a-z]/.test(su.name || "") && autoTitle(su.name) !== su.name;
+async function tidyNamesWithAI(){
+  const r = R();
+  const todo = Object.values(r.supplies).filter(su => !su.title && !/[a-z]/.test(su.name || ""));
+  if (!todo.length){ toast("All names are already easy to read"); return; }
+  openDlg("Tidying names", [el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Rewriting " + todo.length + " distributor names in plain English…"})], []);
+  let done = 0, problem = null;
+  for (let k = 0; k < todo.length; k += 60){
+    const batch = todo.slice(k, k + 60);
+    try {
+      const d = await aiJSON('Rewrite these food distributor item descriptions as short plain-English names a cook would recognize, 2 to 5 words. Expand abbreviations, put words in natural order (main noun last, e.g. "SAUCE BBQ" -> "BBQ Sauce"), and drop pack sizes, counts and trailing codes like GR, MT, DY, FR, DS, SF. Keep details that matter for buying, such as cut, flavor or size grade (e.g. "Shrimp 21-25, Peeled Tail-On"). Return ONLY JSON: {"names": {"<description exactly as given>": "<friendly name>"}}\n\n' + batch.map(su => su.name).join("\n"));
+      batch.forEach(su => { const t = d.names && d.names[su.name]; if (t && typeof t === "string" && t.trim().length >= 3){ su.title = t.trim().slice(0, 60); done++; } });
+    } catch(e){ problem = aiProblem(e) || "AI couldn't tidy the names right now."; break; }
+  }
+  save(); dlg.close(); render();
+  toast(problem ? problem : "Tidied " + done + " names. Edit any in the supply itself.");
+}
+
 /* ================= Supplies: categories & filtering ================= */
 const SUP_CATS = ["Protein","Dairy & eggs","Produce","Bakery","Frozen","Dry & canned","Sauces & dressings","Beverage","Disposables","Cleaning"];
 // Order matters: the first rule that matches wins. Written for distributor-style names too ("CHEESE SWS SLCD .75Z DY").
@@ -905,10 +965,14 @@ function supplies(m){
   const q = SV.q.trim().toLowerCase();
   const inCat = su => SV.cat === "all" || supCat(su) === SV.cat;
   const inSup = su => SV.sup === "all" || (su.supplier || "No supplier") === SV.sup;
-  const inQ = su => !q || su.name.toLowerCase().includes(q) || (su.code || "").toLowerCase().includes(q) || (su.supplier || "").toLowerCase().includes(q);
+  const inQ = su => !q || su.name.toLowerCase().includes(q) || supName(su).toLowerCase().includes(q) || (su.code || "").toLowerCase().includes(q) || (su.supplier || "").toLowerCase().includes(q);
   const inSt = su => SV.status === "all" || flags.get(su.id)[SV.status];
   const shown = all.filter(su => inCat(su) && inSup(su) && inQ(su) && inSt(su));
 
+  const distNames = all.filter(su => !su.title && !/[a-z]/.test(su.name || "")).length;
+  if (distNames >= 5) m.append(el("div",{class:"card", style:"margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between"},
+    el("div",{style:"flex:1 1 260px"}, el("b",{text: distNames + " supplies use distributor shorthand."}), " They're shown with a readable name already; AI can make them read even more naturally. The invoice name always stays underneath."),
+    el("button",{class:"btn quiet", text:"Tidy names with AI", onclick:() => tidyNamesWithAI()})));
   if (uncategorized >= 3) m.append(el("div",{class:"card", style:"margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between"},
     el("div",{style:"flex:1 1 260px"}, el("b",{text: uncategorized + " supplies have no category."}), " Sort them automatically by name; you can change any afterwards."),
     el("button",{class:"btn primary", text:"Auto-sort into categories", onclick:() => autoCategorize()})));
@@ -948,7 +1012,7 @@ function supplies(m){
   if (!shown.length){ m.append(el("div",{class:"card empty"}, "Nothing matches. ", el("button",{class:"btn quiet", text:"Show everything", onclick:() => { SV.cat = "all"; SV.sup = "all"; SV.status = "all"; SV.q = ""; render(); }}))); return; }
 
   const lastDate = su => { const h = su.history || []; return h.length ? h[h.length - 1].date || "" : ""; };
-  const sorter = { name:(a, b) => a.name.localeCompare(b.name), up:(a, b) => (lastChange(b) ?? -9) - (lastChange(a) ?? -9), used:(a, b) => used.get(b.id) - used.get(a.id) || a.name.localeCompare(b.name),
+  const sorter = { name:(a, b) => supName(a).localeCompare(supName(b)), up:(a, b) => (lastChange(b) ?? -9) - (lastChange(a) ?? -9), used:(a, b) => used.get(b.id) - used.get(a.id) || a.name.localeCompare(b.name),
     cost:(a, b) => (n(b.price) || 0) - (n(a.price) || 0), recent:(a, b) => lastDate(b).localeCompare(lastDate(a)) }[SV.sort];
   const table = rows => {
     const head = el("input",{type:"checkbox", "aria-label":"Select all in this group"}); head.checked = rows.length > 0 && rows.every(su => SV.sel.has(su.id));
@@ -961,7 +1025,9 @@ function supplies(m){
       const dash = () => el("span",{class:"dash", text:"\u2014"});
       tb.append(el("tr",{onclick:() => openSupply(su.id)},
         el("td",{onclick: e => e.stopPropagation()}, cb),
-        el("td",{style:"white-space:normal"}, el("b",{text:su.name}), el("div",{class:"mini", text:[SV.group !== "sup" ? su.supplier : "", su.code ? "#" + su.code : "", SV.group !== "cat" && su.cat ? su.cat : ""].filter(Boolean).join("  \u00b7  ")}),
+        el("td",{style:"white-space:normal"}, el("b",{text:supName(su)}),
+          supName(su) !== su.name ? el("div",{class:"mini order-name", title:"Name on invoices", text:su.name}) : null,
+          el("div",{class:"mini", text:[SV.group !== "sup" ? su.supplier : "", su.code ? "#" + su.code : "", SV.group !== "cat" && su.cat ? su.cat : ""].filter(Boolean).join("  \u00b7  ")}),
           f.needsize ? el("span",{class:"pill warn", style:"margin-top:3px", text:"Needs case size"}) : null),
         el("td",{class:"num"}, n(su.price) > 0 ? $$(su.price) : dash()),
         el("td",{class:"num c-plate"}, n(su.caseQty) ? (Math.round(su.caseQty * 100) / 100) + " " + su.unit : dash()),
@@ -1215,7 +1281,7 @@ function openRecipe(id){
     linesBox.replaceChildren(el("div",{class:"line mini"}, el("span",{text:"Supply"}), el("span",{text:"Qty"}), el("span",{text:"Unit"}), el("span",{style:"text-align:right", text:"Cost"}), el("span")));
     const opts = Object.values(r.supplies).sort((a,b) => a.name.localeCompare(b.name));
     it.lines.forEach((l, i) => {
-      const sel = el("select",{"aria-label":"Supply"}, el("option",{value:"", text: l.s ? "Not priced" : n(l.cost) > 0 ? (l.label || "Item") + " (fixed " + $$(n(l.cost)) + ")" : (l.label ? l.label + " (not priced)" : "Pick a supply")}), opts.map(s => el("option",{value:s.id, text:s.name})));
+      const sel = el("select",{"aria-label":"Supply"}, el("option",{value:"", text: l.s ? "Not priced" : n(l.cost) > 0 ? (l.label || "Item") + " (fixed " + $$(n(l.cost)) + ")" : (l.label ? l.label + " (not priced)" : "Pick a supply")}), opts.map(s => el("option",{value:s.id, text:supName(s)})));
       sel.value = l.s || "";
       const q = el("input",{type:"number", inputmode:"decimal", min:"0", step:"0.25", "aria-label":"Quantity"}); q.value = l.qty ?? "";
       const su = l.s && r.supplies[l.s];
@@ -1234,14 +1300,14 @@ function openRecipe(id){
     const sample = await getSample();
     if (!sample){ aiMsg.textContent = "AI drafting isn't available when the app is opened as a file. Open it from your website, or add ingredients below by hand."; return; }
     aiBtn.disabled = true; aiMsg.textContent = "Drafting… this can take up to a minute.";
-    const list = Object.values(r.supplies).map(s => s.name + " [" + s.unit + "]").join("; ");
+    const list = Object.values(r.supplies).map(s => supName(s) + " [" + s.unit + "]").join("; ");
     const prompt = "You build restaurant recipes for food costing. Dish: " + desc + "\nAvailable supplies (name [unit]): " + list + "\nReturn ONLY JSON: {\"name\": short menu name, \"section\": one of Breakfast, Lunch, Dinner, Sides, Desserts, Drinks, \"portions\": 1 unless it is a batch, \"lines\": [{\"supply\": exact name from the list or null if none fits, \"label\": ingredient name, \"qty\": number for ONE portion (or the whole batch), \"unit\": one of " + UNIT_NAMES.join(", ") + "}]}. Use realistic restaurant portion sizes. Use the supply's unit kind (weight, volume or count). Include garnish only if it matters for cost.";
     try {
       const d = await sample.json(prompt);
       if (d.name && !it.name){ it.name = d.name; nm.value = d.name; }
       if (d.section){ it.section = d.section; sec.value = d.section; }
       if (n(d.portions) > 1) { it.portions = n(d.portions); }
-      const byName = {}; Object.values(r.supplies).forEach(s => byName[s.name.toLowerCase()] = s.id);
+      const byName = {}; Object.values(r.supplies).forEach(s => { byName[s.name.toLowerCase()] = s.id; byName[supName(s).toLowerCase()] = s.id; });
       it.lines = (d.lines || []).map(l => { const sid = l.supply ? byName[String(l.supply).toLowerCase()] : null; const su = sid && r.supplies[sid]; let unit = UNITS[l.unit] ? l.unit : null; if (su && unit && UNITS[unit][0] !== UNITS[su.unit][0]) unit = null; return { s: sid || null, label: l.label || l.supply, qty: n(l.qty) || 1, unit: su ? unit : null }; });
       const miss = it.lines.filter(l => !l.s).map(l => l.label);
       aiMsg.textContent = "Drafted " + it.lines.length + " ingredients. Check the amounts." + (miss.length ? " Not in your supplies yet: " + miss.join(", ") + "." : "");
@@ -1267,6 +1333,8 @@ function openSupply(id){
   const yl = el("input",{class:"inp", type:"number", min:"5", max:"100", step:"1"}); yl.value = Math.round((n(s.yield) || 1) * 100); yl.oninput = () => { s.yield = (n(yl.value) || 100) / 100; calc(); };
   const out = el("div",{class:"coachtip"});
   const qtyIn = inp("caseQty","number","any");
+  const titleIn = el("input",{class:"inp", placeholder: autoTitle(s.name) || "e.g. Philly Steak"}); titleIn.value = s.title || "";
+  titleIn.oninput = () => { s.title = titleIn.value.trim(); };
   const supIn = inp("supplier"); supIn.setAttribute("list", "vendor-list");
   if (isNew && !s.cat) s.cat = "";
   const catSel = el("input",{class:"inp", list:"supcat-list", placeholder:"e.g. Produce"}); catSel.value = s.cat || "";
@@ -1276,8 +1344,9 @@ function openSupply(id){
   function calc(){ const c = supCostPerUnit(s), used = usedBy(s.id); out.replaceChildren(el("b",{text: c != null ? "$" + c.toFixed(4) + " per usable " + s.unit : "Enter case price and size"}), used.length ? "Used in " + used.map(i => i.name).join(", ") + "." : "Not in any recipe yet."); }
   calc();
   const hist = (s.history || []).slice(-6).reverse().map(h => nice(h.date) + " " + $$(h.price)).join("   ");
-  openDlg(isNew ? "New supply" : s.name, [
-    el("div",{class:"g2"}, fld("Name", inp("name")), fld("Supplier", supIn)), supList,
+  openDlg(isNew ? "New supply" : supName(s), [
+    el("div",{class:"g2"}, fld("Display name", titleIn, "What you and your cooks see"), fld("Name on invoices", inp("name"), "Used to match invoices. Leave it as the supplier writes it.")),
+    fld("Supplier", supIn), supList,
     el("div",{class:"g3"}, fld("Case price", inp("price","number","0.01")), fld("Case size", qtyIn), fld("Unit", un)),
     el("div",{class:"field"}, el("span",{class:"q", text:"Drink pack sizes"}), el("div",{class:"row"}, PACKS.map(([lab, qty, yld]) => el("button",{class:"btn quiet", type:"button", style:"min-height:36px;padding:6px 10px", text:lab, onclick:() => { s.caseQty = qty; s.unit = "fl oz"; s.yield = yld; qtyIn.value = qty; un.value = "fl oz"; yl.value = Math.round(yld * 100); calc(); }})))),
     el("div",{class:"g2"}, fld("Yield %", yl, "Usable share after trimming or cooking"), fld("Item code", inp("code"), "Used to match supplier feeds")),
@@ -1307,7 +1376,7 @@ function openDoc(id){
   const tb = el("tbody");
   d.lines.forEach(l => {
     const su = l.match && r.supplies[l.match], ch = su && su.price ? (l.price - su.price) / su.price : null;
-    const sel = el("select",{class:"inp", style:"min-width:180px", disabled: d.status !== "new" || d.kind === "order" ? "" : null}, el("option",{value:"", text:"Skip"}), el("option",{value:"__new", text:"+ Add as a new supply"}), opts.map(s => el("option",{value:s.id, text:s.name}))); sel.value = l.match || "";
+    const sel = el("select",{class:"inp", style:"min-width:180px", disabled: d.status !== "new" || d.kind === "order" ? "" : null}, el("option",{value:"", text:"Skip"}), el("option",{value:"__new", text:"+ Add as a new supply"}), opts.map(s => el("option",{value:s.id, text:supName(s) + (supName(s) !== s.name ? "  \u2014 " + s.name : "")}))); sel.value = l.match || "";
     sel.onchange = () => { l.match = sel.value || null; save(); openDoc(id); };
     const i = d.lines.indexOf(l), rep2 = l._k && lastIdx[l._k] !== firstIdx[l._k];
     const repNote = !rep2 ? null : lastIdx[l._k] === i ? "Repeated item: this last line's price is used" : "Repeated item: line " + (lastIdx[l._k] + 1) + "'s price is used instead";
@@ -1587,8 +1656,8 @@ async function addMenuItems(list, draftThem){
   const bar = el("div",{style:"height:10px;background:var(--line);border-radius:999px;overflow:hidden"}, el("div",{style:"height:100%;width:0%;background:var(--brand);transition:width .3s"}));
   const label = el("p",{style:"text-align:center", text:"Drafting ingredients…"});
   openDlg("Drafting ingredients", [label, bar, el("p",{class:"mini", style:"margin-top:10px", text:"About 6 items at a time. Keep this open; it's saving as it goes."})], []);
-  const supList = Object.values(r.supplies).map(x => x.name + " [" + x.unit + "]").join("; ") || "(none yet)";
-  const byName = {}; Object.values(r.supplies).forEach(x => byName[x.name.toLowerCase()] = x.id);
+  const supList = Object.values(r.supplies).map(x => supName(x) + " [" + x.unit + "]").join("; ") || "(none yet)";
+  const byName = {}; Object.values(r.supplies).forEach(x => { byName[x.name.toLowerCase()] = x.id; byName[supName(x).toLowerCase()] = x.id; });
   let done = 0, drafted = 0, failed = 0;
   for (let k = 0; k < made.length; k += 6){
     const batch = made.slice(k, k + 6);
@@ -2128,7 +2197,7 @@ function bestSupplyFor(r, label){
   const useCount = {}; Object.values(r.items).forEach(it => (it.lines || []).forEach(l => { if (l.s) useCount[l.s] = (useCount[l.s] || 0) + 1; }));
   let best = null, bs = 0, fullCover = 0;
   Object.values(r.supplies).forEach(su => {
-    const L = [...new Set(words(label))], S = [...new Set(words(su.name))]; if (!L.length || !S.length) return;
+    const L = [...new Set(words(label))], S = [...new Set(words(su.name).concat(words(supName(su))))]; if (!L.length || !S.length) return;
     const cover = L.filter(x => S.some(y => wordHit(x, y))).length / L.length;      // how much of the ingredient name the supply covers
     if (!cover) return;
     if (cover === 1) fullCover++;
@@ -2151,14 +2220,14 @@ function openLinkIngredients(){
   const r = R();
   const groups = unpricedGroups(r);
   if (!groups.length){ toast("Every ingredient is already linked"); return; }
-  const opts = Object.values(r.supplies).sort((a, b) => a.name.localeCompare(b.name));
+  const opts = Object.values(r.supplies).sort((a, b) => supName(a).localeCompare(supName(b)));
   const rows = groups.map(g => { const m2 = bestSupplyFor(r, g.label); return { g, pick: m2 ? m2.su.id : "", strength: m2 ? m2.strength : "" }; });
   const tb = el("tbody"), countEl = el("b");
   const linkBtn = el("button",{class:"btn primary"});
   const paint = () => { const k = rows.filter(x => x.pick).length; countEl.textContent = k + " of " + rows.length; linkBtn.textContent = "Link " + k + (k === 1 ? " ingredient" : " ingredients"); linkBtn.disabled = !k; };
   const draw = () => {
     tb.replaceChildren(...rows.map(x => {
-      const sel = el("select",{class:"inp", style:"min-height:38px", "aria-label":"Supply for " + x.g.label}, el("option",{value:"", text:"Don't link yet"}), opts.map(su => el("option",{value:su.id, text:su.name + (su.supplier ? "  (" + su.supplier + ")" : "")})));
+      const sel = el("select",{class:"inp", style:"min-height:38px", "aria-label":"Supply for " + x.g.label}, el("option",{value:"", text:"Don't link yet"}), opts.map(su => el("option",{value:su.id, text:supName(su) + (su.supplier ? "  (" + su.supplier + ")" : "")})));
       sel.value = x.pick; sel.onchange = () => { x.pick = sel.value; x.strength = sel.value ? "You chose" : ""; paint(); };
       return el("tr",{style:"cursor:default"}, el("td",{style:"white-space:normal"}, el("b",{text:x.g.label})), el("td",{class:"num", text: x.g.items.size}), el("td",null, sel),
         el("td",null, x.strength ? el("span",{class:"pill" + (x.strength === "Strong" || x.strength === "You chose" ? " good" : x.strength === "AI" ? " brand" : " warn"), text:x.strength}) : el("span",{class:"dash", text:"\u2014"})));
@@ -2168,13 +2237,13 @@ function openLinkIngredients(){
   const aiBtn = el("button",{class:"btn quiet", text:"Ask AI to match the rest", onclick: async () => {
     const left = rows.filter(x => !x.pick); if (!left.length) return toast("Everything has a match");
     aiBtn.disabled = true; aiBtn.textContent = "Matching…";
-    const supNames = opts.map(su => su.name);
+    const supNames = opts.map(su => supName(su));
     try {
       for (let k = 0; k < left.length; k += 50){
         const batch = left.slice(k, k + 50);
         const d = await aiJSON("Match each recipe ingredient to the restaurant supply it comes from. Supplies (exact names; distributor abbreviations like FR = frozen, DY = dairy, CHS = cheese, STK = steak):\n" + supNames.join("\n") +
           "\n\nIngredients:\n" + batch.map(x => x.g.label).join("\n") + "\n\nReturn ONLY JSON: {\"match\": {\"<ingredient exactly as given>\": \"<supply name exactly as listed, or empty string if none fits>\"}}. Only match when it's clearly the same product.");
-        batch.forEach(x => { const nm = d.match && d.match[x.g.label]; const su = nm && opts.find(o => o.name === nm); if (su){ x.pick = su.id; x.strength = "AI"; } });
+        batch.forEach(x => { const nm = d.match && d.match[x.g.label]; const su = nm && (opts.find(o => supName(o) === nm) || opts.find(o => o.name === nm)); if (su){ x.pick = su.id; x.strength = "AI"; } });
       }
     } catch(e){ toast(aiProblem(e) || "AI couldn't match the rest"); }
     aiBtn.disabled = false; aiBtn.textContent = "Ask AI to match the rest"; draw();
