@@ -519,6 +519,8 @@ td .mini{margin-top:2px}
   .inslist .insight .imp b{font-size:1.15rem}
   .inslist .insight .acts{flex-wrap:wrap}
 }
+.sheet.wide{width:min(1040px,calc(100% - 24px))}
+@media (max-width:700px){.sheet.wide{width:100%}}
 </style>
 </head>
 <body>
@@ -988,6 +990,12 @@ function home(m){
     el("div",null, el("div",{class:"n", text:$0(sales - cost)}), el("div",{class:"l", text:"Profit after food, per " + r.period})),
     el("div",{class:"clickable", onclick:() => { MV.status = "bad"; MV.cat = "all"; go("menu"); }}, el("div",{class:"n" + (low ? " bad" : ""), text: low}), el("div",{class:"l", text:"Items priced too low"})),
     el("div",{class:"clickable", onclick:() => go("inbox")}, el("div",{class:"n" + (toReview ? " warn" : ""), text: toReview}), el("div",{class:"l", text:"Invoices to review"}))));
+  r.hidden = r.hidden || {};
+  const hasSales = items.some(i => n(i.sold) > 0);
+  if (items.length && (!hasSales || salesStale(r)) && !r.hidden.sales) m.append(el("div",{class:"card banner", style:"margin-top:18px"},
+    el("div",null, el("b",{text: hasSales ? "Your sales numbers are over a month old." : "Add your sales to rank suggestions by dollars."}), " Export the item sales report from Clover (or any register) and upload it; plates sold fill in automatically."),
+    el("div",{class:"row", style:"gap:6px"}, el("button",{class:"btn primary", text:"Import sales", onclick:() => openSalesImport()}),
+      el("button",{class:"ix", "aria-label":"Dismiss", title:"Dismiss", text:"\u00d7", onclick:() => { r.hidden.sales = today(); save(); render(); }}))));
   const top = ins.filter(i => i.sev !== "good").slice(0, 4);
   m.append(el("div",{class:"sect-h"}, el("h2",{text:"Top things to do"}), ins.length ? el("button",{class:"linkbtn", type:"button", text:"See all " + ins.length, onclick:() => go("coach")}) : null));
   if (top.length) m.append(el("div",{class:"inslist"}, top.map(i => insightCard(i))));
@@ -1032,7 +1040,7 @@ const SORTS = [["menu","Menu order"],["name","Name A\u2013Z"],["fc","Highest foo
 function menu(m){
   const r = R(), eng = engineering();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Menu & recipes"}), el("p",{class:"lead", text:"Tap an item to edit its recipe. Costs update when supplier prices change."})),
-    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn quiet", text:"Import menu", onclick:() => openMenuImport()}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)}))));
+    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import sales", onclick:() => openSalesImport()}), el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn quiet", text:"Import menu", onclick:() => openMenuImport()}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)}))));
   const all = Object.values(r.items);
   const setup = costSetupCard(r); if (setup) m.append(setup);
   if (!all.length){ m.append(el("div",{class:"card empty", text:"No recipes yet. Already keep costs in a spreadsheet? Tap \u201cImport spreadsheet\u201d. Otherwise \u201cImport menu\u201d brings in your menu from a photo or PDF."})); return; }
@@ -1553,7 +1561,7 @@ async function drawTeam(box){
 
 /* ================= Dialog ================= */
 const dlg = $("dlg"); $("dlg-x").onclick = () => dlg.close(); dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); }); dlg.addEventListener("close", () => render());
-function openDlg(title, body, foot){ $("dlg-t").textContent = title; $("dlg-b").replaceChildren(...body.filter(x => x != null && x !== false)); $("dlg-f").replaceChildren(...(foot || []).filter(x => x != null && x !== false)); if (!dlg.open) dlg.showModal(); $("dlg-b").scrollTop = 0; labelTables($("dlg-b")); }
+function openDlg(title, body, foot){ const wide = body.some(x => x && x.querySelector && (x.matches(".tw") ? x.querySelectorAll("thead th").length >= 5 : [...x.querySelectorAll(".tw")].some(t => t.querySelectorAll("thead th").length >= 5))); document.querySelector("#dlg .sheet").classList.toggle("wide", wide); $("dlg-t").textContent = title; $("dlg-b").replaceChildren(...body.filter(x => x != null && x !== false)); $("dlg-f").replaceChildren(...(foot || []).filter(x => x != null && x !== false)); if (!dlg.open) dlg.showModal(); $("dlg-b").scrollTop = 0; labelTables($("dlg-b")); }
 new MutationObserver(() => labelTables($("dlg-b"))).observe($("dlg-b"), { childList:true, subtree:true });
 const fld = (label, input, hint) => el("div",{class:"field"}, el("label",{text:label}), hint ? el("span",{class:"hint", text:hint}) : null, input);
 
@@ -2854,6 +2862,144 @@ async function draftRecipes(list, replace){
     problem ? el("p",{class:"mini", text:problem}) : null,
     el("p",{class:"mini", text:"AI amounts are a starting point. Check portions on your best sellers against what your kitchen actually serves."})
   ], [el("button",{class:"btn quiet", text:"See my menu", onclick:() => { dlg.close(); go("menu"); }}), left ? el("button",{class:"btn primary", text:"Link the rest", onclick:() => openLinkIngredients()}) : el("span")]);
+}
+
+/* ================= Sales import (Clover and other registers) ================= */
+function salesStale(r){ return !!(r.salesImported && r.salesImported.to && (Date.now() - new Date(r.salesImported.to + "T12:00:00")) / 864e5 > 45); }
+const isoDay = d => d.toISOString().slice(0, 10);
+// Find a date range like "Oct 1, 2026 - Oct 28, 2026" or "10/01/2026 to 10/28/2026" near the top of a report.
+function rangeFromRows(rows){
+  const txt = rows.slice(0, 12).map(r2 => r2.join(" ")).join(" ");
+  const parse = t => { const d = new Date(t.replace(/(\d)(st|nd|rd|th)/, "$1")); return isNaN(d) ? null : d; };
+  let m0 = txt.match(/([A-Z][a-z]{2,8}\.? \d{1,2},? \d{4})(?:[ ,]+\d{1,2}:\d{2}\s*[AP]M)?\s*(?:-|–|to|through)\s*([A-Z][a-z]{2,8}\.? \d{1,2},? \d{4})/);
+  if (!m0) m0 = txt.match(/(\d{1,2}\/\d{1,2}\/\d{2,4})(?:\s+\d{1,2}:\d{2}\s*[AP]M)?\s*(?:-|–|to|through)\s*(\d{1,2}\/\d{1,2}\/\d{2,4})/);
+  if (!m0) return null;
+  const a = parse(m0[1]), b = parse(m0[2]); if (!a || !b || b < a) return null;
+  return { from: isoDay(a), to: isoDay(b) };
+}
+function salesFromRows(rows){
+  rows = rows.map(r2 => r2.map(c => String(c == null ? "" : c).trim()));
+  const isHead = r2 => r2.some(c => /^(item|item name|name|product|menu item|items?)$/i.test(c) || /item name/i.test(c)) && r2.some(c => /sold|qty|quantity|count|units/i.test(c));
+  const hi = rows.slice(0, 25).findIndex(isHead); if (hi < 0) return [];
+  const h = rows[hi].map(c => c.toLowerCase()), col = re => h.findIndex(c => re.test(c));
+  const cName = col(/item name|^name$|^item$|^product|menu item|^items?$/), cQty = col(/items? sold|# ?sold|^sold|qty|quantity|units|count/), cSales = col(/net sales|gross sales|^sales|revenue|amount|total/), cCat = col(/categor/);
+  if (cName < 0 || cQty < 0) return [];
+  const num = v => { const x = parseFloat(String(v || "").replace(/[$,\s]/g, "")); return isFinite(x) ? x : null; };
+  const agg = new Map();
+  rows.slice(hi + 1).forEach(r2 => {
+    const name = r2[cName], qty = num(r2[cQty]);
+    if (!name || qty == null || qty <= 0 || /^(total|totals|grand total|subtotal|all items|summary)$/i.test(name)) return;
+    const k = name.toLowerCase(); const e = agg.get(k) || { name, qty: 0, sales: 0, cat: cCat >= 0 ? r2[cCat] : "" };
+    e.qty += qty; e.sales += num(r2[cSales]) || 0; agg.set(k, e);
+  });
+  return [...agg.values()].sort((a, b) => b.qty - a.qty);
+}
+function openSalesImport(){
+  const r = R();
+  const to = new Date(), from = new Date(Date.now() - 27 * 864e5);
+  const fromIn = el("input",{class:"inp", type:"date"}), toIn = el("input",{class:"inp", type:"date"}); fromIn.value = isoDay(from); toIn.value = isoDay(to);
+  const file = el("input",{type:"file", accept:".csv,.xlsx,.xls", hidden:""});
+  const status = el("div");
+  const pick = el("label",{class:"btn primary", style:"width:100%;min-height:60px;font-size:1.02rem"}, "Choose the sales report", file);
+  file.onchange = async () => {
+    const f = file.files && file.files[0]; file.value = ""; if (!f) return;
+    pick.hidden = true; status.replaceChildren(el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Reading " + f.name + "…"}));
+    try {
+      let rows;
+      if (/\.xlsx?$/i.test(f.name)){ await loadXLSX(); const sheets = readWorkbook(new Uint8Array(await f.arrayBuffer())); rows = (sheets.find(sh => salesFromRows(sh.rows.map(r2 => r2.map(c => cTxt(c)))).length) || sheets[0]).rows.map(r2 => r2.map(c => cTxt(c))); }
+      else rows = csvRows(await f.text());
+      const lines = salesFromRows(rows);
+      if (!lines.length) throw new Error("No item names with quantities were found. In Clover, export the Item sales report (not the Orders list), then upload that file.");
+      const found = rangeFromRows(rows);
+      reviewSales(lines, found ? found.from : fromIn.value, found ? found.to : toIn.value, !!found, f.name);
+    } catch(e){
+      pick.hidden = false;
+      status.replaceChildren(el("div",{class:"msg bad", text: e && e.code === "lib" ? "Couldn't load the spreadsheet reader. Check your connection." : (e && e.message) || "Couldn't read that file. Export it as CSV or Excel and try again."}));
+    }
+  };
+  openDlg("Import sales", [
+    el("p",{class:"lead", text:"Upload how many of each item you sold, and the coach can rank every suggestion by what it's worth."}),
+    el("div",{class:"card", style:"background:var(--field);margin-bottom:14px"},
+      el("b",{text:"From Clover"}),
+      el("ol",{style:"margin:6px 0 0;padding-left:20px;color:var(--ink-2)"},
+        el("li",{text:"Open your Clover web dashboard and go to Reporting."}),
+        el("li",{text:"Open the Item sales report and pick the last 4 weeks."}),
+        el("li",{text:"Export it, then upload the file here."})),
+      el("p",{class:"mini", style:"margin:8px 0 0", text:"Any register's item sales export works: Toast, Square and others have the same kind of report."})),
+    el("div",{class:"g2"}, fld("From", fromIn, "Used if the report doesn't show its dates"), fld("To", toIn)),
+    pick, status
+  ], []);
+}
+function reviewSales(lines, from, to, fromFile, fileName){
+  const r = R();
+  r.posMap = r.posMap || {};
+  const days = Math.max(1, Math.round((new Date(to + "T12:00:00") - new Date(from + "T12:00:00")) / 864e5) + 1);
+  const per = r.period === "month" ? 30.4 : 7, periods = days / per;
+  const items = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
+  const byName = new Map(items.map(it => [it.name.trim().toLowerCase(), it]));
+  // Remembered choices first, then exact names, then the closest similar name.
+  lines.forEach(l => {
+    const k = l.name.toLowerCase(), memo = r.posMap[k];
+    if (memo === "skip"){ l.pick = ""; l.how = "remembered"; return; }
+    if (memo && r.items[memo]){ l.pick = memo; l.how = "remembered"; return; }
+    const ex = byName.get(k); if (ex){ l.pick = ex.id; l.how = "exact"; return; }
+    let best = null, bs = 0; items.forEach(it => { const sc = simScore(l.name, it.name); if (sc > bs){ bs = sc; best = it; } });
+    if (best && bs >= 0.6){ l.pick = best.id; l.how = bs >= 0.85 ? "close" : "similar"; } else { l.pick = ""; l.how = ""; }
+  });
+  const opts = items.slice().sort((a, b) => a.name.localeCompare(b.name));
+  let remember = true, zeroOthers = false;
+  const tb = el("tbody"), sumEl = el("div");
+  const applyBtn = el("button",{class:"btn primary"});
+  const paint = () => {
+    const used = lines.filter(l => l.pick), soldAll = lines.reduce((t, l) => t + l.qty, 0), soldUsed = used.reduce((t, l) => t + l.qty, 0);
+    const targets = new Set(used.map(l => l.pick));
+    sumEl.replaceChildren(el("div",{class:"cost", style:"grid-template-columns:repeat(4,1fr)"},
+      el("div",null, el("span",{text:"Register items"}), el("b",{text:lines.length})),
+      el("div",null, el("span",{text:"Matched"}), el("b",{text:used.length})),
+      el("div",null, el("span",{text:"Share of plates sold"}), el("b",{text: soldAll ? pc(soldUsed / soldAll) : "\u2014"})),
+      el("div",null, el("span",{text:"Period"}), el("b",{text: days + " days"}))),
+      el("p",{class:"mini", style:"margin:8px 0 0", text: nice(from) + " to " + nice(to) + (fromFile ? ", read from the report." : ", from the dates you chose.") + " Totals are divided into plates sold per " + r.period + "."}));
+    applyBtn.textContent = "Update " + targets.size + (targets.size === 1 ? " menu item" : " menu items"); applyBtn.disabled = !targets.size;
+  };
+  lines.forEach(l => {
+    const sel = el("select",{class:"inp", style:"min-height:36px", "aria-label":"Menu item for " + l.name}, el("option",{value:"", text:"Don't count"}), opts.map(it => el("option",{value:it.id, text:it.name})));
+    sel.value = l.pick || "";
+    const tag = el("span");
+    const paintTag = () => tag.replaceChildren(l.pick ? el("span",{class:"pill " + (l.how === "similar" ? "warn" : "good"), text: l.how === "remembered" ? "Remembered" : l.how === "exact" ? "Same name" : l.how === "close" ? "Close match" : l.how === "similar" ? "Check" : "You chose"}) : el("span",{class:"dash", text:"\u2014"}));
+    sel.onchange = () => { l.pick = sel.value; l.how = "chosen"; paintTag(); paint(); };
+    paintTag();
+    tb.append(el("tr",{style:"cursor:default"}, el("td",{style:"white-space:normal"}, el("b",{text:l.name}), l.cat ? el("div",{class:"mini", text:l.cat}) : null),
+      el("td",{class:"num", text: Math.round(l.qty)}), el("td",{class:"num", text: Math.round(l.qty / periods)}), el("td",null, sel), el("td",null, tag)));
+  });
+  const rem = el("input",{type:"checkbox"}); rem.checked = true; rem.onchange = () => remember = rem.checked;
+  const zero = el("input",{type:"checkbox"}); zero.onchange = () => zeroOthers = zero.checked;
+  applyBtn.onclick = () => {
+    const totals = {};
+    lines.forEach(l => { if (l.pick) totals[l.pick] = (totals[l.pick] || 0) + l.qty; if (remember) r.posMap[l.name.toLowerCase()] = l.pick || "skip"; });
+    let updated = 0;
+    Object.entries(totals).forEach(([id, q]) => { const it = r.items[id]; if (!it) return; it.sold = Math.round(q / periods); updated++; });
+    let zeroed = 0;
+    if (zeroOthers) items.forEach(it => { if (!(it.id in totals) && n(it.sold) > 0){ it.sold = 0; zeroed++; } });
+    r.salesImported = { from, to, on: today(), file: fileName };
+    if (r.hidden) delete r.hidden.sales;
+    save();
+    const tops = Object.entries(totals).map(([id, q]) => ({ it: r.items[id], q })).filter(x => x.it).sort((a, b) => b.q - a.q).slice(0, 5);
+    openDlg("Sales imported", [
+      el("div",{class:"cost", style:"grid-template-columns:repeat(2,1fr)"}, el("div",null, el("span",{text:"Menu items updated"}), el("b",{text:updated})), el("div",null, el("span",{text:"Set to zero"}), el("b",{text:zeroed}))),
+      tops.length ? el("p",{style:"margin:12px 0 4px;font-weight:600", text:"Best sellers"}) : null,
+      tops.length ? el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Item"}), el("th",{class:"num", text:"Per " + r.period}))),
+        el("tbody",null, tops.map(x => el("tr",{style:"cursor:default"}, el("td",{text:x.it.name}), el("td",{class:"num", text:n(x.it.sold)})))))) : null,
+      el("p",{class:"mini", text:"The Profit Coach now ranks every suggestion by what it's worth per " + r.period + ". Upload a fresh report each month to keep it current."})
+    ], [el("button",{class:"btn quiet", text:"See my menu", onclick:() => { dlg.close(); go("menu"); }}), el("button",{class:"btn primary", text:"Open the coach", onclick:() => { dlg.close(); go("coach"); }})]);
+  };
+  paint();
+  openDlg("Check the sales: " + fileName, [
+    sumEl,
+    el("div",{class:"tw", style:"margin-top:12px"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Register item"}), el("th",{class:"num", text:"Sold"}), el("th",{class:"num", text:"Per " + r.period}), el("th",{text:"Counts toward"}), el("th",{text:"Match"}))), tb)),
+    el("p",{class:"mini", text:"Several register buttons can count toward one menu item (sizes, flavors, combos). Add-ons and items you don't cost can stay at \u201cDon't count\u201d."}),
+    el("label",{class:"row", style:"font-weight:600;margin-top:6px"}, rem, "Remember these choices for next time"),
+    el("label",{class:"row", style:"font-weight:600"}, zero, "Set menu items that aren't in this report to zero")
+  ], [el("button",{class:"btn quiet", text:"Start over", onclick:openSalesImport}), applyBtn]);
 }
 
 boot();
