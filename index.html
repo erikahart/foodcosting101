@@ -447,7 +447,7 @@ const R = () => ST.restaurants[ST.current];
 /* ================= Costing ================= */
 function supCostPerUnit(s){ if (!s || !n(s.price) || !n(s.caseQty)) return null; return s.price / (s.caseQty * (n(s.yield) || 1)); }
 function lineCost(l, r = R(), sups = r.supplies){
-  const s = l.s && sups[l.s]; if (!s) return null;
+  const s = l.s && sups[l.s]; if (!s) return (n(l.cost) > 0 ? n(l.cost) : null);
   const cpu = supCostPerUnit(s); if (cpu == null) return null;
   const u = l.unit || s.unit, a = UNITS[u], b = UNITS[s.unit];
   if (!a || !b || a[0] !== b[0]) return null;
@@ -614,9 +614,9 @@ async function aiPlan(box, ins){
 const STATUS = { good:["On target","good"], warn:["Watch","warn"], bad:["Raise price","bad"], missing:["Missing costs","warn"], noprice:["Needs price","warn"] };
 function menu(m){
   const r = R(), eng = engineering();
-  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Menu & recipes"}), el("p",{class:"lead", text:"Tap an item to edit its recipe. Costs update when supplier prices change."})), el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import menu", onclick:() => openMenuImport()}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)}))));
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Menu & recipes"}), el("p",{class:"lead", text:"Tap an item to edit its recipe. Costs update when supplier prices change."})), el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn quiet", text:"Import menu", onclick:() => openMenuImport()}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)}))));
   const items = Object.values(r.items);
-  if (!items.length){ m.append(el("div",{class:"card empty", text:"No recipes yet. Tap \u201cImport menu\u201d to bring in your whole menu from a photo, PDF or spreadsheet, or \u201cNew recipe\u201d to add one dish."})); return; }
+  if (!items.length){ m.append(el("div",{class:"card empty", text:"No recipes yet. Already keep costs in a spreadsheet? Tap \u201cImport spreadsheet\u201d. Otherwise \u201cImport menu\u201d brings in your menu from a photo or PDF."})); return; }
   const tb = el("tbody");
   items.sort((a,b) => (a.section||"").localeCompare(b.section||"") || a.name.localeCompare(b.name)).forEach(it => {
     const s = stats(it), st = STATUS[s.status];
@@ -629,7 +629,7 @@ function menu(m){
 }
 function supplies(m){
   const r = R();
-  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Supplies"}), el("p",{class:"lead", text:"Prices update from supplier feeds and approved invoices."})), el("button",{class:"btn quiet", text:"+ Add supply", onclick:() => openSupply(null)})));
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Supplies"}), el("p",{class:"lead", text:"Prices update from supplier feeds and approved invoices."})), el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn quiet", text:"+ Add supply", onclick:() => openSupply(null)}))));
   const q = el("input",{class:"search", type:"search", placeholder:"Search supplies or item codes"}); m.append(el("div",{class:"row", style:"margin-bottom:12px"}, q));
   const box = el("div"); m.append(box);
   const draw = () => {
@@ -827,7 +827,7 @@ function openRecipe(id){
     linesBox.replaceChildren(el("div",{class:"line mini"}, el("span",{text:"Supply"}), el("span",{text:"Qty"}), el("span",{text:"Unit"}), el("span",{style:"text-align:right", text:"Cost"}), el("span")));
     const opts = Object.values(r.supplies).sort((a,b) => a.name.localeCompare(b.name));
     it.lines.forEach((l, i) => {
-      const sel = el("select",{"aria-label":"Supply"}, el("option",{value:"", text: l.s ? "Not priced" : (l.label ? l.label + " (not priced)" : "Pick a supply")}), opts.map(s => el("option",{value:s.id, text:s.name})));
+      const sel = el("select",{"aria-label":"Supply"}, el("option",{value:"", text: l.s ? "Not priced" : n(l.cost) > 0 ? (l.label || "Item") + " (fixed " + $$(n(l.cost)) + ")" : (l.label ? l.label + " (not priced)" : "Pick a supply")}), opts.map(s => el("option",{value:s.id, text:s.name})));
       sel.value = l.s || "";
       const q = el("input",{type:"number", inputmode:"decimal", min:"0", step:"0.25", "aria-label":"Quantity"}); q.value = l.qty ?? "";
       const su = l.s && r.supplies[l.s];
@@ -1182,6 +1182,314 @@ function linkUnpriced(r, supplyIds){
     if (best && bs >= 0.6){ l.s = best; const su = r.supplies[best]; if (l.unit && UNITS[l.unit] && UNITS[su.unit] && UNITS[l.unit][0] !== UNITS[su.unit][0]){ l.note = "was " + l.qty + " " + l.unit; l.unit = null; } n2++; }
   }));
   return n2;
+}
+
+/* ================= Spreadsheet import ================= */
+// Reads an existing costing workbook: finds the supplies tab, the recipe tabs and plain menus,
+// follows formulas like ='Food Costs'!H38*2 to link each ingredient to its exact supply,
+// and checks the result against the spreadsheet's own numbers before anything is saved.
+const XLSX_URL = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+function loadXLSX(){ return window.XLSX ? Promise.resolve() : new Promise((res, rej) => { const sc = document.createElement("script"); sc.src = XLSX_URL; sc.onload = res; sc.onerror = () => rej({ code:"lib" }); document.head.append(sc); }); }
+function readWorkbook(buf){
+  const wb = XLSX.read(buf, { type:"array", cellFormula:true });
+  return wb.SheetNames.map(name => {
+    const ws = wb.Sheets[name]; if (!ws || !ws["!ref"]) return { name, rows:[] };
+    const R2 = XLSX.utils.decode_range(ws["!ref"]), rows = [];
+    for (let r = 0; r <= Math.min(R2.e.r, 4000); r++){ const row = []; for (let c = 0; c <= Math.min(R2.e.c, 30); c++){ const cell = ws[XLSX.utils.encode_cell({ r, c })]; row.push(cell ? { v: cell.v, f: cell.f || null } : null); } rows.push(row); }
+    return { name, rows };
+  });
+}
+const cTxt = c => (c && c.v != null && typeof c.v !== "number") ? String(c.v).trim() : (c && typeof c.v === "number" ? String(c.v) : "");
+const cNum = c => { if (!c || c.v == null || c.v === "") return null; if (typeof c.v === "number") return isFinite(c.v) ? c.v : null; const x = parseFloat(String(c.v).replace(/[$,\s]/g, "")); return isFinite(x) ? x : null; };
+const colIdx = L => { if (L == null || L === "") return -1; if (typeof L === "number") return L; let x = 0; for (const ch of String(L).toUpperCase().replace(/[^A-Z]/g, "")) x = x * 26 + ch.charCodeAt(0) - 64; return x - 1; };
+const sameSheet = (a, b) => String(a).trim().toLowerCase() === String(b).trim().toLowerCase();
+const REF_RE = /^\+?\s*'?([^'!]+)'?!\$?([A-Z]{1,3})\$?(\d+)\s*(?:([*\/+\-])\s*([\d.]+))?\s*$/i;
+function headerRowOf(rows){
+  const WORDS = /item|desc|name|qty|quant|price|cost|amount|oz|size|retail|total|extended|order|portion|menu|supplier|section|category/i;
+  let best = 0, bs = -1;
+  rows.slice(0, 12).forEach((row, i) => { const sc = row.filter(c => c && typeof c.v === "string" && WORDS.test(c.v)).length; if (sc > bs){ bs = sc; best = i; } });
+  return bs >= 2 ? best : -1;
+}
+function supplyCols(h){
+  const used = new Set(), find = re => { const i = h.findIndex((x, j) => !used.has(j) && x && re.test(x)); if (i >= 0) used.add(i); return i; };
+  const m = {};
+  m.portionCost = find(/cost per (order|serving|portion|plate|use)|portion cost|plate cost/);
+  m.portion = find(/(oz|amount|qty|quantity|size) per (order|serving|portion|plate)|portion size|per serving|per order|^portion/);
+  m.unitPrice = find(/price per (oz|lb|gram|g\b)|cost per (oz|lb|unit)|per oz/);
+  m.casePrice = find(/price per (item|case|pack|unit|each)|case price|unit price|price each|price per$/);
+  m.total = find(/extended|ext\.? ?price|line total|total paid|amount paid|^total|invoice total/);
+  m.caseSize = find(/amount|size|pack|weight|count per|^oz|oz\.?$|lbs?\.?$|per case/);
+  m.cases = find(/qty|quantity|ordered|cases|# ?of|count/);
+  m.supplier = find(/supplier|vendor|distributor|purveyor/);
+  m.code = find(/code|item ?#|sku|item no|product ?#/);
+  m.unit = find(/^unit$|^uom|unit of measure/);
+  m.name = find(/desc|item|product|ingredient|name/);
+  return m;
+}
+function recipeCols(h){
+  const used = new Set(), find = (re, not) => { const i = h.findIndex((x, j) => !used.has(j) && x && re.test(x) && !(not && not.test(x))); if (i >= 0) used.add(i); return i; };
+  const m = {};
+  m.price = find(/retail|menu price|sell|^price|selling/, /target|increase|adjust|suggest|per oz|per item/);
+  m.cost = find(/cost/, /target|per oz|per item|per order|food cost %|%/);
+  m.section = find(/section|category|group/);
+  m.name = find(/menu item|dish|recipe|item|name/);
+  return m;
+}
+// Decide what each tab is, using headers and what's in the cells.
+function analyzeSheets(sheets){
+  return sheets.map(sh => {
+    const out = { name: sh.name, rows: sh.rows, role:"skip", header:-1, cols:{}, unitHint:"oz", why:"" };
+    if (!sh.rows.length){ out.why = "Empty"; return out; }
+    const hr = headerRowOf(sh.rows); if (hr < 0){ out.why = "No column headings found"; return out; }
+    out.header = hr;
+    const h = sh.rows[hr].map(c => cTxt(c).toLowerCase());
+    const body = sh.rows.slice(hr + 1, hr + 200);
+    // Summary tabs mostly repeat other tabs (column A is formulas pointing elsewhere): skip them.
+    const aCells = body.map(r2 => r2[0]).filter(c => c && (c.v != null || c.f));
+    const refsElsewhere = aCells.filter(c => c.f && /!/.test(c.f)).length;
+    if (aCells.length && refsElsewhere / aCells.length > 0.4){ out.role = "summary"; out.why = "Repeats other tabs, so it's skipped"; return out; }
+    const sm = supplyCols(h), rm = recipeCols(h.slice());
+    const isSupply = sm.name >= 0 && (sm.total >= 0 || sm.casePrice >= 0) && (sm.cases >= 0 || sm.caseSize >= 0);
+    const crossRefs = body.filter(r2 => r2.some(c => c && c.f && REF_RE.test(c.f))).length;
+    const sums = body.filter(r2 => r2.some(c => c && c.f && /^SUM\(/i.test(c.f))).length;
+    if (isSupply && crossRefs < 3){
+      out.role = "supplies"; out.cols = sm;
+      const sizeHdr = sm.caseSize >= 0 ? h[sm.caseSize] : "";
+      out.unitHint = /lb/.test(sizeHdr) ? "lb" : /fl ?oz/.test(sizeHdr) ? "fl oz" : /oz/.test(sizeHdr) ? "oz" : /ct|count|each|pcs/.test(sizeHdr) ? "each" : "oz";
+      return out;
+    }
+    if (rm.name >= 0 && rm.price >= 0 && (rm.cost >= 0 || crossRefs || sums)){ out.role = "recipes"; out.cols = rm; return out; }
+    if (rm.name >= 0 && rm.price >= 0){ out.role = "menu"; out.cols = rm; return out; }
+    out.why = "Didn't recognize this layout"; return out;
+  });
+}
+function parseSupplies(a, defaultSupplier){
+  const m = a.cols, list = []; let section = defaultSupplier || "";
+  const g = (row, k) => m[k] >= 0 ? row[m[k]] : null;
+  a.rows.slice(a.header + 1).forEach((row, i) => {
+    const rowNo = a.header + 2 + i, name = cTxt(g(row, "name")); if (!name) return;
+    const cases = cNum(g(row, "cases")), size = cNum(g(row, "caseSize")), total = cNum(g(row, "total")), cp = cNum(g(row, "casePrice")), portion = cNum(g(row, "portion")), pcost = cNum(g(row, "portionCost"));
+    if ([cases, size, total, cp, portion, pcost].every(x => x == null)){ section = name; return; }   // a heading row like "GFS"
+    let price = cp != null && !(g(row, "casePrice") && g(row, "casePrice").f && total != null) ? cp : (total != null ? (cases ? total / cases : total) : cp);
+    let caseQty = size, unit = cTxt(g(row, "unit")) && UNITS[cTxt(g(row, "unit")).toLowerCase()] ? cTxt(g(row, "unit")).toLowerCase() : a.unitHint, por = portion;
+    if (!caseQty){ caseQty = 1; unit = "each"; if (por == null) por = 1; }
+    if (price == null && pcost != null){ price = pcost; caseQty = 1; unit = "each"; por = 1; }
+    list.push({ rowNo, name, supplier: cTxt(g(row, "supplier")) || section || "", code: cTxt(g(row, "code")), caseQty, unit, price: price != null ? Math.round(price * 100) / 100 : null, portion: por, refCols: { portionCost: m.portionCost, unitPrice: m.unitPrice } });
+  });
+  return list;
+}
+function parseRecipes(a, supRows, supSheet, supByName){
+  const m = a.cols, items = [], rows = a.rows, sheetLabel = a.name.trim();
+  const g = (row, k) => (row && m[k] >= 0) ? row[m[k]] : null;
+  const rangeOf = c => { const mm = c && c.f && c.f.match(/^SUM\(\s*\$?[A-Z]+\$?(\d+)\s*:\s*\$?[A-Z]+\$?(\d+)\s*\)$/i); return mm ? [+mm[1], +mm[2]] : null; };
+  const inRange = new Set();
+  rows.forEach(row => { if (cTxt(g(row, "name")) && cNum(g(row, "price")) != null){ const rg = rangeOf(g(row, "cost")); if (rg) for (let x = rg[0]; x <= rg[1]; x++) inRange.add(x); } });
+  const lineFrom = (rowNo, label) => {
+    const row = rows[rowNo - 1], c = g(row, "cost");
+    const ref = c && c.f && c.f.match(REF_RE);
+    if (ref && supSheet && sameSheet(ref[1], supSheet)){
+      const sup = supRows[+ref[3]];
+      if (sup){
+        const refCol = colIdx(ref[2]); let mult = 1; const op = ref[4], k = +ref[5];
+        let qty;
+        if (refCol === sup.refCols.unitPrice) qty = op === "*" ? k : 1;            // e.g. price per oz × 6 = 6 oz
+        else {
+          if (op === "*") mult = k; else if (op === "/") mult = 1 / k;
+          else if (op === "+" || op === "-"){ const pc = (sup.price / (sup.caseQty || 1)) * (sup.portion || 1); if (pc > 0) mult = Math.round(((op === "+" ? pc + k : pc - k) / pc) * 4) / 4; }
+          qty = (sup.portion || 1) * mult;
+        }
+        return { s: sup.id, label: label || sup.name, qty: Math.round(qty * 1000) / 1000, unit: null };
+      }
+    }
+    const v = cNum(c);
+    if (v != null && v > 0){
+      const byName = supByName && label ? supByName(label) : null;     // no formula: try the name
+      return byName ? { s: byName, label, qty: 1, unit: null, guessed: true } : { s: null, label: label || "Item", qty: 1, unit: null, cost: Math.round(v * 10000) / 10000 };
+    }
+    return { s: null, label: label || "Item", qty: 1, unit: null };
+  };
+  let section = sheetLabel;
+  for (let i = a.header + 1; i < rows.length; i++){
+    const row = rows[i], rowNo = i + 1, name = cTxt(g(row, "name")), price = cNum(g(row, "price")), costC = g(row, "cost");
+    if (!name) continue;
+    if (price != null){
+      const rg = rangeOf(costC); const it = { name, section: cTxt(g(row, "section")) || section, price, lines: [], sheetCost: cNum(costC) };
+      if (rg){ for (let x = rg[0]; x <= rg[1]; x++){ if (x === rowNo) continue; const lab = cTxt(g(rows[x - 1], "name")); const hasCost = g(rows[x - 1], "cost"); if (!lab && !(hasCost && (hasCost.f || hasCost.v != null))) continue; it.lines.push(lineFrom(x, lab || name)); } }
+      else if (costC && (costC.f || cNum(costC) != null)){
+        // Item with its own cost, or followed by ingredient rows without a SUM.
+        let j = i + 1; const follow = [];
+        while (j < rows.length && cTxt(g(rows[j], "name")) && cNum(g(rows[j], "price")) == null && g(rows[j], "cost") && (g(rows[j], "cost").f || cNum(g(rows[j], "cost")) != null)){ follow.push(j + 1); j++; }
+        if (follow.length && !(costC.f && REF_RE.test(costC.f))) follow.forEach(x => it.lines.push(lineFrom(x, cTxt(g(rows[x - 1], "name")))));
+        else it.lines.push(lineFrom(rowNo, name));
+      }
+      items.push(it);
+    } else if (!inRange.has(rowNo) && !(costC && (costC.f || costC.v != null))){
+      section = /^sides?$/i.test(name) ? sheetLabel + " sides" : name;      // a heading row like "Appetizer"
+    }
+  }
+  return items;
+}
+function parseMenuSheet(a){
+  const m = a.cols, out = [];
+  a.rows.slice(a.header + 1).forEach(row => { const name = cTxt(m.name >= 0 ? row[m.name] : null), price = cNum(m.price >= 0 ? row[m.price] : null); if (name && price != null) out.push({ name, section: cTxt(m.section >= 0 ? row[m.section] : null) || a.name.trim(), price, lines: [] }); });
+  return out;
+}
+// Ask AI for a layout only when the built-in rules can't make sense of a workbook.
+async function aiLayout(sheets){
+  const sample = sheets.filter(sh => sh.rows.length).map(sh => "### Tab: " + sh.name + " (" + sh.rows.length + " rows)\n" + sh.rows.slice(0, 10).map((row, i) => (i + 1) + ": " + row.slice(0, 12).map((c, j) => String.fromCharCode(65 + j) + "=" + (c ? (c.f ? "=" + c.f : cTxt(c)) : "")).filter(x => !/=$/.test(x)).join(" | ")).join("\n")).join("\n\n").slice(0, 24000);
+  const prompt = 'These are the first rows of each tab of a restaurant food-costing spreadsheet. For each tab decide its role: "supplies" (one row per purchased product with prices), "recipes" (menu items with prices, each followed by ingredient rows with costs), "menu" (just items and prices), or "skip". Return ONLY JSON: {"tabs":[{"name": tab name exactly, "role": string, "headerRow": row number of the column headings, "unit": "oz"|"lb"|"fl oz"|"each" (supplies only: what case size is measured in), "columns": {for supplies: "name","supplier","code","cases","caseSize","total","casePrice","unitPrice","portion","portionCost"; for recipes and menu: "name","section","price","cost"} as column letters, omitting ones that are not present}]}\n\n' + sample;
+  const d = await aiJSON(prompt);
+  return sheets.map(sh => {
+    const t = (d.tabs || []).find(x => sameSheet(x.name, sh.name));
+    const out = { name: sh.name, rows: sh.rows, role:"skip", header:-1, cols:{}, unitHint:"oz", why:"Skipped" };
+    if (!t || !["supplies","recipes","menu"].includes(t.role)) return out;
+    out.role = t.role; out.header = Math.max(0, (+t.headerRow || 1) - 1); out.unitHint = UNITS[t.unit] ? t.unit : "oz"; out.why = "Layout worked out by AI";
+    const keys = t.role === "supplies" ? ["name","supplier","code","cases","caseSize","total","casePrice","unitPrice","portion","portionCost","unit"] : ["name","section","price","cost"];
+    keys.forEach(k => out.cols[k] = t.columns && t.columns[k] ? colIdx(t.columns[k]) : -1);
+    return out;
+  });
+}
+// Turn the analysis into supplies and items (not saved yet), plus a check against the sheet's own costs.
+function buildImport(analysis){
+  const r = R();
+  const supTabs = analysis.filter(a => a.role === "supplies"), supRowsByTab = {};
+  const supplies = [];
+  supTabs.forEach(a => { const list = parseSupplies(a); const rowsMap = {}; list.forEach(x => { x.id = uid("s"); rowsMap[x.rowNo] = x; supplies.push(x); }); supRowsByTab[a.name] = rowsMap; });
+  const tmpSups = {}; supplies.forEach(x => tmpSups[x.id] = { id:x.id, name:x.name, caseQty:x.caseQty, unit:x.unit, price:x.price, yield:1 });
+  const byName = label => { let best = null, bs = 0; supplies.forEach(x => { const sc = nameScore(label, x.name); if (sc > bs){ bs = sc; best = x.id; } }); return bs >= 0.75 ? best : null; };
+  const items = [];
+  analysis.forEach(a => {
+    if (a.role === "recipes"){
+      // Ingredient formulas name the tab they point to; use that tab's rows.
+      const tabName = (() => { for (const row of a.rows) for (const c of row) { const mm = c && c.f && c.f.match(REF_RE); if (mm && supRowsByTab[Object.keys(supRowsByTab).find(k => sameSheet(k, mm[1]))]) return Object.keys(supRowsByTab).find(k => sameSheet(k, mm[1])); } return supTabs[0] && supTabs[0].name; })();
+      items.push(...parseRecipes(a, supRowsByTab[tabName] || {}, tabName, byName));
+    } else if (a.role === "menu") items.push(...parseMenuSheet(a));
+  });
+  // Check: does our cost match the spreadsheet's own cost for each item?
+  const checks = items.filter(it => it.sheetCost != null && it.sheetCost > 0).map(it => {
+    const ours = it.lines.reduce((t, l) => t + (lineCost(l, r, tmpSups) || 0), 0);
+    return { it, ours, sheet: it.sheetCost, ok: Math.abs(ours - it.sheetCost) <= Math.max(0.02, it.sheetCost * 0.01) };
+  });
+  return { supplies, items, checks, tmpSups };
+}
+function openSheetImport(){
+  const file = el("input",{type:"file", accept:".xlsx,.xls,.xlsm,.csv,.ods", hidden:""});
+  const status = el("div");
+  const pick = el("label",{class:"btn primary", style:"width:100%;min-height:60px;font-size:1.05rem"}, "Choose your spreadsheet", file);
+  file.onchange = async () => {
+    const f = file.files && file.files[0]; file.value = ""; if (!f) return;
+    pick.hidden = true; status.replaceChildren(el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Reading " + f.name + "…"}));
+    try {
+      await loadXLSX();
+      const sheets = readWorkbook(new Uint8Array(await f.arrayBuffer()));
+      let analysis = analyzeSheets(sheets);
+      if (!analysis.some(a => a.role === "supplies" || a.role === "recipes" || a.role === "menu")){
+        status.replaceChildren(el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Unusual layout. Asking AI to work it out…"}));
+        analysis = await aiLayout(sheets);
+      }
+      reviewSheetImport(f.name, sheets, analysis);
+    } catch(e){
+      pick.hidden = false;
+      status.replaceChildren(el("div",{class:"msg bad", text: e && e.code === "lib" ? "Couldn't load the spreadsheet reader. Check your connection and try again." : aiProblem(e) || "Couldn't read that file. Save it as .xlsx or .csv and try again."}));
+    }
+  };
+  openDlg("Import a spreadsheet", [
+    el("p",{class:"lead", text:"Already track costs in Excel? Upload it. The app finds your supplies and recipes, follows your formulas to link ingredients to supplies, and checks its math against yours before saving."}),
+    pick, status,
+    el("p",{class:"mini", style:"margin-top:10px", text:"Works best with a tab of supplies (item, quantity, size, price) and tabs of recipes (menu item, cost, price, with ingredient rows). A simple list of menu items and prices works too."})
+  ], []);
+}
+const ROLE_NAMES = { supplies:"Supplies", recipes:"Recipes", menu:"Menu prices only", summary:"Summary (skip)", skip:"Skip" };
+function reviewSheetImport(fileName, sheets, analysis){
+  const r = R(); let mode = "update";
+  const body = el("div");
+  const draw = () => {
+    const res = buildImport(analysis);
+    const linked = res.items.reduce((t, it) => t + it.lines.filter(l => l.s).length, 0), fixed = res.items.reduce((t, it) => t + it.lines.filter(l => !l.s && n(l.cost) > 0).length, 0);
+    const waiting = res.items.reduce((t, it) => t + it.lines.filter(l => !l.s && !(n(l.cost) > 0)).length, 0);
+    const okN = res.checks.filter(c => c.ok).length, bad = res.checks.filter(c => !c.ok);
+    const existingSup = new Set(Object.values(r.supplies).map(x => x.name.trim().toLowerCase())), existingIt = new Set(Object.values(r.items).map(x => x.name.trim().toLowerCase()));
+    const supDup = res.supplies.filter(x => existingSup.has(x.name.toLowerCase())).length, itDup = res.items.filter(x => existingIt.has(x.name.toLowerCase())).length;
+    const tb = el("tbody");
+    analysis.forEach((a, i) => {
+      const sel = el("select",{class:"inp", style:"min-height:38px;width:auto"}, ["supplies","recipes","menu","skip"].concat(a.role === "summary" ? ["summary"] : []).map(k => el("option",{value:k, text:ROLE_NAMES[k]})));
+      sel.value = a.role;
+      sel.onchange = () => {
+        a.role = sel.value;
+        if (a.role !== "skip" && a.role !== "summary"){
+          if (a.header < 0) a.header = Math.max(0, headerRowOf(a.rows));
+          const h = (a.rows[a.header] || []).map(c => cTxt(c).toLowerCase());
+          a.cols = a.role === "supplies" ? supplyCols(h) : recipeCols(h);
+        }
+        draw();
+      };
+      let found = a.why || "";
+      try {
+        if (a.role === "supplies") found = parseSupplies(a).length + " supplies";
+        else if (a.role === "recipes") found = parseRecipes(a, {}, null, null).length + " menu items with recipes";
+        else if (a.role === "menu") found = parseMenuSheet(a).length + " menu items";
+      } catch(e){ found = "Couldn't read this tab that way"; }
+      tb.append(el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:a.name.trim()}), el("div",{class:"mini", text:(a.rows.length) + " rows"})), el("td",null, sel), el("td",{style:"white-space:normal", text: found || ""})));
+    });
+    const groups = [...new Set(res.supplies.map(x => x.supplier).filter(Boolean))];
+    const modeSel = el("div",{class:"choice"},
+      (() => { const rb = el("input",{type:"radio", name:"mode"}); rb.checked = mode === "update"; rb.onchange = () => mode = "update"; return el("label",null, rb, el("div",null, "Add new and update matches", el("span",{text:"Supplies and items with the same name get the spreadsheet's prices and recipes."}))); })(),
+      (() => { const rb = el("input",{type:"radio", name:"mode"}); rb.checked = mode === "add"; rb.onchange = () => mode = "add"; return el("label",null, rb, el("div",null, "Only add new", el("span",{text:"Leave anything already in the app alone."}))); })());
+    body.replaceChildren(
+      el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Tab"}), el("th",{text:"Used as"}), el("th",{text:"Found"}))), tb)),
+      el("div",{class:"cost", style:"grid-template-columns:repeat(3,1fr);margin-top:14px"},
+        el("div",null, el("span",{text:"Supplies"}), el("b",{text:res.supplies.length})), el("div",null, el("span",{text:"Menu items"}), el("b",{text:res.items.length})),
+        el("div",null, el("span",{text:"Ingredients linked"}), el("b",{text:linked + (linked + fixed + waiting ? " of " + (linked + fixed + waiting) : "")}))),
+      groups.length ? el("p",{class:"mini", text:"Supplier groups: " + groups.join(", ") + ". These become supplier cards."}) : null,
+      res.checks.length ? el("div",{class:"msg " + (bad.length ? "bad" : "good"), text: "Costs match your spreadsheet for " + okN + " of " + res.checks.length + " items." + (bad.length ? " Differences are listed below." : "")}) : null,
+      bad.length ? el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Item"}), el("th",{class:"num", text:"Spreadsheet"}), el("th",{class:"num", text:"App"}))),
+        el("tbody",null, bad.slice(0, 12).map(c => el("tr",{style:"cursor:default"}, el("td",{text:c.it.name}), el("td",{class:"num", text:$$(c.sheet)}), el("td",{class:"num", text:$$(c.ours)})))))) : null,
+      bad.length ? el("p",{class:"mini", text:"Usually a formula in the spreadsheet adds an extra amount by hand, or points at a different column. You can adjust these recipes after importing."}) : null,
+      fixed ? el("p",{class:"mini", text:fixed + (fixed === 1 ? " ingredient had a cost" : " ingredients had a cost") + " typed in by hand with no supply behind it. " + (fixed === 1 ? "It comes" : "They come") + " in as a fixed cost."}) : null,
+      waiting ? el("p",{class:"mini", text:waiting + (waiting === 1 ? " ingredient" : " ingredients") + " had no cost in the spreadsheet and will show as \u201cnot priced\u201d until a supply is linked. Invoices link them automatically by name."}) : null,
+      (supDup || itDup) ? el("div",null, el("p",{style:"margin:12px 0 4px;font-weight:800", text:(supDup + itDup) + " already in the app (" + supDup + " supplies, " + itDup + " items)"}), modeSel) : null);
+    addBtn.disabled = !(res.supplies.length || res.items.length);
+    addBtn.onclick = () => commitSheetImport(res, mode, fileName);
+  };
+  const addBtn = el("button",{class:"btn primary", text:"Import"});
+  openDlg("Check the import: " + fileName, [el("p",{class:"lead", text:"Here's how each tab will be used. Change any that look wrong; the numbers update as you do."}), body],
+    [el("button",{class:"btn quiet", text:"Ask AI to work it out", onclick: async () => {
+        body.replaceChildren(el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Working out the layout…"}));
+        try { analysis = await aiLayout(sheets); } catch(e){ toast(aiProblem(e) || "AI couldn't help with this one"); }
+        draw(); }}), addBtn]);
+  draw();
+}
+function commitSheetImport(res, mode, fileName){
+  const r = R(); r.vendors = r.vendors || [];
+  const idMap = {}; let supAdded = 0, supUpdated = 0, itAdded = 0, itUpdated = 0;
+  res.supplies.forEach(x => {
+    const ex = Object.values(r.supplies).find(s2 => s2.name.trim().toLowerCase() === x.name.toLowerCase() || (x.code && s2.code && s2.code === x.code));
+    if (ex){
+      idMap[x.id] = ex.id;
+      if (mode === "update"){
+        if (x.price != null && ex.price !== x.price) ex.history = (ex.history || []).concat([{ date: today(), price: x.price }]);
+        Object.assign(ex, { price: x.price ?? ex.price, caseQty: x.caseQty ?? ex.caseQty, unit: x.unit || ex.unit, supplier: ex.supplier || x.supplier, code: ex.code || x.code }); supUpdated++;
+      }
+    } else {
+      const ns = { id: x.id, name: x.name, cat:"", supplier: x.supplier, code: x.code, caseQty: x.caseQty, unit: x.unit, yield: 1, price: x.price, history: x.price != null ? [{ date: today(), price: x.price }] : [] };
+      r.supplies[ns.id] = ns; idMap[x.id] = ns.id; supAdded++;
+    }
+  });
+  [...new Set(res.supplies.map(x => x.supplier).filter(Boolean))].forEach(nm => { if (!r.vendors.some(v => v.name.toLowerCase() === nm.toLowerCase())) r.vendors.push({ id: uid("v"), name: nm, kind:"food", account:"", rep:"", repContact:"", order:"rep", invoices:"paper" }); });
+  let order = Math.max(0, ...Object.values(r.items).map(i => i.order || 0));
+  res.items.forEach(it => {
+    const lines = it.lines.map(l => { const o = { s: l.s ? (idMap[l.s] || null) : null, label: l.label, qty: l.qty, unit: l.unit }; if (n(l.cost) > 0) o.cost = l.cost; return o; });
+    const ex = Object.values(r.items).find(x => x.name.trim().toLowerCase() === it.name.toLowerCase());
+    if (ex){ if (mode === "update"){ Object.assign(ex, { price: it.price, section: it.section || ex.section, lines }); itUpdated++; } }
+    else { const ni = { id: uid("m"), name: it.name, section: it.section, price: it.price, sold: 0, portions: 1, lines, order: ++order }; r.items[ni.id] = ni; itAdded++; }
+  });
+  save();
+  openDlg("Spreadsheet imported", [
+    el("div",{class:"cost", style:"grid-template-columns:repeat(2,1fr)"},
+      el("div",null, el("span",{text:"Supplies"}), el("b",{text: supAdded + " new" + (supUpdated ? ", " + supUpdated + " updated" : "")})),
+      el("div",null, el("span",{text:"Menu items"}), el("b",{text: itAdded + " new" + (itUpdated ? ", " + itUpdated + " updated" : "")}))),
+    el("p",{text:"From now on, upload invoices to keep prices current; your spreadsheet isn't needed any more. Add plates sold on each menu item to get the Profit Coach's advice."})
+  ], [el("button",{class:"btn quiet", text:"See supplies", onclick:() => { dlg.close(); go("supplies"); }}), el("button",{class:"btn primary", text:"See my menu", onclick:() => { dlg.close(); go("menu"); }})]);
 }
 
 boot();
