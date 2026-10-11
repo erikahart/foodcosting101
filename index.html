@@ -442,6 +442,83 @@ dialog::backdrop{background:var(--shade);backdrop-filter:blur(2px)}
 .mini{font-weight:400}
 .grp-h .mini,.setup li span.mini{font-weight:400}
 .setup .skip{font-size:.82rem;margin-left:10px}
+
+/* ---------- Second design pass ---------- */
+main{padding-top:34px}
+.phead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;padding-bottom:20px;margin-bottom:24px;border-bottom:1px solid var(--line)}
+.phead h1{margin:0 0 4px}
+.phead .lead{margin:0}
+.phead > div:first-child{min-width:0;flex:1 1 320px}
+.sect-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:30px 0 10px}
+.sect-h h2{margin:0;font-size:1.05rem}
+.sect-h .mini{color:var(--muted)}
+
+/* Key numbers: one strip, not four boxes */
+.kstrip{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:var(--r-panel);background:var(--panel);overflow:hidden}
+.kstrip > div{padding:18px 22px 16px;border-left:1px solid var(--line);min-width:0}
+.kstrip > div:first-child{border-left:0}
+.kstrip .n{font-family:var(--brand-font);font-size:2.15rem;font-weight:700;letter-spacing:-.025em;line-height:1.05;font-variant-numeric:tabular-nums}
+.kstrip .n.bad{color:var(--bad)} .kstrip .n.warn{color:var(--warn)}
+.kstrip .l{color:var(--muted);font-size:.84rem;margin-top:6px}
+.kstrip .clickable{cursor:pointer;transition:background .12s}
+.kstrip .clickable:hover{background:color-mix(in srgb,var(--ink) 3%,transparent)}
+@media (max-width:760px){.kstrip{grid-template-columns:1fr 1fr}.kstrip > div:nth-child(3){border-left:0}.kstrip > div:nth-child(n+3){border-top:1px solid var(--line)}.kstrip .n{font-size:1.7rem}}
+
+/* Suggestions: one list with rules between rows */
+.inslist{border:1px solid var(--line);border-radius:var(--r-panel);background:var(--panel);overflow:hidden}
+.inslist .insight{border:0;border-radius:0;margin:0;border-top:1px solid var(--line);background:transparent;box-shadow:none;padding:16px 20px 16px 18px}
+.inslist .insight:first-child{border-top:0}
+.insight .bar{border-radius:3px;width:3px}
+.insight .acts{margin-top:10px;gap:8px;align-items:center}
+.insight .acts .btn{min-height:34px;padding:6px 12px;font-size:.86rem}
+.insight .dismiss{margin-left:auto;color:var(--muted);font-size:.84rem;text-decoration:none}
+.insight .dismiss:hover{color:var(--ink);text-decoration:underline}
+.insight .imp{text-align:right}
+.insight .imp span{color:var(--muted);font-size:.8rem}
+
+/* Setup checklist: progress first, steps underneath */
+.setup{padding:18px 20px}
+.setup-h{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.setup-h h3{margin:0 0 8px}
+.prog{height:6px;border-radius:3px;background:var(--line);overflow:hidden;max-width:420px}
+.prog i{display:block;height:100%;background:var(--brand);border-radius:3px;transition:width .4s}
+.setup.collapsed{padding:14px 20px}
+.setup{margin-bottom:20px}
+.setup ol{margin-top:16px}
+.ix{width:34px;height:34px;border-radius:var(--r-ctl);border:1px solid var(--line-2);background:var(--panel);color:var(--muted);font-size:1.15rem;line-height:1;cursor:pointer;display:inline-grid;place-items:center}
+.ix:hover{color:var(--ink);border-color:var(--ink-2)}
+.banner{margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between;padding:14px 18px}
+.banner > div:first-child{flex:1 1 260px}
+
+/* Sidebar account */
+.userbox{margin-top:auto;padding-top:14px;display:flex;flex-direction:column;gap:10px}
+.ubox{display:flex;align-items:center;gap:10px;min-width:0}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;font-weight:700;font-size:.8rem;flex:none;letter-spacing:.02em}
+.who{display:flex;flex-direction:column;min-width:0;flex:1}
+.who b{font-size:.84rem;color:var(--side-ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who span{font-size:.76rem;color:var(--side-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.signout{background:transparent;border:1px solid var(--side-line);color:var(--side-muted);border-radius:8px;width:34px;height:34px;display:grid;place-items:center;cursor:pointer;flex:none}
+.signout:hover{color:#fff;border-color:var(--side-muted)}
+aside{display:flex;flex-direction:column}
+
+/* Small refinements */
+.tw thead th{position:sticky;top:0;background:var(--panel);z-index:1}
+.filters .row .btn{white-space:nowrap}
+.card.empty{color:var(--muted);text-align:center;padding:28px}
+td .mini{margin-top:2px}
+@media (max-width:900px){.userbox{display:none}.phead{padding-bottom:14px;margin-bottom:16px}}
+.inslist .insight{position:relative;grid-template-columns:1fr minmax(120px,auto);gap:16px;padding:14px 20px 14px 22px}
+.inslist .insight .bar{position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:0}
+.inslist .insight h3{margin:2px 0 3px}
+.inslist .insight p{margin:0}
+.inslist .insight .acts{margin-top:10px}
+.inslist .insight .imp{min-width:120px;padding-top:2px}
+@media (max-width:640px){
+  .inslist .insight{display:flex;flex-direction:column;gap:4px;padding:14px 16px 14px 18px}
+  .inslist .insight .imp{order:-1;display:flex;align-items:baseline;gap:8px;text-align:left;min-width:0;padding:0}
+  .inslist .insight .imp b{font-size:1.15rem}
+  .inslist .insight .acts{flex-wrap:wrap}
+}
 </style>
 </head>
 <body>
@@ -692,8 +769,11 @@ function renderUserBox(){
   const box = $("userbox"); if (!box || !USER) return;
   const pick = ACCOUNTS.length > 1 ? el("select",{class:"acct", "aria-label":"Kitchen"}, ACCOUNTS.map(a => el("option",{value:a.id, text:a.name}))) : null;
   if (pick){ pick.value = ACCT.id; pick.onchange = () => openAccount(pick.value); }
-  fillIn(box, el("div",null, "Kitchen: ", el("b",{text:ACCT ? ACCT.name : ""})), pick, el("div",null, el("b",{text:USER.email})),
-    el("button",{class:"linkbtn", type:"button", text:"Sign out", onclick:signOut}));
+  const initials = (USER.email || "?").split("@")[0].split(/[._-]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("") || "?";
+  const out = el("button",{class:"signout", type:"button", "aria-label":"Sign out", title:"Sign out", onclick:signOut});
+  out.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></svg>';
+  fillIn(box, pick, el("div",{class:"ubox"}, el("span",{class:"avatar", text:initials}),
+    el("div",{class:"who"}, el("b",{text:USER.email}), el("span",{text:ACCT ? ACCT.name : ""})), out));
 }
 async function boot(){
   if (!CFG.supabaseUrl || !CFG.supabaseAnonKey || /YOUR-/.test(CFG.supabaseUrl + CFG.supabaseAnonKey)){
@@ -835,7 +915,7 @@ const NAV_ICONS = {
 const navIcon = id => { const sp = document.createElement("span"); sp.className = "ic"; sp.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_ICONS[id] + '</svg>'; return sp; };
 function renderNav(){
   const nav = $("nav"); nav.replaceChildren();
-  const newDocs = R().inbox.filter(d => d.status === "new").length, bad = insights().filter(i => i.sev === "bad").length;
+  const newDocs = R().inbox.filter(d => d.status === "new").length, bad = visibleInsights().filter(i => i.sev === "bad").length;
   PAGES.forEach(([id, label]) => nav.append(el("button",{"aria-current": ST.page === id ? "page" : null, onclick:() => go(id)}, navIcon(id), el("span",{class:"lbl", text:label}),
     id === "inbox" && newDocs ? el("span",{class:"badge", text:newDocs}) : null, id === "coach" && bad ? el("span",{class:"badge", text:bad}) : null)));
   const a = $("acct"); a.replaceChildren(...Object.values(ST.restaurants).map(r => el("option",{value:r.id, text:r.name})), el("option",{value:"__new", text:"+ Add a restaurant"})); a.value = ST.current;
@@ -854,9 +934,28 @@ function labelTables(root){
     }));
   });
 }
-function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, supplies, inbox, suppliers, brand })[ST.page](m); labelTables(m); }
+function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, supplies, inbox, suppliers, brand })[ST.page](m); pageHeader(m); labelTables(m); }
+// Group each page's title, description and main actions into one header with a fine rule under it.
+function pageHeader(m){
+  const first = m.firstElementChild; if (!first) return;
+  if (first.classList.contains("spread")){ first.classList.add("phead"); return; }
+  if (first.tagName === "H1"){
+    const hd = el("div",{class:"phead"}), txt = el("div"); m.insertBefore(hd, first); txt.append(first);
+    if (hd.nextElementSibling && hd.nextElementSibling.classList.contains("lead")) txt.append(hd.nextElementSibling);
+    hd.append(txt);
+  }
+}
 
 /* ================= Pages ================= */
+const insKey = i => (i.tag || "") + "|" + (i.title || "");
+// Suggestions you dismissed stay hidden until their wording changes (e.g. a price moves again).
+function visibleInsights(r = R()){
+  const all = insights(r), keys = new Set(all.map(insKey));
+  r.dismissed = r.dismissed || {};
+  Object.keys(r.dismissed).forEach(k => { if (!keys.has(k)) delete r.dismissed[k]; });
+  return all.filter(i => !r.dismissed[insKey(i)]);
+}
+function dismissInsight(ins){ const r = R(); r.dismissed = r.dismissed || {}; r.dismissed[insKey(ins)] = today(); save(); render(); toast("Dismissed. It comes back if the numbers change."); }
 function insightCard(ins, compact){
   const acts = el("div",{class:"row acts"});
   if (ins.linkAll) acts.append(el("button",{class:"btn primary", text:"Link ingredients to supplies", onclick:() => openLinkIngredients()}));
@@ -864,8 +963,9 @@ function insightCard(ins, compact){
   if (ins.item) acts.append(el("button",{class:"btn quiet", text:"Open recipe", onclick:() => openRecipe(ins.item)}));
   if (ins.item && ins.sev === "bad" && ins.tag === "Losing margin") acts.append(el("button",{class:"btn primary", text:"Apply suggested price", onclick:() => { const it = R().items[ins.item]; it.price = stats(it).suggested; save(); render(); toast("Price updated"); }}));
   if (ins.supply) acts.append(el("button",{class:"btn quiet", text:"See supply", onclick:() => openSupply(ins.supply)}));
+  acts.append(el("button",{class:"linkbtn dismiss", type:"button", text:"Dismiss", "aria-label":"Dismiss this suggestion", onclick:() => dismissInsight(ins)}));
   return el("div",{class:"insight " + ins.sev}, el("div",{class:"bar"}),
-    el("div",{class:"body"}, el("div",{class:"tag", text:ins.tag}), el("h3",{text:ins.title}), el("p",{text:ins.text}), compact ? null : acts),
+    el("div",{class:"body"}, el("div",{class:"tag", text:ins.tag}), el("h3",{text:ins.title}), el("p",{text:ins.text}), acts),
     ins.impact != null ? el("div",{class:"imp"}, el("b",{class: ins.impact < 0 ? "up" : "", text:(ins.impact > 0 ? "+" : "") + $0(ins.impact)}), el("span",{text:ins.impactLabel})) : el("div"));
 }
 function home(m){
@@ -873,7 +973,7 @@ function home(m){
   const sold = items.reduce((a, i) => a + (n(i.sold) || 0), 0);
   const costedAll = all.filter(x => x.s.status !== "norecipe");
   const sales = costedAll.reduce((a, x) => a + x.s.price * (n(x.i.sold) || 0), 0), cost = costedAll.reduce((a, x) => a + x.s.plate * (n(x.i.sold) || 0), 0);
-  const ins = insights();
+  const ins = visibleInsights(r);
   m.append(el("h1",{text:r.name}), el("p",{class:"lead", text:"Here's where your menu stands this " + r.period + "."}));
   if (!items.length && !Object.keys(r.supplies).length){
     m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fill,minmax(240px,1fr))"},
@@ -882,24 +982,28 @@ function home(m){
       el("div",{class:"card"}, el("h3",{text:"3. Follow the coach"}), el("p",{text:"See what's losing money, what to push, and what each change is worth."}), el("button",{class:"btn quiet", text:"Open coach", onclick:() => go("coach")}))));
     return;
   }
-  m.append(el("div",{class:"grid kpis"},
-    el("div",{class:"kpi"}, el("div",{class:"n", text: sales ? pc(cost / sales) : "—"}), el("div",{class:"l", text:"Food cost (target " + pc(r.target) + ")"})),
-    el("div",{class:"kpi"}, el("div",{class:"n", text:$0(sales - cost)}), el("div",{class:"l", text:"Profit after food, per " + r.period})),
-    el("div",{class:"kpi bad"}, el("div",{class:"n", text: all.filter(x => x.s.status === "bad").length}), el("div",{class:"l", text:"Items priced too low"})),
-    el("div",{class:"kpi warn"}, el("div",{class:"n", text: r.inbox.filter(d => d.status === "new").length}), el("div",{class:"l", text:"Invoices to review"}))));
-  m.append(el("div",{class:"spread"}, el("h2",{text:"Top things to do"}), el("button",{class:"btn quiet", text:"See all " + ins.length, onclick:() => go("coach")})));
-  ins.filter(i => i.sev !== "good").slice(0, 3).forEach(i => m.append(insightCard(i)));
+  const fcAll = sales ? cost / sales : null, low = all.filter(x => x.s.status === "bad").length, toReview = r.inbox.filter(d => d.status === "new").length;
+  m.append(el("div",{class:"kstrip"},
+    el("div",null, el("div",{class:"n" + (fcAll != null && fcAll > r.target + r.tol ? " bad" : fcAll != null && fcAll > r.target ? " warn" : ""), text: fcAll != null ? pc(fcAll) : "\u2014"}), el("div",{class:"l", text:"Food cost, target " + pc(r.target)})),
+    el("div",null, el("div",{class:"n", text:$0(sales - cost)}), el("div",{class:"l", text:"Profit after food, per " + r.period})),
+    el("div",{class:"clickable", onclick:() => { MV.status = "bad"; MV.cat = "all"; go("menu"); }}, el("div",{class:"n" + (low ? " bad" : ""), text: low}), el("div",{class:"l", text:"Items priced too low"})),
+    el("div",{class:"clickable", onclick:() => go("inbox")}, el("div",{class:"n" + (toReview ? " warn" : ""), text: toReview}), el("div",{class:"l", text:"Invoices to review"}))));
+  const top = ins.filter(i => i.sev !== "good").slice(0, 4);
+  m.append(el("div",{class:"sect-h"}, el("h2",{text:"Top things to do"}), ins.length ? el("button",{class:"linkbtn", type:"button", text:"See all " + ins.length, onclick:() => go("coach")}) : null));
+  if (top.length) m.append(el("div",{class:"inslist"}, top.map(i => insightCard(i))));
+  else m.append(el("div",{class:"card empty", text:"Nothing needs attention right now."}));
   const conns = SUPPLIERS.filter(s => r.conn[s.id] && r.conn[s.id].status === "active").map(s => s.name);
   m.append(el("h2",{text:"Feeds"}), el("div",{class:"card"}, el("p",{style:"margin:0"}, (r.vendors || []).length ? "Your suppliers: " + r.vendors.map(v => v.name).join(", ") + ". " : "No suppliers added yet. ", "Snap or upload each invoice from Invoices & orders and prices update across your menu."),
     el("div",{class:"row", style:"margin-top:10px"}, el("button",{class:"btn primary", text:"Upload an invoice", onclick:() => openUpload()}), el("button",{class:"btn quiet", text:"Your suppliers", onclick:() => go("suppliers")}))));
 }
 function coach(m){
-  const r = R(), ins = insights(), eng = engineering();
+  const r = R(), ins = visibleInsights(r), eng = engineering(), hiddenN = Object.keys(r.dismissed || {}).length;
   m.append(el("h1",{text:"Profit coach"}), el("p",{class:"lead", text:"Ranked by what each change is worth. Numbers use your plates sold per " + r.period + "."}));
   const aiBox = el("div");
   m.append(el("div",{class:"row", style:"margin-bottom:14px"}, el("button",{class:"btn primary", text:"Write me a plan for this week", onclick:() => aiPlan(aiBox, ins)})), aiBox);
   const groups = [["bad","Fix first"],["push","Push these"],["warn","Worth a look"],["good","Doing well"]];
-  groups.forEach(([sev, label]) => { const g = ins.filter(i => i.sev === sev); if (!g.length) return; m.append(el("h2",{text:label})); g.forEach(i => m.append(insightCard(i))); });
+  groups.forEach(([sev, label]) => { const g = ins.filter(i => i.sev === sev); if (!g.length) return; m.append(el("div",{class:"sect-h"}, el("h2",{text:label}), el("span",{class:"mini", text: g.length + (g.length === 1 ? " suggestion" : " suggestions")})), el("div",{class:"inslist"}, g.map(i => insightCard(i)))); });
+  if (hiddenN) m.append(el("p",{class:"mini", style:"margin-top:4px"}, hiddenN + (hiddenN === 1 ? " suggestion is" : " suggestions are") + " dismissed. ", el("button",{class:"linkbtn", type:"button", text:"Show them again", onclick:() => { r.dismissed = {}; save(); render(); }})));
   if (!ins.length) m.append(el("div",{class:"card empty", text:"Add menu items with prices and plates sold to get advice."}));
   const counts = { Star:0, Plowhorse:0, Puzzle:0, Dog:0 }; Object.values(eng.cls).forEach(c => counts[c]++);
   m.append(el("h2",{text:"Menu engineering"}), el("p",{class:"lead", text:"Items are sorted by popularity (share of plates sold) and profit per plate. Average profit per plate: " + $$(eng.avgCM) + "."}),
@@ -953,7 +1057,8 @@ function menu(m){
     if (key !== "all" && !count && MV.status !== key) return null;
     return el("button",{class:"chip" + (key === "bad" ? " st-bad" : key === "warn" || key === "missing" ? " st-warn" : ""), "aria-pressed": String(MV.status === key), onclick:() => { MV.status = key; render(); }}, label, el("span",{class:"ct", text:count})); };
   m.append(el("div",{class:"filters"},
-    el("div",{class:"row"}, search, sortSel, el("button",{class:"btn quiet", text:"Manage categories", onclick:() => openCategories()})),
+    el("div",{class:"row"}, search, sortSel, el("button",{class:"btn quiet", text:"Manage categories", onclick:() => openCategories()}),
+      r.setupView === "hidden" && (unpricedGroups(r).length || all.some(it => !(it.lines || []).length)) ? el("button",{class:"btn quiet", text:"Setup", title:"Show the costing checklist", onclick:() => { r.setupView = "open"; save(); render(); }}) : null),
     el("div",{class:"chips", role:"group", "aria-label":"Category"}, catChip("all","All", all.length), order.map(c => catChip(c, c, all.filter(i => (i.section || "Menu") === c).length))),
     el("div",{class:"chips", role:"group", "aria-label":"Status"}, STATUS_FILTERS.map(([k, t]) => stChip(k, t)))));
 
@@ -1165,12 +1270,14 @@ function supplies(m){
   const shown = all.filter(su => inCat(su) && inSup(su) && inQ(su) && inSt(su));
 
   const distNames = all.filter(su => !su.title && !/[a-z]/.test(su.name || "")).length;
-  if (distNames >= 5) m.append(el("div",{class:"card", style:"margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between"},
+  r.hidden = r.hidden || {};
+  const hideBtn = key => el("button",{class:"ix", "aria-label":"Dismiss", title:"Dismiss", text:"\u00d7", onclick:() => { r.hidden[key] = today(); save(); render(); }});
+  if (distNames >= 5 && !r.hidden.tidy) m.append(el("div",{class:"card banner"},
     el("div",{style:"flex:1 1 260px"}, el("b",{text: distNames + " supplies use distributor shorthand."}), " They're shown with a readable name already; AI can make them read even more naturally. The invoice name always stays underneath."),
-    el("button",{class:"btn quiet", text:"Tidy names with AI", onclick:() => tidyNamesWithAI()})));
-  if (uncategorized >= 3) m.append(el("div",{class:"card", style:"margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between"},
+    el("div",{class:"row", style:"gap:6px"}, el("button",{class:"btn quiet", text:"Tidy names with AI", onclick:() => tidyNamesWithAI()}), hideBtn("tidy"))));
+  if (uncategorized >= 3 && !r.hidden.autosort) m.append(el("div",{class:"card banner"},
     el("div",{style:"flex:1 1 260px"}, el("b",{text: uncategorized + " supplies have no category."}), " Sort them automatically by name; you can change any afterwards."),
-    el("button",{class:"btn primary", text:"Auto-sort into categories", onclick:() => autoCategorize()})));
+    el("div",{class:"row", style:"gap:6px"}, el("button",{class:"btn primary", text:"Auto-sort into categories", onclick:() => autoCategorize()}), hideBtn("autosort"))));
 
   const search = el("input",{class:"search", type:"search", placeholder:"Search name, item code or supplier", "aria-label":"Search supplies"}); search.value = SV.q;
   search.oninput = () => { SV.q = search.value; const pos = search.selectionStart; render(); const s2 = document.querySelector("main .search"); if (s2){ s2.focus(); try { s2.setSelectionRange(pos, pos); } catch(e){} } };
@@ -2687,9 +2794,18 @@ function costSetupCard(r){
   if (!summaryCopies.length && !noRecipe.length && !unlinked) return null;
   const step = (done, title, detail, btn) => el("li",{class: done ? "done" : ""}, el("span",{class:"dot", text: done ? "\u2713" : ""}), el("div",null, el("b",{text:title}), el("span",{class:"mini", text:detail})), done ? el("span") : btn);
   const sheetDone = !!r.sheetImported;
-  return el("div",{class:"card setup"},
-    el("h3",{text:"Finish costing your menu"}),
-    el("p",{style:"margin:0"}, el("b",{text: costed + " of " + real.length}), " menu items are fully costed. Work down this list; each step updates the counts."),
+  const view = r.setupView || "open";
+  if (view === "hidden") return null;
+  const pct = real.length ? Math.round(costed / real.length * 100) : 0;
+  const head = el("div",{class:"setup-h"},
+    el("div",{style:"flex:1;min-width:200px"}, el("h3",{text:"Finish costing your menu"}),
+      el("div",{class:"prog", role:"progressbar", "aria-valuenow":pct, "aria-valuemin":0, "aria-valuemax":100, "aria-label":"Menu items fully costed"}, el("i",{style:"width:" + pct + "%"})),
+      el("p",{class:"mini", style:"margin:6px 0 0"}, costed + " of " + real.length + " menu items fully costed")),
+    el("div",{class:"row", style:"gap:6px"},
+      el("button",{class:"btn quiet", text: view === "open" ? "Collapse" : "Show steps", onclick:() => { r.setupView = view === "open" ? "collapsed" : "open"; save(); render(); }}),
+      el("button",{class:"ix", "aria-label":"Hide the checklist", title:"Hide the checklist", text:"\u00d7", onclick:() => { r.setupView = "hidden"; save(); render(); toast("Checklist hidden. Bring it back from \u201cSetup\u201d on this page."); }})));
+  if (view === "collapsed") return el("div",{class:"card setup collapsed"}, head);
+  return el("div",{class:"card setup"}, head,
     el("ol",null,
       summaryCopies.length ? step(false, "Remove " + summaryCopies.length + " summary copies", "These came from a summary tab (" + [...new Set(summaryCopies.map(i => i.section))].join(", ") + ") and repeat items that are already on your menu.",
         el("button",{class:"btn quiet", text:"Remove them", onclick:() => { if (!confirm("Delete " + summaryCopies.length + " summary copies? Your real menu items aren't touched.")) return; summaryCopies.forEach(it => delete r.items[it.id]); save(); render(); toast("Removed " + summaryCopies.length + " copies"); }})) : null,
