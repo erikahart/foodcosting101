@@ -247,7 +247,11 @@ main{min-width:0}
   .btn{min-height:42px}
   .spread{align-items:stretch}
   .spread > .row,.spread > .btn{width:100%}
-  .spread > .row .btn{flex:1 1 auto}
+  .spread > .row{flex-wrap:nowrap}
+  .spread > .row .btn{flex:1 1 0;min-width:0;padding:8px 8px;font-size:.88rem;white-space:normal;line-height:1.15}
+  .filters .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .filters .row .search{grid-column:1/-1}
+  .filters .row select,.filters .row .btn{width:100%;max-width:none!important;min-width:0;min-height:40px;font-size:.88rem;padding:6px 8px}
 }
 /* Brand kit */
 .kit-drop{display:block;border:3px dashed var(--line);border-radius:14px;padding:18px;text-align:center;cursor:pointer;background:var(--field)}
@@ -844,24 +848,183 @@ function openCategories(){
     el("p",{class:"mini", text:"To move single items, tick them on the menu page and use \u201cMove to\u201d. Categories with no items disappear on their own."})
   ], [el("span"), el("button",{class:"btn primary", text:"Done", onclick:() => dlg.close()})]);
 }
+/* ================= Supplies: categories & filtering ================= */
+const SUP_CATS = ["Protein","Dairy & eggs","Produce","Bakery","Frozen","Dry & canned","Sauces & dressings","Beverage","Disposables","Cleaning"];
+// Order matters: the first rule that matches wins. Written for distributor-style names too ("CHEESE SWS SLCD .75Z DY").
+const CAT_RULES = [
+  // Distributor suffix codes are the strongest clue: FR frozen, DY dairy, MT meat, SF seafood, DS disposables.
+  ["Dairy & eggs", /creamer|\bDY\s*$/i],
+  ["Disposables", /\bDS\s*$/i],
+  ["Dry & canned", /applesauce|\bjam\b|jelly|\bbase\b|pan ?coat|\bdehy|\bhashbrown.*\bGR\b/i],
+  ["Frozen", /\bFR\s*$|corn ?dogs?|onion (rings?|tangler|petals?)/i],
+  ["Protein", /\b(MT|SF)\s*$/i],
+  ["Beverage", /\b(beer|ales?|lager|ipa|stout|pilsner|kegs?|bbl|wine|vodka|whiske?y|bourbon|rum|tequila|gin|liquor|seltzer|soda|pop|cola|pepsi|coke|juice|coffee|tea|water|lemonade|bud light|budweiser|miller|coors|michelob|corona|modelo|great lakes|yuengling)\b/i],
+  ["Disposables", /(container|clamshell|napkin|\bcups?\b|\blids?\b|\bstraws?\b|\bfoil\b|\bfilm\b|\bglove|\bbags?\b|to-?go|\bbox(es)?\b|\bforks?\b|\bspoons?\b|cutlery|\btrays?\b|liner|souffl|take ?out|paper plate|deli paper|toothpick|placemat)/i],
+  ["Cleaning", /(clean|sanitiz|detergent|degreas|\bsoap\b|bleach|chemical|scrubber|rinse aid)/i],
+  ["Frozen", /(fries|\bfry\b|\btots?\b|tater|\bstix\b|mozz(arella)? stick|nugget|ice cream|popsicle|\baptzr\b)/i],
+  ["Protein", /(beef|chicken|\bwings?\b|bacon|sausage|\bham\b|turkey|pork|steak|patt(y|ies)|hamburger(?! bun)|\bfish\b|\bcod\b|haddock|perch|walleye|shrimp|salmon|tuna|\bmeat|\bribs?\b|brisket|hot ?dog|frank|pepperoni|corned|gyro|chorizo|\bstk\b|\bbrst\b|\bchix\b|\bchkn\b)/i],
+  ["Dairy & eggs", /(\beggs?\b|cheese|\bchs\b|\bmilk\b|cream|butter|yogurt|sour cream|half ?& ?half|mozz|cheddar|swiss|provolone|parmesan|\bparm\b)/i],
+  ["Sauces & dressings", /(sauce|dressing|ranch|ketchup|catsup|mustard|\bmayo|\bbbq\b|salsa|gravy|syrup|\bdips?\b|vinaigrette|aioli|buffalo|marinara|alfredo|teriyaki|relish|tartar|honey mustard|\ba1\b|puree|adobo|adobe)/i],
+  ["Produce", /(lettuce|romaine|iceberg|tomato|onion|potato|\bpeppers?\b|jalape|mushroom|cucumber|carrot|celery|cabbage|slaw|lemon|\blimes?\b|\bfruit|apple|banana|berr(y|ies)|garlic|avocado|spinach|\bherbs?\b|cilantro|parsley|\bkale\b|broccoli|\bcorn\b|zucchini|squash|melon|cantel|cantal|grapes?|pine?apple|pinneapple)/i],
+  ["Bakery", /(\bbuns?\b|bread|\brolls?\b|bagel|tortilla|biscuit|croissant|texas toast|hoagie|\bpita\b|english muffin|muffin)/i],
+  ["Dry & canned", /(flour|sugar|\bsalt\b|black pepper|\brice\b|pilaf|pasta|spaghetti|linguin|fettuc|penne|noodle|\bbeans?\b|#10|\bcans?\b|canned|\boil\b|shortening|seasoning|\bspices?\b|\bmix\b|batter|breading|panko|crouton|\bchips?\b|cracker|\boats?\b|cereal|vinegar|broth|soup|honey|peanut|olives?|pickles?|\bGR\s*$)/i],
+  ["Frozen", /(\bfrz\b|frozen|\bifq\b)/i],
+];
+const guessCat = name => { for (const [c, re] of CAT_RULES) if (re.test(name || "")) return c; return ""; };
+const supCat = su => su.cat || "Uncategorized";
+function supCatOrder(r){
+  const present = [...new Set(Object.values(r.supplies).map(supCat))];
+  const saved = (r.supplyCatOrder || []).filter(c => present.includes(c));
+  const rest = present.filter(c => !saved.includes(c)).sort((a, b) => { const ia = SUP_CATS.indexOf(a), ib = SUP_CATS.indexOf(b); if (a === "Uncategorized") return 1; if (b === "Uncategorized") return -1; return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib) || a.localeCompare(b); });
+  return saved.concat(rest);
+}
+function lastChange(su){ const h = (su.history || []).filter(x => x.price > 0); if (h.length < 2) return null; const a = h[h.length - 2].price, b = h[h.length - 1].price; return a ? (b - a) / a : null; }
+const SV = { cat:"all", sup:"all", status:"all", q:"", sort:"name", group:"cat", sel:new Set() };
+const SUP_STATUS = [["all","All"],["needsize","Needs case size"],["noprice","No price"],["up","Price went up"],["unused","Not in any recipe"]];
+function supStatusOf(su, usedCount){ return { needsize: !n(su.caseQty), noprice: !(n(su.price) > 0), up: (lastChange(su) || 0) > 0.05, unused: !usedCount }; }
 function supplies(m){
   const r = R();
-  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Supplies"}), el("p",{class:"lead", text:"Prices update from supplier feeds and approved invoices."})), el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn quiet", text:"+ Add supply", onclick:() => openSupply(null)}))));
-  const q = el("input",{class:"search", type:"search", placeholder:"Search supplies or item codes"}); m.append(el("div",{class:"row", style:"margin-bottom:12px"}, q));
-  const box = el("div"); m.append(box);
-  const draw = () => {
-    const t = q.value.toLowerCase(), list = Object.values(r.supplies).filter(s => !t || s.name.toLowerCase().includes(t) || (s.code||"").includes(t)).sort((a,b) => a.name.localeCompare(b.name));
-    if (!list.length){ box.replaceChildren(el("div",{class:"card empty", text:"No supplies yet. Connect a supplier or approve an invoice."})); return; }
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Supplies"}), el("p",{class:"lead", text:"Everything you buy. Prices update from approved invoices."})),
+    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn primary", text:"+ Add supply", onclick:() => openSupply(null)}))));
+  const all = Object.values(r.supplies);
+  if (!all.length){ m.append(el("div",{class:"card empty", text:"No supplies yet. Upload an invoice or import your costing spreadsheet and they'll appear here."})); return; }
+  const order = supCatOrder(r);
+  if (SV.cat !== "all" && !order.includes(SV.cat)) SV.cat = "all";
+  for (const id of [...SV.sel]) if (!r.supplies[id]) SV.sel.delete(id);
+  const used = new Map(all.map(su => [su.id, usedBy(su.id).length]));
+  const flags = new Map(all.map(su => [su.id, supStatusOf(su, used.get(su.id))]));
+  const uncategorized = all.filter(su => !su.cat).length;
+  const suppliersList = [...new Set(all.map(su => su.supplier || "No supplier"))].sort();
+  if (SV.sup !== "all" && !suppliersList.includes(SV.sup)) SV.sup = "all";
+  const q = SV.q.trim().toLowerCase();
+  const inCat = su => SV.cat === "all" || supCat(su) === SV.cat;
+  const inSup = su => SV.sup === "all" || (su.supplier || "No supplier") === SV.sup;
+  const inQ = su => !q || su.name.toLowerCase().includes(q) || (su.code || "").toLowerCase().includes(q) || (su.supplier || "").toLowerCase().includes(q);
+  const inSt = su => SV.status === "all" || flags.get(su.id)[SV.status];
+  const shown = all.filter(su => inCat(su) && inSup(su) && inQ(su) && inSt(su));
+
+  if (uncategorized >= 3) m.append(el("div",{class:"card", style:"margin-bottom:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;justify-content:space-between"},
+    el("div",{style:"flex:1 1 260px"}, el("b",{text: uncategorized + " supplies have no category."}), " Sort them automatically by name; you can change any afterwards."),
+    el("button",{class:"btn primary", text:"Auto-sort into categories", onclick:() => autoCategorize()})));
+
+  const search = el("input",{class:"search", type:"search", placeholder:"Search name, item code or supplier", "aria-label":"Search supplies"}); search.value = SV.q;
+  search.oninput = () => { SV.q = search.value; const pos = search.selectionStart; render(); const s2 = document.querySelector("main .search"); if (s2){ s2.focus(); try { s2.setSelectionRange(pos, pos); } catch(e){} } };
+  const supSel = el("select",{class:"inp", style:"width:auto;min-height:44px;max-width:220px", "aria-label":"Supplier"}, el("option",{value:"all", text:"All suppliers"}), suppliersList.map(x => el("option",{value:x, text: x + " (" + all.filter(su => (su.supplier || "No supplier") === x).length + ")"})));
+  supSel.value = SV.sup; supSel.onchange = () => { SV.sup = supSel.value; render(); };
+  const sortSel = el("select",{class:"inp", style:"width:auto;min-height:44px", "aria-label":"Sort"}, [["name","Name A\u2013Z"],["up","Biggest price increase"],["used","Most used in recipes"],["cost","Highest case price"],["recent","Recently updated"]].map(([k, t]) => el("option",{value:k, text:t})));
+  sortSel.value = SV.sort; sortSel.onchange = () => { SV.sort = sortSel.value; render(); };
+  const groupSel = el("select",{class:"inp", style:"width:auto;min-height:44px", "aria-label":"Group by"}, [["cat","Group by category"],["sup","Group by supplier"],["none","No groups"]].map(([k, t]) => el("option",{value:k, text:t})));
+  groupSel.value = SV.group; groupSel.onchange = () => { SV.group = groupSel.value; render(); };
+  const catChip = (key, label, count) => el("button",{class:"chip", "aria-pressed": String(SV.cat === key), onclick:() => { SV.cat = key; render(); }}, label, el("span",{class:"ct", text:count}));
+  const stChip = (key, label) => { const count = all.filter(su => inCat(su) && inSup(su) && inQ(su) && (key === "all" || flags.get(su.id)[key])).length;
+    if (key !== "all" && !count && SV.status !== key) return null;
+    return el("button",{class:"chip" + (key === "up" ? " st-bad" : key === "needsize" || key === "noprice" ? " st-warn" : ""), "aria-pressed": String(SV.status === key), onclick:() => { SV.status = key; render(); }}, label, el("span",{class:"ct", text:count})); };
+  m.append(el("div",{class:"filters"},
+    el("div",{class:"row"}, search, supSel, sortSel, groupSel, el("button",{class:"btn quiet", text:"Manage categories", onclick:() => openSupCategories()})),
+    el("div",{class:"chips", role:"group", "aria-label":"Category"}, catChip("all","All", all.length), order.map(c => catChip(c, c, all.filter(su => supCat(su) === c).length))),
+    el("div",{class:"chips", role:"group", "aria-label":"Show"}, SUP_STATUS.map(([k, t]) => stChip(k, t)))));
+
+  if (SV.sel.size){
+    const catMove = el("select",{"aria-label":"Set category"}, el("option",{value:"", text:"Set category\u2026"}), [...new Set(SUP_CATS.concat(order.filter(c => c !== "Uncategorized")))].map(c => el("option",{value:c, text:c})), el("option",{value:"__new", text:"+ New category"}));
+    catMove.onchange = () => { let to = catMove.value; if (!to) return; if (to === "__new"){ to = (prompt("New category name?") || "").trim(); if (!to) return; }
+      SV.sel.forEach(id => { if (r.supplies[id]) r.supplies[id].cat = to; }); toast("Moved " + SV.sel.size + " to " + to); SV.sel.clear(); save(); render(); };
+    const supMove = el("select",{"aria-label":"Set supplier"}, el("option",{value:"", text:"Set supplier\u2026"}), [...new Set((r.vendors || []).map(v => v.name).concat(suppliersList.filter(x => x !== "No supplier")))].map(x => el("option",{value:x, text:x})), el("option",{value:"__new", text:"+ New supplier"}));
+    supMove.onchange = () => { let to = supMove.value; if (!to) return; if (to === "__new"){ to = (prompt("Supplier name?") || "").trim(); if (!to) return; }
+      SV.sel.forEach(id => { if (r.supplies[id]) r.supplies[id].supplier = to; }); toast("Set supplier for " + SV.sel.size); SV.sel.clear(); save(); render(); };
+    m.append(el("div",{class:"bulk"}, el("b",{text: SV.sel.size + " selected"}), catMove, supMove,
+      el("button",{class:"btn quiet", text:"Delete", onclick:() => {
+        const inUse = [...SV.sel].filter(id => used.get(id)).length;
+        if (!confirm("Delete " + SV.sel.size + " supplies?" + (inUse ? " " + inUse + " are used in recipes; those ingredients will show as not priced." : "") + " This can't be undone.")) return;
+        SV.sel.forEach(id => { const su = r.supplies[id]; if (!su) return; Object.values(r.items).forEach(it => (it.lines || []).forEach(l => { if (l.s === id){ l.label = l.label || su.name; l.s = null; } })); delete r.supplies[id]; });
+        SV.sel.clear(); save(); render(); toast("Deleted"); }}),
+      el("button",{class:"btn quiet", text:"Clear", onclick:() => { SV.sel.clear(); render(); }})));
+  }
+  if (!shown.length){ m.append(el("div",{class:"card empty"}, "Nothing matches. ", el("button",{class:"btn quiet", text:"Show everything", onclick:() => { SV.cat = "all"; SV.sup = "all"; SV.status = "all"; SV.q = ""; render(); }}))); return; }
+
+  const lastDate = su => { const h = su.history || []; return h.length ? h[h.length - 1].date || "" : ""; };
+  const sorter = { name:(a, b) => a.name.localeCompare(b.name), up:(a, b) => (lastChange(b) ?? -9) - (lastChange(a) ?? -9), used:(a, b) => used.get(b.id) - used.get(a.id) || a.name.localeCompare(b.name),
+    cost:(a, b) => (n(b.price) || 0) - (n(a.price) || 0), recent:(a, b) => lastDate(b).localeCompare(lastDate(a)) }[SV.sort];
+  const table = rows => {
+    const head = el("input",{type:"checkbox", "aria-label":"Select all in this group"}); head.checked = rows.length > 0 && rows.every(su => SV.sel.has(su.id));
+    head.onchange = () => { rows.forEach(su => head.checked ? SV.sel.add(su.id) : SV.sel.delete(su.id)); render(); };
     const tb = el("tbody");
-    list.forEach(s => { const h = s.history || [], ch = h.length > 1 ? (h[h.length-1].price - h[h.length-2].price) / h[h.length-2].price : null, cpu = supCostPerUnit(s);
-      tb.append(el("tr",{onclick:() => openSupply(s.id)}, el("td",null, el("b",{text:s.name}), el("div",{class:"mini", text:[s.supplier, s.code ? "#" + s.code : ""].filter(Boolean).join("  ")})),
-        el("td",{class:"num", text:$$(s.price)}), el("td",{class:"num", text: s.caseQty + " " + s.unit}), el("td",{class:"num", text:pc(n(s.yield) || 1)}),
-        el("td",{class:"num", text: cpu != null ? "$" + cpu.toFixed(3) + " / " + s.unit : "—"}),
-        el("td",{class:"num"}, ch != null && Math.abs(ch) >= 0.005 ? el("span",{class: ch > 0 ? "up" : "down", text:(ch > 0 ? "+" : "") + pc(ch)}) : "—"),
-        el("td",{class:"num", text: usedBy(s.id).length || "—"}))); });
-    box.replaceChildren(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Supply","Case price","Case size","Yield","Usable cost","Last change","Recipes"].map((h, i) => el("th",{class: i ? "num" : "", text:h})))), tb)));
+    rows.forEach(su => {
+      const f = flags.get(su.id), ch = lastChange(su), cpu = supCostPerUnit(su), uses = used.get(su.id);
+      const cb = el("input",{type:"checkbox", "aria-label":"Select " + su.name}); cb.checked = SV.sel.has(su.id);
+      cb.onclick = e => e.stopPropagation(); cb.onchange = () => { cb.checked ? SV.sel.add(su.id) : SV.sel.delete(su.id); render(); };
+      const dash = () => el("span",{class:"dash", text:"\u2014"});
+      tb.append(el("tr",{onclick:() => openSupply(su.id)},
+        el("td",{onclick: e => e.stopPropagation()}, cb),
+        el("td",{style:"white-space:normal"}, el("b",{text:su.name}), el("div",{class:"mini", text:[SV.group !== "sup" ? su.supplier : "", su.code ? "#" + su.code : "", SV.group !== "cat" && su.cat ? su.cat : ""].filter(Boolean).join("  \u00b7  ")}),
+          f.needsize ? el("span",{class:"pill warn", style:"margin-top:3px", text:"Needs case size"}) : null),
+        el("td",{class:"num"}, n(su.price) > 0 ? $$(su.price) : dash()),
+        el("td",{class:"num c-plate"}, n(su.caseQty) ? (Math.round(su.caseQty * 100) / 100) + " " + su.unit : dash()),
+        el("td",{class:"num"}, cpu != null ? "$" + cpu.toFixed(3) + " / " + su.unit : dash()),
+        el("td",{class:"num"}, ch != null && Math.abs(ch) >= 0.005 ? el("span",{class: ch > 0 ? "up" : "down", text:(ch > 0 ? "+" : "") + pc(ch)}) : dash()),
+        el("td",{class:"num c-sold"}, uses || dash())));
+    });
+    const heads = [["", ""], ["Supply", ""], ["Case price", "num"], ["Case size", "num c-plate"], ["Usable cost", "num"], ["Last change", "num"], ["Recipes", "num c-sold"]];
+    return el("div",{class:"tw"}, el("table",{class:"menu-t"}, el("thead",null, el("tr",null, heads.map(([h, c], i) => el("th",{class:c}, i === 0 ? head : h)))), tb));
   };
-  q.oninput = draw; draw();
+  const groupHead = (title, rows) => {
+    const up = rows.filter(su => flags.get(su.id).up).length, need = rows.filter(su => flags.get(su.id).needsize).length;
+    return el("div",{class:"grp-h"}, el("h2",{text:title}), el("span",{class:"mini", text:[rows.length + (rows.length === 1 ? " supply" : " supplies"), up ? up + " went up" : "", need ? need + " need case size" : ""].filter(Boolean).join("  \u00b7  ")}));
+  };
+  if (SV.group === "cat") order.filter(c => shown.some(su => supCat(su) === c)).forEach(c => { const rows = shown.filter(su => supCat(su) === c).sort(sorter); m.append(groupHead(c, rows), table(rows)); });
+  else if (SV.group === "sup") [...new Set(shown.map(su => su.supplier || "No supplier"))].sort().forEach(x => { const rows = shown.filter(su => (su.supplier || "No supplier") === x).sort(sorter); m.append(groupHead(x, rows), table(rows)); });
+  else m.append(table(shown.sort(sorter)));
+}
+async function autoCategorize(){
+  const r = R(), todo = Object.values(r.supplies).filter(su => !su.cat);
+  let byRule = 0;
+  todo.forEach(su => { const c = guessCat(su.name); if (c){ su.cat = c; byRule++; } });
+  const left = todo.filter(su => !su.cat);
+  save(); render();
+  if (!left.length){ toast("Sorted " + byRule + " supplies into categories"); return; }
+  openDlg("Auto-sort", [el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Sorted " + byRule + " by name. Asking AI about the " + left.length + " it couldn't place…"})], []);
+  let byAI = 0, problem = null;
+  for (let k = 0; k < left.length; k += 60){
+    const batch = left.slice(k, k + 60);
+    try {
+      const d = await aiJSON("Sort these restaurant supplies into exactly one of these categories: " + SUP_CATS.join(", ") + ". Distributor names are often abbreviated (FR = frozen, DY = dairy, CHS = cheese). Return ONLY JSON: {\"cats\": {\"<supply name exactly as given>\": \"<category>\"}}. Use \"\" if you really can't tell.\nSupplies:\n" + batch.map(su => su.name).join("\n"));
+      batch.forEach(su => { const c = d.cats && d.cats[su.name]; if (c && SUP_CATS.includes(c)){ su.cat = c; byAI++; } });
+    } catch(e){ problem = aiProblem(e) || "AI couldn't help with the rest."; break; }
+  }
+  save(); render();
+  const still = left.length - byAI;
+  openDlg("Auto-sort done", [el("div",{class:"cost", style:"grid-template-columns:repeat(3,1fr)"}, el("div",null, el("span",{text:"By name"}), el("b",{text:byRule})), el("div",null, el("span",{text:"By AI"}), el("b",{text:byAI})), el("div",null, el("span",{text:"Still to sort"}), el("b",{text:still}))),
+    problem ? el("p",{class:"mini", text:problem}) : null,
+    still ? el("p",{text:"Filter by \u201cUncategorized\u201d, tick them, and use \u201cSet category\u201d to finish."}) : el("p",{text:"Everything has a category. Change any by ticking it and using \u201cSet category\u201d, or in the supply itself."})],
+    [el("span"), el("button",{class:"btn primary", text:"Done", onclick:() => { if (still) SV.cat = "Uncategorized"; dlg.close(); go("supplies"); }})]);
+}
+function openSupCategories(){
+  const r = R(); r.supplyCatOrder = supCatOrder(r).filter(c => c !== "Uncategorized");
+  const box = el("div");
+  const draw = () => {
+    const list = r.supplyCatOrder;
+    box.replaceChildren(...list.map((c, i) => {
+      const count = Object.values(r.supplies).filter(su => su.cat === c).length;
+      const name = el("input",{class:"inp", style:"min-height:40px", "aria-label":"Category name"}); name.value = c;
+      name.onchange = () => {
+        const to = name.value.trim(); if (!to || to === c){ name.value = c; return; }
+        const merging = list.includes(to);
+        if (merging && !confirm("\u201c" + to + "\u201d already exists. Merge " + count + " supplies into it?")){ name.value = c; return; }
+        Object.values(r.supplies).forEach(su => { if (su.cat === c) su.cat = to; });
+        r.supplyCatOrder = merging ? list.filter(x => x !== c) : list.map(x => x === c ? to : x);
+        if (SV.cat === c) SV.cat = to;
+        save(); setTimeout(draw, 0);
+      };
+      const mv = d => { const j = i + d; if (j < 0 || j >= list.length) return; [list[i], list[j]] = [list[j], list[i]]; save(); setTimeout(draw, 0); };
+      return el("div",{style:"display:grid;grid-template-columns:1fr auto 40px 40px;gap:8px;align-items:center;margin-bottom:8px"},
+        name, el("span",{class:"mini", style:"min-width:76px", text: count + (count === 1 ? " supply" : " supplies")}),
+        el("button",{class:"ix", "aria-label":"Move up", text:"\u2191", disabled: i === 0 ? "" : null, onclick:() => mv(-1)}),
+        el("button",{class:"ix", "aria-label":"Move down", text:"\u2193", disabled: i === list.length - 1 ? "" : null, onclick:() => mv(1)}));
+    }));
+    if (!list.length) box.append(el("p",{class:"empty", text:"No categories yet. Use Auto-sort on the Supplies page, or tick supplies and choose \u201cSet category\u201d."}));
+  };
+  draw();
+  openDlg("Supply categories", [el("p",{class:"lead", text:"Rename a category to update all its supplies. Give it the same name as another to merge them. Arrows set the order."}), box],
+    [el("span"), el("button",{class:"btn primary", text:"Done", onclick:() => dlg.close()})]);
 }
 function inbox(m){
   const r = R();
@@ -1099,6 +1262,10 @@ function openSupply(id){
   const out = el("div",{class:"coachtip"});
   const qtyIn = inp("caseQty","number","any");
   const supIn = inp("supplier"); supIn.setAttribute("list", "vendor-list");
+  if (isNew && !s.cat) s.cat = "";
+  const catSel = el("input",{class:"inp", list:"supcat-list", placeholder:"e.g. Produce"}); catSel.value = s.cat || "";
+  catSel.oninput = () => { s.cat = catSel.value.trim(); };
+  const catList = el("datalist",{id:"supcat-list"}, [...new Set(SUP_CATS.concat(Object.values(r.supplies).map(x => x.cat).filter(Boolean)))].map(c => el("option",{value:c})));
   const supList = el("datalist",{id:"vendor-list"}, [...new Set((r.vendors || []).map(v => v.name).concat(Object.values(r.supplies).map(x => x.supplier)).filter(Boolean))].map(v2 => el("option",{value:v2})));
   function calc(){ const c = supCostPerUnit(s), used = usedBy(s.id); out.replaceChildren(el("b",{text: c != null ? "$" + c.toFixed(4) + " per usable " + s.unit : "Enter case price and size"}), used.length ? "Used in " + used.map(i => i.name).join(", ") + "." : "Not in any recipe yet."); }
   calc();
@@ -1108,9 +1275,10 @@ function openSupply(id){
     el("div",{class:"g3"}, fld("Case price", inp("price","number","0.01")), fld("Case size", qtyIn), fld("Unit", un)),
     el("div",{class:"field"}, el("span",{class:"q", text:"Drink pack sizes"}), el("div",{class:"row"}, PACKS.map(([lab, qty, yld]) => el("button",{class:"btn quiet", type:"button", style:"min-height:36px;padding:6px 10px", text:lab, onclick:() => { s.caseQty = qty; s.unit = "fl oz"; s.yield = yld; qtyIn.value = qty; un.value = "fl oz"; yl.value = Math.round(yld * 100); calc(); }})))),
     el("div",{class:"g2"}, fld("Yield %", yl, "Usable share after trimming or cooking"), fld("Item code", inp("code"), "Used to match supplier feeds")),
+    fld("Category", catSel), catList,
     out, hist ? el("p",{class:"mini", text:"Price history: " + hist}) : null
   ], [ !isNew ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (confirm("Delete " + s.name + "?")){ Object.values(r.items).forEach(i => i.lines.forEach(l => { if (l.s === s.id) { l.label = s.name; l.s = null; } })); delete r.supplies[s.id]; save(); dlg.close(); } }}) : el("span"),
-       el("button",{class:"btn primary", text:"Save", onclick:() => { if (!s.name.trim()) return toast("Give it a name"); const old = r.supplies[s.id]; if (!old || old.price !== s.price){ s.history = (s.history || []).concat([{ date: today(), price: s.price }]); } r.supplies[s.id] = s; const linked = isNew ? linkUnpriced(r, [s.id]) : 0; save(); dlg.close(); toast(linked ? "Saved and linked to " + linked + (linked === 1 ? " recipe line" : " recipe lines") : "Saved"); }}) ]);
+       el("button",{class:"btn primary", text:"Save", onclick:() => { if (!s.name.trim()) return toast("Give it a name"); if (!s.cat) s.cat = guessCat(s.name); const old = r.supplies[s.id]; if (!old || old.price !== s.price){ s.history = (s.history || []).concat([{ date: today(), price: s.price }]); } r.supplies[s.id] = s; const linked = isNew ? linkUnpriced(r, [s.id]) : 0; save(); dlg.close(); toast(linked ? "Saved and linked to " + linked + (linked === 1 ? " recipe line" : " recipe lines") : "Saved"); }}) ]);
 }
 // Keg yields allow for foam and line loss; packaged drinks are 100%.
 const PACKS = [["\u00bd bbl keg", 1984, 0.9], ["\u00bc bbl keg", 992, 0.9], ["\u2159 bbl keg", 661, 0.9], ["24 \u00d7 12 oz", 288, 1], ["24 \u00d7 16 oz", 384, 1], ["12 \u00d7 750 ml", 304.3, 1], ["6 \u00d7 1.75 L", 355, 1]];
@@ -1180,7 +1348,7 @@ function approve(d){
     const pk = parsePack(l.pack) || parsePack(l.desc);
     let unit = pk ? pk.unit : "each", size = pk ? pk.size : null;
     if (isBev && unit === "oz") unit = "fl oz";
-    const ns = { id: uid("s"), name: tidyName(l.desc), cat:"", supplier: d.supplier, code: l.code || "", caseQty: size, unit, yield: pk && pk.keg ? 0.9 : 1, price: null, history:[] };
+    const ns = { id: uid("s"), name: tidyName(l.desc), cat: isBev ? "Beverage" : guessCat(l.desc), supplier: d.supplier, code: l.code || "", caseQty: size, unit, yield: pk && pk.keg ? 0.9 : 1, price: null, history:[] };
     r.supplies[ns.id] = ns; l.match = ns.id; madeFor[k] = ns.id; added++;
   });
   // One price per product: the last line for it on this invoice.
@@ -1755,7 +1923,7 @@ function commitSheetImport(res, mode, fileName){
         Object.assign(ex, { price: x.price ?? ex.price, caseQty: x.caseQty ?? ex.caseQty, unit: x.unit || ex.unit, supplier: ex.supplier || x.supplier, code: ex.code || x.code }); supUpdated++;
       }
     } else {
-      const ns = { id: x.id, name: x.name, cat:"", supplier: x.supplier, code: x.code, caseQty: x.caseQty, unit: x.unit, yield: 1, price: x.price, history: x.price != null ? [{ date: today(), price: x.price }] : [] };
+      const ns = { id: x.id, name: x.name, cat: guessCat(x.name), supplier: x.supplier, code: x.code, caseQty: x.caseQty, unit: x.unit, yield: 1, price: x.price, history: x.price != null ? [{ date: today(), price: x.price }] : [] };
       r.supplies[ns.id] = ns; idMap[x.id] = ns.id; supAdded++;
     }
   });
