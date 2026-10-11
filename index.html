@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>PlateMargin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --brand:#1D7A5F; --on-brand:#fff;
+  --bg:#EEF1F4; --panel:#FFFFFF; --ink:#14213D; --muted:#4F5B70; --line:#D3D9E2;
+  --warn:#A86A00; --warn-soft:#FBEBCB; --good:#2E6B3F; --good-soft:#DDEEDF;
+  --bad:#A4262C; --bad-soft:#F6DCDD; --field:#F7F9FB; --shade:rgba(20,33,61,.45);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1626; --panel:#16213A; --ink:#EDF1F7; --muted:#A9B4C6; --line:#2C3A57;
+    --warn:#E8B04B; --warn-soft:#3A3120; --good:#7FC793; --good-soft:#1C3325;
+    --bad:#F0868B; --bad-soft:#3B1D22; --field:#1C2944; --shade:rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1626; --panel:#16213A; --ink:#EDF1F7; --muted:#A9B4C6; --line:#2C3A57;
+  --warn:#E8B04B; --warn-soft:#3A3120; --good:#7FC793; --good-soft:#1C3325;
+  --bad:#F0868B; --bad-soft:#3B1D22; --field:#1C2944; --shade:rgba(0,0,0,.6);
+}
+html,body{height:100%}
+*,*::before,*::after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"Public Sans",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:16px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--brand);outline-offset:2px}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100%}
+aside{background:var(--panel);border-right:1px solid var(--line);padding:18px 14px;position:sticky;top:0;height:100vh;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
+.brandbox{display:flex;gap:10px;align-items:center}
+.logo{width:42px;height:42px;border-radius:10px;background:var(--brand);color:var(--on-brand);display:grid;place-items:center;font-weight:900;flex:none;overflow:hidden}
+.logo img{width:100%;height:100%;object-fit:contain;background:#fff}
+.brandbox b{display:block;font-size:1.05rem;font-weight:900;line-height:1.1}
+.brandbox span{font-size:.8rem;color:var(--muted)}
+.acct{width:100%;border:2px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--field);font-weight:700}
+nav{display:flex;flex-direction:column;gap:2px}
+nav button{display:flex;justify-content:space-between;align-items:center;text-align:left;border:0;background:none;padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer;color:var(--muted)}
+nav button:hover{background:var(--field)}
+nav button[aria-current="page"]{background:var(--brand);color:var(--on-brand)}
+.badge{background:var(--bad);color:#fff;border-radius:999px;font-size:.75rem;padding:1px 8px;font-weight:800}
+nav button[aria-current="page"] .badge{background:var(--on-brand);color:var(--brand)}
+.powered{margin-top:auto;font-size:.75rem;color:var(--muted)}
+main{padding:24px clamp(14px,3vw,36px) 80px;max-width:1100px;width:100%}
+h1{font-size:1.7rem;font-weight:900;margin:0 0 4px;letter-spacing:-.01em}
+.lead{color:var(--muted);margin:0 0 18px}
+h2{font-size:1.15rem;font-weight:900;margin:24px 0 10px}
+.grid{display:grid;gap:12px}
+.kpis{grid-template-columns:repeat(4,1fr)}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+.kpi .n{font-size:1.9rem;font-weight:900;line-height:1.05;font-variant-numeric:tabular-nums}
+.kpi .l{color:var(--muted);font-size:.88rem;font-weight:600}
+.kpi.bad .n{color:var(--bad)} .kpi.warn .n{color:var(--warn)} .kpi.good .n{color:var(--good)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+.card h3{margin:0 0 6px;font-size:1.05rem;font-weight:900}
+.card p{margin:0 0 10px;color:var(--muted)}
+.btn{font-weight:800;padding:10px 14px;border-radius:10px;cursor:pointer;border:2px solid var(--ink);background:transparent;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.btn.quiet{border-color:var(--line)}
+.btn.danger{border-color:var(--bad);color:var(--bad)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.spread{display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap}
+.insight{display:grid;grid-template-columns:6px 1fr auto;gap:0 14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:10px}
+.insight .bar{background:var(--line)}
+.insight.bad .bar{background:var(--bad)} .insight.warn .bar{background:var(--warn)} .insight.good .bar{background:var(--good)} .insight.push .bar{background:var(--brand)}
+.insight .body{padding:14px 0}
+.insight .tag{font-size:.75rem;font-weight:900;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.insight h3{margin:2px 0 4px;font-size:1.05rem;font-weight:900}
+.insight p{margin:0;color:var(--muted)}
+.insight .imp{padding:14px 14px 14px 0;text-align:right;font-variant-numeric:tabular-nums}
+.insight .imp b{display:block;font-size:1.3rem;font-weight:900}
+.insight .imp span{font-size:.8rem;color:var(--muted)}
+.insight .acts{margin-top:10px}
+table{width:100%;border-collapse:collapse;background:var(--panel);font-variant-numeric:tabular-nums}
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:14px}
+th,td{padding:10px 12px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:.8rem;color:var(--muted);font-weight:800;background:var(--field)}
+td.num,th.num{text-align:right}
+tr:last-child td{border-bottom:0}
+tbody tr{cursor:pointer} tbody tr:hover{background:var(--field)}
+.pill{display:inline-block;border-radius:999px;padding:2px 10px;font-size:.8rem;font-weight:800;background:var(--field);border:1px solid var(--line)}
+.pill.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.pill.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.pill.good{background:var(--good-soft);color:var(--good);border-color:transparent}
+.pill.brand{background:var(--brand);color:var(--on-brand);border-color:transparent}
+.up{color:var(--bad);font-weight:800} .down{color:var(--good);font-weight:800}
+.search{padding:10px 12px;border:2px solid var(--line);border-radius:10px;background:var(--panel);min-height:44px;flex:1;min-width:180px}
+.sup-grid{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.sup .top{display:flex;justify-content:space-between;align-items:start;gap:8px}
+.sup .meth{font-size:.82rem;color:var(--muted);margin:6px 0 12px}
+.field{margin-bottom:12px}
+.field label,.field .q{display:block;font-weight:800;margin-bottom:4px;font-size:.95rem}
+.hint{display:block;color:var(--muted);font-size:.85rem;margin-bottom:6px}
+.inp{width:100%;background:var(--field);border:2px solid var(--line);border-radius:10px;padding:9px 11px;min-height:44px}
+textarea.inp{min-height:84px;resize:vertical}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+dialog{border:0;padding:0;background:transparent;max-width:none;max-height:none;width:100%;height:100%;margin:0}
+dialog::backdrop{background:var(--shade)}
+.sheet{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,calc(100% - 24px));max-height:calc(100% - 32px);background:var(--panel);border-radius:18px;display:flex;flex-direction:column;overflow:hidden}
+.sheet-h{padding:14px 18px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:center}
+.sheet-h h2{margin:0;flex:1;font-size:1.2rem}
+.x{border:0;background:var(--field);border-radius:10px;width:42px;height:42px;font-size:1.4rem;cursor:pointer;flex:none}
+.sheet-b{padding:16px 18px;overflow-y:auto;flex:1}
+.sheet-f{padding:12px 18px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap}
+.cost{display:grid;grid-template-columns:repeat(4,1fr);border:2px solid var(--ink);border-radius:12px;overflow:hidden;margin-bottom:14px}
+.cost div{padding:10px 12px;border-right:1px solid var(--line)}
+.cost div:last-child{border-right:0}
+.cost b{display:block;font-size:1.3rem;font-weight:900;font-variant-numeric:tabular-nums}
+.cost span{font-size:.8rem;color:var(--muted);font-weight:600}
+.line{display:grid;grid-template-columns:1fr 90px 90px 80px 36px;gap:6px;align-items:center;margin-bottom:6px}
+.line select,.line input{border:2px solid var(--line);border-radius:8px;padding:7px 8px;background:var(--field);min-height:40px;min-width:0;width:100%}
+.line .lc{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+.line.bad select{border-color:var(--warn)}
+.ix{border:2px solid var(--line);background:var(--panel);border-radius:8px;height:40px;cursor:pointer;color:var(--muted)}
+.coachtip{background:var(--field);border-radius:12px;padding:12px 14px;margin:10px 0}
+.coachtip b{display:block;margin-bottom:2px}
+.ai{border:2px dashed var(--brand);border-radius:12px;padding:12px;margin-bottom:14px}
+.mini{font-size:.78rem;color:var(--muted);font-weight:700}
+.preview{border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.preview .ph{background:var(--brand);color:var(--on-brand);padding:14px 16px;display:flex;gap:10px;align-items:center}
+.preview .ph .logo{background:var(--on-brand);color:var(--brand)}
+.preview .pb{padding:14px 16px}
+.swatches{display:flex;gap:6px;flex-wrap:wrap}
+.sw{width:32px;height:32px;border-radius:8px;border:2px solid var(--line);cursor:pointer}
+.empty{padding:26px;text-align:center;color:var(--muted)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:999px;font-weight:700;opacity:0;transition:opacity .2s;pointer-events:none;z-index:9}
+.toast.show{opacity:1}
+.spin{width:36px;height:36px;border-radius:50%;border:4px solid var(--line);border-top-color:var(--brand);animation:sp 1s linear infinite;margin:10px auto}
+@keyframes sp{to{transform:rotate(360deg)}}
+.mobilebar{display:none}
+[hidden]{display:none!important}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  aside{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:12px}
+  nav{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:4px}
+  nav button{white-space:nowrap}
+  .powered{display:none}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .acctrow{display:flex;gap:8px;align-items:center}
+}
+@media (max-width:560px){
+  .g2,.g3{grid-template-columns:1fr}
+  .cost{grid-template-columns:repeat(2,1fr)}
+  .cost div:nth-child(2){border-right:0}
+  .cost div:nth-child(-n+2){border-bottom:1px solid var(--line)}
+  .line{grid-template-columns:1fr 70px 76px 36px}
+  .line .lc{display:none}
+  .insight{grid-template-columns:6px 1fr}
+  .insight .imp{grid-column:2;text-align:left;padding:0 14px 14px 0}
+}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}.toast{transition:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brandbox"><div class="logo" id="logo"></div><div><b id="prod-name">PlateMargin</b><span id="prod-tag">Menu profit, made simple</span></div></div>
+    <div class="acctrow">
+      <label class="mini" for="acct">Restaurant</label>
+      <select class="acct" id="acct"></select>
+    </div>
+    <nav id="nav"></nav>
+    <div class="powered" id="powered"></div>
+  </aside>
+  <main id="main"></main>
+</div>
+
+<dialog id="dlg"><div class="sheet"><div class="sheet-h"><h2 id="dlg-t"></h2><button class="x" id="dlg-x" aria-label="Close">×</button></div><div class="sheet-b" id="dlg-b"></div><div class="sheet-f" id="dlg-f"></div></div></dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+"use strict";
+const $ = id => document.getElementById(id);
+const el = (t, p, ...k) => { const e = document.createElement(t); if (p) for (const a in p){ const v = p[a]; if (a === "class") e.className = v; else if (a === "text") e.textContent = v; else if (a.startsWith("on")) e.addEventListener(a.slice(2), v); else if (v !== null && v !== undefined && v !== false) e.setAttribute(a, v); } k.flat().forEach(c => c != null && c !== false && e.append(c)); return e; };
+const n = v => { const x = parseFloat(v); return isFinite(x) ? x : null; };
+const $$ = v => (v < 0 ? "-$" : "$") + Math.abs(v).toFixed(2);
+const $0 = v => (v < 0 ? "-$" : "$") + Math.round(Math.abs(v)).toLocaleString();
+const pc = v => isFinite(v) ? Math.round(v * 100) + "%" : "—";
+const uid = p => p + Math.random().toString(36).slice(2, 9);
+const today = () => { const d = new Date(); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0"); };
+const nice = d => { try { return new Date(d + "T12:00:00").toLocaleDateString(undefined, { month:"short", day:"numeric" }); } catch(e){ return d; } };
+function toast(m){ const t = $("toast"); t.textContent = m; t.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => t.classList.remove("show"), 1800); }
+
+/* ================= Units ================= */
+const UNITS = { oz:["w",1], lb:["w",16], g:["w",0.035274], kg:["w",35.274], "fl oz":["v",1], tsp:["v",1/6], tbsp:["v",0.5], cup:["v",8], qt:["v",32], gal:["v",128], ml:["v",0.033814], L:["v",33.814], each:["c",1], dozen:["c",12], slice:["c",1] };
+const UNIT_NAMES = Object.keys(UNITS);
+
+/* ================= Demo data ================= */
+const SUPPLIERS = [
+  { id:"sysco", name:"Sysco", docs:"Invoices (EDI 810), price file (832), orders (850/855)", how:"Your Sysco rep requests a B2B connection to us. Sysco sets it up and sends files to our secure server." },
+  { id:"usf", name:"US Foods", docs:"Invoices (EDI 810), orders", how:"Your US Foods rep submits an EDI integration project naming us as the third party." },
+  { id:"gfs", name:"Gordon Food Service", docs:"Invoices, orders, order guide", how:"Your Gordon rep enables electronic invoices to us." },
+  { id:"pfg", name:"Performance Foodservice", docs:"Invoices, orders, order guide", how:"Your PFG rep requests an EDI connection to us." },
+];
+function demoRestaurant(){
+  const S = (name, cat, sup, code, qty, unit, yld, price, prev) => ({ id: code || uid("s"), name, cat, supplier: sup, code, caseQty: qty, unit, yield: yld, price, history: prev ? [{ date:"2026-09-03", price: prev }, { date:"2026-10-01", price }] : [{ date:"2026-09-03", price }] });
+  const sl = [
+    S("Eggs, large","Dairy & eggs","Sysco","4172003",180,"each",1,46.5,42), S("Bacon, sliced","Protein","Sysco","5523118",240,"oz",1,74.8,68),
+    S("Beef patties, 4 oz","Protein","Sysco","2208842",40,"each",1,79,72), S("Ground beef 80/20","Protein","Sysco","2208110",160,"oz",1,58),
+    S("Chicken breast, raw","Protein","Sysco","3301477",640,"oz",0.75,120), S("Cheddar, shredded","Dairy & eggs","Sysco","7014052",80,"oz",1,22),
+    S("American cheese slices","Dairy & eggs","Sysco","7011209",120,"each",1,22), S("Butter","Dairy & eggs","Sysco","7020118",576,"oz",1,92),
+    S("Burger buns","Bakery","Local Bakery","",48,"each",1,18), S("Sandwich bread, slices","Bakery","Local Bakery","",200,"each",1,28),
+    S("Romaine lettuce","Produce","Sysco","1150033",384,"oz",0.75,36,38), S("Tomatoes","Produce","Sysco","1150410",400,"oz",0.9,32),
+    S("Onions, yellow","Produce","Sysco","1150212",800,"oz",0.9,34), S("Potatoes, russet","Produce","Sysco","1150300",800,"oz",1,30),
+    S("French fries, frozen","Frozen","Sysco","3015521",480,"oz",1,51.9,48), S("Chili beans, #10 can","Dry & canned","Sysco","5100204",6,"each",1,39),
+    S("Diced tomatoes, #10 can","Dry & canned","Sysco","5100311",6,"each",1,33), S("Pancake mix","Dry & canned","Sysco","8019231",480,"oz",1,50),
+    S("Maple syrup","Sauces","Sysco","8019552",128,"fl oz",1,18), S("Ranch dressing","Sauces","Sysco","6100447",512,"fl oz",1,48.6),
+    S("Takeout containers","Disposables","Sysco","9003104",200,"each",1,30),
+  ];
+  const sup = {}; sl.forEach(s => sup[s.id] = s);
+  const byName = nm => sl.find(s => s.name === nm).id;
+  const I = (name, section, price, sold, portions, lines) => ({ id: uid("m"), name, section, price, sold, portions, lines: lines.map(([s, q, u]) => ({ s: s ? byName(s) : null, label: s || u, qty: q, unit: s ? (u || null) : null })) });
+  const il = [
+    I("Two Egg Breakfast","Breakfast",8,120,1,[["Eggs, large",2],["Bacon, sliced",1.5],["Sandwich bread, slices",2],["Butter",0.25]]),
+    I("Pancake Stack","Breakfast",7,90,1,[["Pancake mix",4],["Maple syrup",2],["Butter",0.5]]),
+    I("Cheeseburger Basket","Lunch",9.5,160,1,[["Beef patties, 4 oz",1],["Burger buns",1],["American cheese slices",1],["Romaine lettuce",0.75],["Tomatoes",1],["French fries, frozen",5]]),
+    I("Grilled Chicken Salad","Lunch",11,45,1,[["Chicken breast, raw",5],["Romaine lettuce",4],["Tomatoes",2],["Cheddar, shredded",1],["Ranch dressing",3,"tbsp"]]),
+    I("BLT","Lunch",8.5,70,1,[["Bacon, sliced",2.5],["Sandwich bread, slices",2],["Romaine lettuce",0.5],["Tomatoes",1.5]]),
+    I("House Chili, cup","Dinner",4.5,85,40,[["Ground beef 80/20",10,"lb"],["Chili beans, #10 can",2],["Diced tomatoes, #10 can",2],["Onions, yellow",3,"lb"]]),
+    I("Loaded Baked Potato","Sides",5,40,1,[["Potatoes, russet",10],["Cheddar, shredded",1],["Bacon, sliced",0.5],[null,1,"Sour cream"]]),
+    I("Side of Fries","Sides",3.5,150,1,[["French fries, frozen",5],["Takeout containers",1]]),
+  ];
+  const items = {}; il.forEach(i => items[i.id] = i);
+  const inbox = [
+    { id: uid("d"), kind:"order", source:"EDI", supplier:"Sysco", number:"PO-88213", date: today(), eta:"Tomorrow", status:"open", lines:[{ code:"4172003", desc:"EGG SHELL LRG GRADE AA", qty:2, price:46.5 },{ code:"3015521", desc:"POTATO FRY 3/8 STRT", qty:3, price:51.9 }] },
+    { id: uid("d"), kind:"invoice", source:"Photo", supplier:"Local Bakery", number:"1042", date: today(), status:"new", lines:[{ code:"", desc:"Hamburger buns 4 dz", qty:1, price:19.5 },{ code:"", desc:"White sandwich bread", qty:2, price:28 }] },
+  ];
+  return { id: uid("r"), name:"Main Street Diner", target:0.30, tol:0.05, q:0.03, round:0.25, period:"week", supplies: sup, items, inbox,
+    conn:{ sysco:{ status:"active", customer:"067-123456", since:"2026-09-01" } }, emailIn:"invoices+mainst@inbox.example.com" };
+}
+function emptyRestaurant(name){ return { id: uid("r"), name, target:0.30, tol:0.05, q:0.03, round:0.25, period:"week", supplies:{}, items:{}, inbox:[], conn:{}, emailIn:"invoices+" + name.toLowerCase().replace(/[^a-z0-9]+/g,"").slice(0,12) + "@inbox.example.com" }; }
+
+/* ================= State ================= */
+const KEY = "platemargin-proto-v1";
+let ST;
+const PIN_KEY = "platemargin-pin";
+const Remote = { on:false, version:0, timer:null, saving:false, again:false };
+const getPin = () => { try { return localStorage.getItem(PIN_KEY) || ""; } catch(e){ return ""; } };
+const askPin = msg => { const p = prompt(msg || "Enter the PIN to save changes for everyone"); if (p && p.trim()) { try { localStorage.setItem(PIN_KEY, p.trim()); } catch(e){} return true; } return false; };
+function freshDemo(){
+  const r = demoRestaurant();
+  return { brand:{ product:"PlateMargin", tagline:"Menu profit, made simple", color:"#1D7A5F", logo:"", powered:true, domain:"app.yourbrand.com" }, restaurants:{ [r.id]: r }, current: r.id, page:"home" };
+}
+async function load(){
+  ST = null;
+  // On the Netlify site, everything is shared through /api/data. Opened any other way, it stays in this browser.
+  try {
+    const res = await fetch("/api/data", { cache:"no-store" }), ct = res.headers.get("content-type") || "";
+    if (res.status === 200 && ct.includes("json")) { const d = await res.json(); ST = d.state; Remote.version = d.version || 0; Remote.on = true; }
+    else if (res.status === 204) Remote.on = true;
+  } catch(e){}
+  if (!ST && !Remote.on) { try { const s = localStorage.getItem(KEY); if (s) ST = JSON.parse(s); } catch(e){} }
+  if (!ST || !ST.restaurants) ST = freshDemo();
+  if (!ST.restaurants[ST.current]) ST.current = Object.keys(ST.restaurants)[0];
+  ST.page = ST.page || "home";
+}
+function save(){
+  try { localStorage.setItem(KEY, JSON.stringify(ST)); } catch(e){}
+  if (!Remote.on) return;
+  clearTimeout(Remote.timer); Remote.timer = setTimeout(pushRemote, 700);
+}
+async function pushRemote(){
+  if (Remote.saving){ Remote.again = true; return; }
+  Remote.saving = true;
+  let res;
+  try { res = await fetch("/api/data", { method:"PUT", headers:{ "content-type":"application/json", "x-edit-pin": getPin() }, body: JSON.stringify({ baseVersion: Remote.version, state: ST }) }); }
+  catch(e){ Remote.saving = false; toast("Not saved: no connection. Retrying…"); Remote.timer = setTimeout(pushRemote, 5000); return; }
+  Remote.saving = false;
+  if (res.ok){ Remote.version = (await res.json()).version; if (Remote.again){ Remote.again = false; pushRemote(); } return; }
+  if (res.status === 401){ if (askPin(getPin() ? "That PIN didn't work. Try again:" : "Enter the PIN to save changes for everyone")) pushRemote(); else toast("Not saved: PIN needed"); return; }
+  if (res.status === 409){
+    const d = await res.json().catch(() => null);
+    if (d && d.current){ const page = ST.page; ST = d.current.state; ST.page = page; Remote.version = d.current.version; render(); toast("Someone else just saved. Showing their latest; redo your last change."); }
+    return;
+  }
+  toast("Not saved (error " + res.status + ")");
+}
+const R = () => ST.restaurants[ST.current];
+
+/* ================= Costing ================= */
+function supCostPerUnit(s){ if (!s || !n(s.price) || !n(s.caseQty)) return null; return s.price / (s.caseQty * (n(s.yield) || 1)); }
+function lineCost(l, r = R(), sups = r.supplies){
+  const s = l.s && sups[l.s]; if (!s) return null;
+  const cpu = supCostPerUnit(s); if (cpu == null) return null;
+  const u = l.unit || s.unit, a = UNITS[u], b = UNITS[s.unit];
+  if (!a || !b || a[0] !== b[0]) return null;
+  return (n(l.qty) || 0) * a[1] / b[1] * cpu;
+}
+function stats(it, r = R(), sups = r.supplies){
+  let raw = 0, missing = 0;
+  (it.lines || []).forEach(l => { const c = lineCost(l, r, sups); if (c == null) missing++; else raw += c; });
+  const plate = raw / (n(it.portions) || 1) * (1 + r.q);
+  const price = n(it.price) || 0, fc = price ? plate / price : NaN;
+  const suggested = plate > 0 ? Math.ceil(plate / r.target / r.round - 1e-9) * r.round : 0;
+  const profit = price - plate;
+  let status = "good";
+  if (missing) status = "missing"; else if (!price) status = "noprice"; else if (fc > r.target + r.tol) status = "bad"; else if (fc > r.target) status = "warn";
+  return { plate, price, fc, suggested, profit, missing, status };
+}
+function engineering(r = R()){
+  const items = Object.values(r.items).filter(i => n(i.sold) > 0 && n(i.price) > 0);
+  const totalSold = items.reduce((a, i) => a + i.sold, 0);
+  const st = new Map(items.map(i => [i.id, stats(i, r)]));
+  const avgCM = totalSold ? items.reduce((a, i) => a + st.get(i.id).profit * i.sold, 0) / totalSold : 0;
+  const popLine = items.length ? (1 / items.length) * 0.7 : 0;
+  const cls = {};
+  items.forEach(i => { const hiPop = i.sold / totalSold >= popLine, hiCM = st.get(i.id).profit >= avgCM; cls[i.id] = hiPop && hiCM ? "Star" : hiPop ? "Plowhorse" : hiCM ? "Puzzle" : "Dog"; });
+  return { cls, avgCM, popLine, totalSold };
+}
+function usedBy(sid, r = R()){ return Object.values(r.items).filter(i => (i.lines||[]).some(l => l.s === sid)); }
+
+/* ================= Profit coach (rules engine) ================= */
+function insights(r = R()){
+  const out = [], per = r.period, eng = engineering(r);
+  Object.values(r.items).forEach(it => {
+    const s = stats(it, r), sold = n(it.sold) || 0, cls = eng.cls[it.id];
+    if (s.status === "missing") out.push({ sev:"warn", tag:"Cost is incomplete", title: it.name + " is missing " + s.missing + (s.missing === 1 ? " cost" : " costs"), text:"Its real cost is higher than shown, so every number for this item is too rosy. Link the missing part to a supply.", impact:null, item:it.id, score: 50 });
+    if (s.status === "bad"){
+      const gap = s.suggested - s.price;
+      const lcs = (it.lines || []).map(l => ({ l, c: lineCost(l, r) || 0 }));
+      const rawTotal = lcs.reduce((a2, x) => a2 + x.c, 0);
+      const big = lcs.sort((a2,b2) => b2.c - a2.c)[0];
+      const share = big && rawTotal ? big.c / rawTotal : 0;
+      out.push({ sev:"bad", tag:"Losing margin", title: it.name + " is at " + pc(s.fc) + " food cost", text:"Target is " + pc(r.target) + ". Raise it to " + $$(s.suggested) + " (+" + $$(gap) + ")" + (big && big.c ? ", or trim the biggest cost: " + (r.supplies[big.l.s] ? r.supplies[big.l.s].name : big.l.label) + " is " + pc(share) + " of the plate." : "."), impact: gap * sold, impactLabel:"per " + per + " if raised", item:it.id, score: 100 + gap * sold });
+    }
+    if (cls === "Puzzle") out.push({ sev:"push", tag:"Push this", title:"Sell more " + it.name, text:"It earns " + $$(s.profit) + " a plate, " + $$(s.profit - eng.avgCM) + " more than your average, but few people order it. Move it to the top of its section, give it a better description, or have servers recommend it.", impact: s.profit * 10, impactLabel:"for 10 more sold", item:it.id, score: 80 + s.profit });
+    if (cls === "Plowhorse" && s.status !== "bad") out.push({ sev:"warn", tag:"Popular, thin margin", title:"Nudge " + it.name + " up 50¢", text:"It sells well but earns only " + $$(s.profit) + " a plate. Regulars rarely notice a small rise on a favorite.", impact: 0.5 * sold, impactLabel:"per " + per, item:it.id, score: 60 + 0.5 * sold });
+    if (cls === "Dog") out.push({ sev:"warn", tag:"Rethink", title: it.name + " sells little and earns little", text:"Rework it with cheaper parts, bundle it, or take it off to simplify prep and ordering.", impact:null, item:it.id, score: 40 });
+    if (cls === "Star" && s.status === "good") out.push({ sev:"good", tag:"Star", title: it.name + " is a star", text:"Popular and profitable. Keep the recipe and price steady and give it the best spot on the menu.", impact: s.profit * sold, impactLabel:"profit per " + per, item:it.id, score: 10 });
+  });
+  Object.values(r.supplies).forEach(su => {
+    const h = su.history || []; if (h.length < 2) return;
+    const a = h[h.length-2].price, b = h[h.length-1].price, ch = (b - a) / a; if (ch <= 0.05) return;
+    const old = Object.assign({}, r.supplies, { [su.id]: Object.assign({}, su, { price: a }) });
+    let delta = 0; const names = [];
+    usedBy(su.id, r).forEach(it => { const d = stats(it, r).plate - stats(it, r, old).plate; delta += d * (n(it.sold) || 0); names.push(it.name); });
+    if (!names.length) return;
+    out.push({ sev:"bad", tag:"Supplier price jump", title: su.name + " went up " + pc(ch), text: (su.supplier || "Supplier") + " raised it from " + $$(a) + " to " + $$(b) + " a case on " + nice(h[h.length-1].date) + ". It's in " + names.join(", ") + ".", impact: -delta, impactLabel:"cost per " + per, supply: su.id, score: 90 + delta });
+  });
+  return out.sort((x, y) => y.score - x.score);
+}
+
+/* ================= AI ================= */
+async function getSample(){
+  try { if (window.claude && window.claude.use){ const s = await window.claude.use("sample"); if (s) return s; } } catch(e){}
+  if (location.protocol === "file:") return null;
+  const call = async (prompt, retried) => {
+    const res = await fetch("/api/ai", { method:"POST", headers:{ "content-type":"application/json", "x-edit-pin": getPin() }, body: JSON.stringify({ prompt }) });
+    if (res.status === 401 && !retried && askPin("Enter the PIN to use the AI features")) return call(prompt, true);
+    if (res.status === 401) throw { code:"pin" };
+    if (res.status === 404 || res.status === 501) throw { code:"unavailable" };
+    if (!res.ok) throw { code:"error" };
+    return (await res.json()).text || "";
+  };
+  const f = async (prompt, opts = {}) => { const text = await call(prompt); if (opts.onText) opts.onText({ text, delta:text }); return { text }; };
+  f.json = async prompt => { const t = (await call(prompt)).replace(/```json|```/g, ""); return JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1)); };
+  return f;
+}
+const aiProblem = e => e && e.code === "unavailable" ? "AI isn't switched on for this site yet. Whoever runs it needs to add an ANTHROPIC_API_KEY in Netlify."
+  : e && e.code === "pin" ? "That needs the PIN." : e && e.code === "not_granted" ? "This needs your OK to use Claude. Try again and allow it." : null;
+
+/* ================= Branding ================= */
+function onColor(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return "#fff"; const v = parseInt(m[1],16), L = c => c <= .03928 ? c/12.92 : Math.pow((c+.055)/1.055, 2.4); const lum = .2126*L((v>>16)/255) + .7152*L((v>>8&255)/255) + .0722*L((v&255)/255); return lum > .45 ? "#14213D" : "#FFFFFF"; }
+function initials(s){ const w = (s || "PM").trim().split(/\s+/); return ((w[0]||"P")[0] + (w[1] ? w[1][0] : (w[0]||"M")[1] || "")).toUpperCase(); }
+function paintLogo(box){ box.replaceChildren(); if (ST.brand.logo) box.append(el("img",{src:ST.brand.logo,alt:""})); else box.textContent = initials(ST.brand.product); }
+function applyBrand(){
+  const b = ST.brand, c = /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : "#1D7A5F";
+  document.documentElement.style.setProperty("--brand", c); document.documentElement.style.setProperty("--on-brand", onColor(c));
+  $("prod-name").textContent = b.product || "PlateMargin"; $("prod-tag").textContent = b.tagline || "";
+  document.title = b.product || "PlateMargin"; paintLogo($("logo"));
+  $("powered").textContent = b.powered ? "Powered by PlateMargin" : "";
+}
+
+/* ================= Shell ================= */
+const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Supplier connections"],["brand","Brand & accounts"]];
+function renderNav(){
+  const nav = $("nav"); nav.replaceChildren();
+  const newDocs = R().inbox.filter(d => d.status === "new").length, bad = insights().filter(i => i.sev === "bad").length;
+  PAGES.forEach(([id, label]) => nav.append(el("button",{"aria-current": ST.page === id ? "page" : null, onclick:() => go(id)}, label,
+    id === "inbox" && newDocs ? el("span",{class:"badge", text:newDocs}) : null, id === "coach" && bad ? el("span",{class:"badge", text:bad}) : null)));
+  const a = $("acct"); a.replaceChildren(...Object.values(ST.restaurants).map(r => el("option",{value:r.id, text:r.name})), el("option",{value:"__new", text:"+ Add a restaurant"})); a.value = ST.current;
+}
+$("acct").onchange = e => { if (e.target.value === "__new"){ const nm = prompt("Restaurant name?"); if (nm && nm.trim()){ const r = emptyRestaurant(nm.trim()); ST.restaurants[r.id] = r; ST.current = r.id; } } else ST.current = e.target.value; save(); go("home"); };
+function go(p){ ST.page = p; render(); window.scrollTo(0,0); }
+function render(){ applyBrand(); renderNav(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, supplies, inbox, suppliers, brand })[ST.page](m); }
+
+/* ================= Pages ================= */
+function insightCard(ins, compact){
+  const acts = el("div",{class:"row acts"});
+  if (ins.item) acts.append(el("button",{class:"btn quiet", text:"Open recipe", onclick:() => openRecipe(ins.item)}));
+  if (ins.item && ins.sev === "bad" && ins.tag === "Losing margin") acts.append(el("button",{class:"btn primary", text:"Apply suggested price", onclick:() => { const it = R().items[ins.item]; it.price = stats(it).suggested; save(); render(); toast("Price updated"); }}));
+  if (ins.supply) acts.append(el("button",{class:"btn quiet", text:"See supply", onclick:() => openSupply(ins.supply)}));
+  return el("div",{class:"insight " + ins.sev}, el("div",{class:"bar"}),
+    el("div",{class:"body"}, el("div",{class:"tag", text:ins.tag}), el("h3",{text:ins.title}), el("p",{text:ins.text}), compact ? null : acts),
+    ins.impact != null ? el("div",{class:"imp"}, el("b",{class: ins.impact < 0 ? "up" : "", text:(ins.impact > 0 ? "+" : "") + $0(ins.impact)}), el("span",{text:ins.impactLabel})) : el("div"));
+}
+function home(m){
+  const r = R(), items = Object.values(r.items), all = items.map(i => ({ i, s: stats(i) }));
+  const sold = items.reduce((a, i) => a + (n(i.sold) || 0), 0);
+  const sales = all.reduce((a, x) => a + x.s.price * (n(x.i.sold) || 0), 0), cost = all.reduce((a, x) => a + x.s.plate * (n(x.i.sold) || 0), 0);
+  const ins = insights();
+  m.append(el("h1",{text:r.name}), el("p",{class:"lead", text:"Here's where your menu stands this " + r.period + "."}));
+  if (!items.length && !Object.keys(r.supplies).length){
+    m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fill,minmax(240px,1fr))"},
+      el("div",{class:"card"}, el("h3",{text:"1. Connect your suppliers"}), el("p",{text:"Sysco, US Foods, Gordon and PFG send invoices straight in. Everyone else: email or snap a photo."}), el("button",{class:"btn primary", text:"Connect suppliers", onclick:() => go("suppliers")})),
+      el("div",{class:"card"}, el("h3",{text:"2. Build your recipes"}), el("p",{text:"Describe a dish in plain words and the app drafts the recipe from your supplies."}), el("button",{class:"btn quiet", text:"Go to menu", onclick:() => go("menu")})),
+      el("div",{class:"card"}, el("h3",{text:"3. Follow the coach"}), el("p",{text:"See what's losing money, what to push, and what each change is worth."}), el("button",{class:"btn quiet", text:"Open coach", onclick:() => go("coach")}))));
+    return;
+  }
+  m.append(el("div",{class:"grid kpis"},
+    el("div",{class:"kpi"}, el("div",{class:"n", text: sales ? pc(cost / sales) : "—"}), el("div",{class:"l", text:"Food cost (target " + pc(r.target) + ")"})),
+    el("div",{class:"kpi"}, el("div",{class:"n", text:$0(sales - cost)}), el("div",{class:"l", text:"Profit after food, per " + r.period})),
+    el("div",{class:"kpi bad"}, el("div",{class:"n", text: all.filter(x => x.s.status === "bad").length}), el("div",{class:"l", text:"Items priced too low"})),
+    el("div",{class:"kpi warn"}, el("div",{class:"n", text: r.inbox.filter(d => d.status === "new").length}), el("div",{class:"l", text:"Invoices to review"}))));
+  m.append(el("div",{class:"spread"}, el("h2",{text:"Top things to do"}), el("button",{class:"btn quiet", text:"See all " + ins.length, onclick:() => go("coach")})));
+  ins.filter(i => i.sev !== "good").slice(0, 3).forEach(i => m.append(insightCard(i)));
+  const conns = SUPPLIERS.filter(s => r.conn[s.id] && r.conn[s.id].status === "active").map(s => s.name);
+  m.append(el("h2",{text:"Feeds"}), el("div",{class:"card"}, el("p",{style:"margin:0"}, conns.length ? "Live: " + conns.join(", ") + ". " : "No supplier feeds yet. ", "Email invoices to ", el("b",{text:r.emailIn}), " or upload a photo from Invoices & orders.")));
+}
+function coach(m){
+  const r = R(), ins = insights(), eng = engineering();
+  m.append(el("h1",{text:"Profit coach"}), el("p",{class:"lead", text:"Ranked by what each change is worth. Numbers use your plates sold per " + r.period + "."}));
+  const aiBox = el("div");
+  m.append(el("div",{class:"row", style:"margin-bottom:14px"}, el("button",{class:"btn primary", text:"Write me a plan for this week", onclick:() => aiPlan(aiBox, ins)})), aiBox);
+  const groups = [["bad","Fix first"],["push","Push these"],["warn","Worth a look"],["good","Doing well"]];
+  groups.forEach(([sev, label]) => { const g = ins.filter(i => i.sev === sev); if (!g.length) return; m.append(el("h2",{text:label})); g.forEach(i => m.append(insightCard(i))); });
+  if (!ins.length) m.append(el("div",{class:"card empty", text:"Add menu items with prices and plates sold to get advice."}));
+  const counts = { Star:0, Plowhorse:0, Puzzle:0, Dog:0 }; Object.values(eng.cls).forEach(c => counts[c]++);
+  m.append(el("h2",{text:"Menu engineering"}), el("p",{class:"lead", text:"Items are sorted by popularity (share of plates sold) and profit per plate. Average profit per plate: " + $$(eng.avgCM) + "."}),
+    el("div",{class:"grid kpis"}, ...[["Star","good","Popular and profitable"],["Plowhorse","warn","Popular, thin margin"],["Puzzle","","Profitable, slow seller"],["Dog","bad","Slow and thin"]].map(([k, c, t]) => el("div",{class:"kpi " + c}, el("div",{class:"n", text:counts[k]}), el("div",{class:"l", text:k + "s: " + t})))));
+}
+async function aiPlan(box, ins){
+  box.replaceChildren(el("div",{class:"card"}, el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Thinking it through…"})));
+  const sample = await getSample();
+  if (!sample){ box.replaceChildren(el("div",{class:"card"}, el("p",{style:"margin:0", text:"The AI plan isn't available when the app is opened as a file. Open it from your website. The ranked list below is the same advice."}))); return; }
+  const r = R();
+  const facts = ins.slice(0, 12).map(i => "- [" + i.tag + "] " + i.title + ". " + i.text + (i.impact != null ? " Worth about " + $0(i.impact) + " " + i.impactLabel + "." : "")).join("\n");
+  const prompt = "You are a practical restaurant profit coach talking to a busy owner of " + r.name + ". Target food cost is " + pc(r.target) + ". Here are this week's findings, already ranked:\n" + facts + "\n\nWrite a short plan for this week: 3 to 5 numbered actions in plain words, each one sentence with the dollar effect where known, then one sentence on what to watch next week. No headings, no jargon, under 150 words.";
+  try { const { text } = await sample(prompt, { onText: ({ text }) => { box.replaceChildren(el("div",{class:"card", style:"white-space:pre-wrap"}, text)); } });
+    box.replaceChildren(el("div",{class:"card", style:"white-space:pre-wrap"}, el("h3",{text:"This week's plan"}), text)); }
+  catch(e){ box.replaceChildren(el("div",{class:"card"}, el("p",{style:"margin:0", text: aiProblem(e) || "Couldn't write the plan right now. The ranked list below has the same advice."}))); }
+}
+const STATUS = { good:["On target","good"], warn:["Watch","warn"], bad:["Raise price","bad"], missing:["Missing costs","warn"], noprice:["Needs price","warn"] };
+function menu(m){
+  const r = R(), eng = engineering();
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Menu & recipes"}), el("p",{class:"lead", text:"Tap an item to edit its recipe. Costs update when supplier prices change."})), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)})));
+  const items = Object.values(r.items);
+  if (!items.length){ m.append(el("div",{class:"card empty", text:"No recipes yet. Tap \u201cNew recipe\u201d and describe a dish."})); return; }
+  const tb = el("tbody");
+  items.sort((a,b) => (a.section||"").localeCompare(b.section||"") || a.name.localeCompare(b.name)).forEach(it => {
+    const s = stats(it), st = STATUS[s.status];
+    tb.append(el("tr",{onclick:() => openRecipe(it.id)}, el("td",null, el("b",{text:it.name}), el("div",{class:"mini", text:it.section})),
+      el("td",{class:"num", text:$$(s.price)}), el("td",{class:"num", text:$$(s.plate)}), el("td",{class:"num", text:pc(s.fc)}), el("td",{class:"num", text:$$(s.profit)}),
+      el("td",{class:"num", text: s.status === "bad" || s.status === "warn" ? $$(s.suggested) : "—"}), el("td",{class:"num", text: n(it.sold) || "—"}),
+      el("td",null, el("span",{class:"pill " + st[1], text:st[0]})), el("td",null, eng.cls[it.id] ? el("span",{class:"pill", text:eng.cls[it.id]}) : "—")));
+  });
+  m.append(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Item","Price","Plate cost","Food cost","Profit","Suggested","Sold / " + r.period,"Status","Class"].map((h, i) => el("th",{class: i && i < 7 ? "num" : "", text:h})))), tb)));
+}
+function supplies(m){
+  const r = R();
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Supplies"}), el("p",{class:"lead", text:"Prices update from supplier feeds and approved invoices."})), el("button",{class:"btn quiet", text:"+ Add supply", onclick:() => openSupply(null)})));
+  const q = el("input",{class:"search", type:"search", placeholder:"Search supplies or item codes"}); m.append(el("div",{class:"row", style:"margin-bottom:12px"}, q));
+  const box = el("div"); m.append(box);
+  const draw = () => {
+    const t = q.value.toLowerCase(), list = Object.values(r.supplies).filter(s => !t || s.name.toLowerCase().includes(t) || (s.code||"").includes(t)).sort((a,b) => a.name.localeCompare(b.name));
+    if (!list.length){ box.replaceChildren(el("div",{class:"card empty", text:"No supplies yet. Connect a supplier or approve an invoice."})); return; }
+    const tb = el("tbody");
+    list.forEach(s => { const h = s.history || [], ch = h.length > 1 ? (h[h.length-1].price - h[h.length-2].price) / h[h.length-2].price : null, cpu = supCostPerUnit(s);
+      tb.append(el("tr",{onclick:() => openSupply(s.id)}, el("td",null, el("b",{text:s.name}), el("div",{class:"mini", text:[s.supplier, s.code ? "#" + s.code : ""].filter(Boolean).join("  ")})),
+        el("td",{class:"num", text:$$(s.price)}), el("td",{class:"num", text: s.caseQty + " " + s.unit}), el("td",{class:"num", text:pc(n(s.yield) || 1)}),
+        el("td",{class:"num", text: cpu != null ? "$" + cpu.toFixed(3) + " / " + s.unit : "—"}),
+        el("td",{class:"num"}, ch != null && Math.abs(ch) >= 0.005 ? el("span",{class: ch > 0 ? "up" : "down", text:(ch > 0 ? "+" : "") + pc(ch)}) : "—"),
+        el("td",{class:"num", text: usedBy(s.id).length || "—"}))); });
+    box.replaceChildren(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Supply","Case price","Case size","Yield","Usable cost","Last change","Recipes"].map((h, i) => el("th",{class: i ? "num" : "", text:h})))), tb)));
+  };
+  q.oninput = draw; draw();
+}
+function inbox(m){
+  const r = R();
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Invoices & orders"}), el("p",{class:"lead", text:"Everything suppliers send lands here. Approve an invoice and its prices flow into your recipes."})),
+    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Upload or photo", onclick:uploadDemo}), el("button",{class:"btn quiet", text:"Email-in address", onclick:() => { navigator.clipboard && navigator.clipboard.writeText(r.emailIn).catch(()=>{}); toast("Copied " + r.emailIn); }}))));
+  if (!r.inbox.length){ m.append(el("div",{class:"card empty", text:"Nothing yet. Connect a supplier, email an invoice, or upload a photo."})); return; }
+  const tb = el("tbody");
+  r.inbox.slice().sort((a,b) => (b.date||"").localeCompare(a.date||"")).forEach(d => {
+    const total = d.lines.reduce((a, l) => a + l.qty * l.price, 0);
+    const st = d.kind === "order" ? ["Arriving " + (d.eta || "soon"), "brand"] : d.status === "new" ? ["Needs review","warn"] : ["Approved","good"];
+    tb.append(el("tr",{onclick:() => openDoc(d.id)}, el("td",null, el("b",{text:d.supplier}), el("div",{class:"mini", text:(d.kind === "order" ? "Order " : "Invoice ") + d.number})),
+      el("td",{text:nice(d.date)}), el("td",null, el("span",{class:"pill", text:d.source})), el("td",{class:"num", text:d.lines.length}), el("td",{class:"num", text:$$(total)}), el("td",null, el("span",{class:"pill " + st[1], text:st[0]}))));
+  });
+  m.append(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["From","Date","Came in by","Lines","Total","Status"].map((h, i) => el("th",{class: i === 3 || i === 4 ? "num" : "", text:h})))), tb)));
+}
+function suppliers(m){
+  const r = R();
+  m.append(el("h1",{text:"Supplier connections"}), el("p",{class:"lead", text:"Big distributors send invoices, prices and orders automatically once your rep turns the feed on. Every other supplier works by email or photo."}));
+  const g = el("div",{class:"grid sup-grid"});
+  SUPPLIERS.forEach(s => {
+    const c = r.conn[s.id], status = c ? c.status : "off";
+    const pill = status === "active" ? el("span",{class:"pill good", text:"Live"}) : status === "requested" ? el("span",{class:"pill warn", text:"Waiting on " + s.name}) : el("span",{class:"pill", text:"Not connected"});
+    g.append(el("div",{class:"card sup"}, el("div",{class:"top"}, el("h3",{text:s.name}), pill), el("div",{class:"meth", text:s.docs}),
+      status === "active" ? el("p",{text:"Account " + c.customer + ". Feeding since " + nice(c.since) + "."}) : status === "requested" ? el("p",{text:"Requested " + nice(c.since) + ". Most distributors take 1 to 3 weeks."}) : el("p",{text:s.how}),
+      el("div",{class:"row"},
+        status === "off" ? el("button",{class:"btn primary", text:"Connect", onclick:() => connectFlow(s)}) : null,
+        status === "requested" ? el("button",{class:"btn quiet", text:"Demo: first delivery", onclick:() => { c.status = "active"; pushDemoInvoice(s.name); save(); render(); toast(s.name + " is live. An invoice arrived."); }}) : null,
+        status === "active" ? el("button",{class:"btn quiet", text:"Demo: new invoice", onclick:() => { pushDemoInvoice(s.name); save(); render(); toast("New " + s.name + " invoice in your inbox"); }}) : null,
+        status !== "off" ? el("button",{class:"btn quiet", text:"Disconnect", onclick:() => { if (confirm("Stop the " + s.name + " feed?")){ delete r.conn[s.id]; save(); render(); } }}) : null)));
+  });
+  g.append(el("div",{class:"card sup"}, el("div",{class:"top"}, el("h3",{text:"Any supplier, by email"}), el("span",{class:"pill good", text:"Always on"})), el("div",{class:"meth", text:"PDF or photo invoices"}),
+    el("p",null, "Forward invoices to ", el("b",{text:r.emailIn}), ". They're read for you and wait here for a quick check."),
+    el("button",{class:"btn quiet", text:"Copy address", onclick:() => { navigator.clipboard && navigator.clipboard.writeText(r.emailIn).catch(()=>{}); toast("Copied"); }})));
+  g.append(el("div",{class:"card sup"}, el("div",{class:"top"}, el("h3",{text:"Photo or upload"}), el("span",{class:"pill good", text:"Always on"})), el("div",{class:"meth", text:"Paper invoices, spreadsheets"}),
+    el("p",{text:"Snap the paper invoice on delivery, or upload the spreadsheet from the supplier's website."}), el("button",{class:"btn quiet", text:"Try it", onclick:uploadDemo})));
+  m.append(g);
+}
+function brand(m){
+  const b = ST.brand;
+  m.append(el("h1",{text:"Brand & accounts"}), el("p",{class:"lead", text:"Make it yours. Every restaurant you sign up sees your name, logo and color."}));
+  const name = el("input",{class:"inp"}); name.value = b.product; name.oninput = () => { b.product = name.value; save(); applyBrand(); prev(); };
+  const tag = el("input",{class:"inp"}); tag.value = b.tagline; tag.oninput = () => { b.tagline = tag.value; save(); applyBrand(); prev(); };
+  const dom = el("input",{class:"inp", placeholder:"app.yourbrand.com"}); dom.value = b.domain || ""; dom.oninput = () => { b.domain = dom.value; save(); prev(); };
+  const col = el("input",{type:"color", style:"width:60px;height:44px;border:2px solid var(--line);border-radius:10px;padding:2px;background:var(--field)"}); col.value = b.color; col.oninput = () => { b.color = col.value; save(); applyBrand(); prev(); };
+  const sw = el("div",{class:"swatches"}, ["#1D7A5F","#1F4E99","#6B3FA0","#B42318","#C25E00","#14213D","#4A5D23","#0E7490"].map(c => el("button",{class:"sw", style:"background:" + c, "aria-label":"Use " + c, onclick:() => { b.color = c; col.value = c; save(); applyBrand(); prev(); }})));
+  const file = el("input",{type:"file", accept:"image/*", hidden:""});
+  file.onchange = e => { const f = e.target.files[0]; if (!f) return; const img = new Image(), u = URL.createObjectURL(f); img.onload = () => { const s = Math.min(1, 160 / Math.max(img.width, img.height)), c = document.createElement("canvas"); c.width = img.width * s; c.height = img.height * s; c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); b.logo = c.toDataURL("image/png"); URL.revokeObjectURL(u); save(); applyBrand(); prev(); }; img.src = u; };
+  const pw = el("input",{type:"checkbox"}); pw.checked = !!b.powered; pw.onchange = () => { b.powered = pw.checked; save(); applyBrand(); };
+  const pv = el("div",{class:"preview"});
+  function prev(){ const lg = el("div",{class:"logo"}); paintLogo(lg); pv.replaceChildren(el("div",{class:"ph"}, lg, el("div",null, el("b",{text:b.product || "Your product"}), el("div",{class:"mini", style:"color:inherit;opacity:.85", text:b.domain || ""}))), el("div",{class:"pb"}, el("p",{style:"margin:0 0 10px", text:"Good morning! 2 items are priced too low and Sysco raised bacon 10%."}), el("button",{class:"btn primary", text:"See what to fix"}))); }
+  prev();
+  m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fit,minmax(300px,1fr))"},
+    el("div",{class:"card"},
+      el("div",{class:"field"}, el("label",{text:"Product name"}), name), el("div",{class:"field"}, el("label",{text:"Tagline"}), tag),
+      el("div",{class:"field"}, el("span",{class:"q", text:"Logo"}), el("div",{class:"row"}, el("label",{class:"btn quiet"}, "Upload logo", file), b.logo ? el("button",{class:"btn quiet", text:"Remove", onclick:() => { b.logo = ""; save(); render(); }}) : null)),
+      el("div",{class:"field"}, el("span",{class:"q", text:"Brand color"}), el("div",{class:"row"}, col, sw)),
+      el("div",{class:"field"}, el("label",{text:"Your web address"}), el("span",{class:"hint", text:"Customers log in here. Set up once with your host."}), dom),
+      el("label",{class:"row", style:"font-weight:700"}, pw, "Show \u201cPowered by\u201d in the menu")),
+    el("div",null, el("div",{class:"mini", style:"margin-bottom:6px", text:"What your customers see"}), pv)));
+  m.append(el("h2",{text:"Restaurant accounts"}));
+  const tb = el("tbody");
+  Object.values(ST.restaurants).forEach(r => { const live = SUPPLIERS.filter(s => r.conn[s.id] && r.conn[s.id].status === "active").length;
+    tb.append(el("tr",{onclick:() => { ST.current = r.id; go("home"); }}, el("td",null, el("b",{text:r.name})), el("td",{class:"num", text:Object.keys(r.items).length}), el("td",{class:"num", text:Object.keys(r.supplies).length}), el("td",{class:"num", text:live}), el("td",null, el("span",{class:"pill good", text:"Active"})))); });
+  m.append(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Restaurant","Recipes","Supplies","Live feeds","Plan"].map((h, i) => el("th",{class: i && i < 4 ? "num" : "", text:h})))), tb)),
+    el("div",{class:"row", style:"margin-top:12px"}, el("button",{class:"btn quiet", text:"+ Add a restaurant", onclick:() => { const nm = prompt("Restaurant name?"); if (nm && nm.trim()){ const r = emptyRestaurant(nm.trim()); ST.restaurants[r.id] = r; save(); render(); } }}),
+      el("button",{class:"btn quiet", text:"Reset demo", onclick:() => { if (confirm("Reset everything to the demo? This replaces it for everyone.")){ ST = freshDemo(); save(); render(); } }})));
+}
+
+/* ================= Dialog ================= */
+const dlg = $("dlg"); $("dlg-x").onclick = () => dlg.close(); dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); }); dlg.addEventListener("close", () => render());
+function openDlg(title, body, foot){ $("dlg-t").textContent = title; $("dlg-b").replaceChildren(...body); $("dlg-f").replaceChildren(...(foot || [])); if (!dlg.open) dlg.showModal(); $("dlg-b").scrollTop = 0; }
+const fld = (label, input, hint) => el("div",{class:"field"}, el("label",{text:label}), hint ? el("span",{class:"hint", text:hint}) : null, input);
+
+/* Recipe builder */
+function openRecipe(id){
+  const r = R(); let it = id ? r.items[id] : { id: uid("m"), name:"", section:"Lunch", price:0, sold:0, portions:1, lines:[] }; const isNew = !id;
+  it = JSON.parse(JSON.stringify(it));
+  const nm = el("input",{class:"inp", placeholder:"e.g. Philly Cheesesteak"}); nm.value = it.name; nm.oninput = () => it.name = nm.value;
+  const sec = el("input",{class:"inp", list:"secs"}); sec.value = it.section || ""; sec.oninput = () => it.section = sec.value;
+  const secs = el("datalist",{id:"secs"}, [...new Set(Object.values(r.items).map(i => i.section).concat(["Breakfast","Lunch","Dinner","Sides","Desserts","Drinks"]))].map(s => el("option",{value:s})));
+  const num = (k, step) => { const i = el("input",{class:"inp", type:"number", inputmode:"decimal", min:"0", step}); i.value = it[k] || ""; i.oninput = () => { it[k] = n(i.value) || 0; paint(); }; return i; };
+  const costBox = el("div",{class:"cost"}), tip = el("div"), linesBox = el("div");
+  const aiIn = el("textarea",{class:"inp", placeholder:"Describe the dish: \u201cPhilly cheesesteak: 6 oz shaved beef, peppers, onions, provolone on a hoagie, fries on the side\u201d"});
+  const aiBtn = el("button",{class:"btn primary", text:"Draft recipe", onclick:() => draftAI()}); const aiMsg = el("div",{class:"mini", style:"margin-top:6px"});
+  function paint(){
+    const s = stats(it);
+    costBox.replaceChildren(el("div",null, el("span",{text:"Plate cost"}), el("b",{text:$$(s.plate)})), el("div",null, el("span",{text:"Food cost"}), el("b",{text:pc(s.fc)})),
+      el("div",null, el("span",{text:"Profit / plate"}), el("b",{text:$$(s.profit)})), el("div",null, el("span",{text:"Suggested price"}), el("b",{text:$$(s.suggested)})));
+    let t = null;
+    if (s.missing) t = ["Some parts aren't priced", s.missing + " line(s) aren't linked to a supply, so the cost is too low."];
+    else if (s.status === "bad") t = ["Priced too low", "At " + $$(s.price) + " this plate runs " + pc(s.fc) + ". " + $$(s.suggested) + " hits your " + pc(r.target) + " target."];
+    else if (s.status === "warn") t = ["Close to target", $$(s.suggested) + " would put it right on " + pc(r.target) + "."];
+    else if (s.status === "good" && s.plate) t = ["On target", "Each plate earns " + $$(s.profit) + "."];
+    tip.replaceChildren(t ? el("div",{class:"coachtip"}, el("b",{text:t[0]}), t[1]) : "");
+  }
+  function drawLines(){
+    linesBox.replaceChildren(el("div",{class:"line mini"}, el("span",{text:"Supply"}), el("span",{text:"Qty"}), el("span",{text:"Unit"}), el("span",{style:"text-align:right", text:"Cost"}), el("span")));
+    const opts = Object.values(r.supplies).sort((a,b) => a.name.localeCompare(b.name));
+    it.lines.forEach((l, i) => {
+      const sel = el("select",{"aria-label":"Supply"}, el("option",{value:"", text: l.s ? "Not priced" : (l.label ? l.label + " (not priced)" : "Pick a supply")}), opts.map(s => el("option",{value:s.id, text:s.name})));
+      sel.value = l.s || "";
+      const q = el("input",{type:"number", inputmode:"decimal", min:"0", step:"0.25", "aria-label":"Quantity"}); q.value = l.qty ?? "";
+      const su = l.s && r.supplies[l.s];
+      const un = el("select",{"aria-label":"Unit"}, UNIT_NAMES.filter(u => !su || UNITS[u][0] === UNITS[su.unit][0]).map(u => el("option",{value:u, text:u}))); un.value = l.unit || (su ? su.unit : "each");
+      const c = lineCost(l), lc = el("span",{class:"lc", text: c != null ? $$(c) : "—"});
+      sel.onchange = () => { l.s = sel.value || null; l.unit = null; drawLines(); paint(); };
+      q.oninput = () => { l.qty = n(q.value); lc.textContent = lineCost(l) != null ? $$(lineCost(l)) : "—"; paint(); };
+      un.onchange = () => { l.unit = un.value; lc.textContent = lineCost(l) != null ? $$(lineCost(l)) : "—"; paint(); };
+      linesBox.append(el("div",{class:"line" + (c == null ? " bad" : "")}, sel, q, un, lc, el("button",{class:"ix", "aria-label":"Remove", text:"×", onclick:() => { it.lines.splice(i,1); drawLines(); paint(); }})));
+    });
+    linesBox.append(el("button",{class:"btn quiet", style:"margin-top:6px", text:"+ Add ingredient", onclick:() => { it.lines.push({ s:null, qty:1, unit:null }); drawLines(); }}));
+  }
+  async function draftAI(){
+    const desc = aiIn.value.trim(); if (!desc){ aiMsg.textContent = "Describe the dish first."; return; }
+    const sample = await getSample();
+    if (!sample){ aiMsg.textContent = "AI drafting isn't available when the app is opened as a file. Open it from your website, or add ingredients below by hand."; return; }
+    aiBtn.disabled = true; aiMsg.textContent = "Drafting… this can take up to a minute.";
+    const list = Object.values(r.supplies).map(s => s.name + " [" + s.unit + "]").join("; ");
+    const prompt = "You build restaurant recipes for food costing. Dish: " + desc + "\nAvailable supplies (name [unit]): " + list + "\nReturn ONLY JSON: {\"name\": short menu name, \"section\": one of Breakfast, Lunch, Dinner, Sides, Desserts, Drinks, \"portions\": 1 unless it is a batch, \"lines\": [{\"supply\": exact name from the list or null if none fits, \"label\": ingredient name, \"qty\": number for ONE portion (or the whole batch), \"unit\": one of " + UNIT_NAMES.join(", ") + "}]}. Use realistic restaurant portion sizes. Use the supply's unit kind (weight, volume or count). Include garnish only if it matters for cost.";
+    try {
+      const d = await sample.json(prompt);
+      if (d.name && !it.name){ it.name = d.name; nm.value = d.name; }
+      if (d.section){ it.section = d.section; sec.value = d.section; }
+      if (n(d.portions) > 1) { it.portions = n(d.portions); }
+      const byName = {}; Object.values(r.supplies).forEach(s => byName[s.name.toLowerCase()] = s.id);
+      it.lines = (d.lines || []).map(l => { const sid = l.supply ? byName[String(l.supply).toLowerCase()] : null; const su = sid && r.supplies[sid]; let unit = UNITS[l.unit] ? l.unit : null; if (su && unit && UNITS[unit][0] !== UNITS[su.unit][0]) unit = null; return { s: sid || null, label: l.label || l.supply, qty: n(l.qty) || 1, unit: su ? unit : null }; });
+      const miss = it.lines.filter(l => !l.s).map(l => l.label);
+      aiMsg.textContent = "Drafted " + it.lines.length + " ingredients. Check the amounts." + (miss.length ? " Not in your supplies yet: " + miss.join(", ") + "." : "");
+      drawLines(); paint();
+    } catch(e){ aiMsg.textContent = aiProblem(e) || "Couldn't draft that one. Try rewording, or add ingredients by hand."; }
+    aiBtn.disabled = false;
+  }
+  drawLines(); paint();
+  openDlg(isNew ? "New recipe" : it.name, [
+    el("div",{class:"ai"}, el("div",{class:"q", style:"font-weight:800;margin-bottom:6px", text:"Describe it and let the app draft it"}), aiIn, el("div",{class:"row", style:"margin-top:8px"}, aiBtn), aiMsg),
+    el("div",{class:"g2"}, fld("Menu name", nm), fld("Section", sec)), secs,
+    el("div",{class:"g3"}, fld("Menu price", num("price","0.25")), fld("Plates sold / " + r.period, num("sold","1")), fld("Portions per batch", num("portions","1"), "1 unless it's a batch")),
+    costBox, tip, el("h2",{style:"margin-top:4px", text:"Ingredients"}), linesBox
+  ], [ !isNew ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (confirm("Delete " + it.name + "?")){ delete r.items[it.id]; save(); dlg.close(); } }}) : el("span"),
+       el("button",{class:"btn primary", text:"Save recipe", onclick:() => { if (!it.name.trim()){ nm.focus(); toast("Give it a name"); return; } r.items[it.id] = it; save(); dlg.close(); toast("Saved"); }}) ]);
+}
+/* Supply editor */
+function openSupply(id){
+  const r = R(); let s = id ? r.supplies[id] : { id: uid("s"), name:"", cat:"", supplier:"", code:"", caseQty:null, unit:"oz", yield:1, price:null, history:[] }; const isNew = !id;
+  s = JSON.parse(JSON.stringify(s));
+  const inp = (k, type, step, ph) => { const i = el("input",{class:"inp", type: type || "text", step, placeholder: ph || ""}); i.value = s[k] ?? ""; i.oninput = () => { s[k] = type === "number" ? n(i.value) : i.value; calc(); }; return i; };
+  const un = el("select",{class:"inp"}, UNIT_NAMES.map(u => el("option",{value:u, text:u}))); un.value = s.unit; un.onchange = () => { s.unit = un.value; calc(); };
+  const yl = el("input",{class:"inp", type:"number", min:"5", max:"100", step:"1"}); yl.value = Math.round((n(s.yield) || 1) * 100); yl.oninput = () => { s.yield = (n(yl.value) || 100) / 100; calc(); };
+  const out = el("div",{class:"coachtip"});
+  function calc(){ const c = supCostPerUnit(s), used = usedBy(s.id); out.replaceChildren(el("b",{text: c != null ? "$" + c.toFixed(4) + " per usable " + s.unit : "Enter case price and size"}), used.length ? "Used in " + used.map(i => i.name).join(", ") + "." : "Not in any recipe yet."); }
+  calc();
+  const hist = (s.history || []).slice(-6).reverse().map(h => nice(h.date) + " " + $$(h.price)).join("   ");
+  openDlg(isNew ? "New supply" : s.name, [
+    el("div",{class:"g2"}, fld("Name", inp("name")), fld("Supplier", inp("supplier"))),
+    el("div",{class:"g3"}, fld("Case price", inp("price","number","0.01")), fld("Case size", inp("caseQty","number","any")), fld("Unit", un)),
+    el("div",{class:"g2"}, fld("Yield %", yl, "Usable share after trimming or cooking"), fld("Item code", inp("code"), "Used to match supplier feeds")),
+    out, hist ? el("p",{class:"mini", text:"Price history: " + hist}) : null
+  ], [ !isNew ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (confirm("Delete " + s.name + "?")){ Object.values(r.items).forEach(i => i.lines.forEach(l => { if (l.s === s.id) { l.label = s.name; l.s = null; } })); delete r.supplies[s.id]; save(); dlg.close(); } }}) : el("span"),
+       el("button",{class:"btn primary", text:"Save", onclick:() => { if (!s.name.trim()) return toast("Give it a name"); const old = r.supplies[s.id]; if (!old || old.price !== s.price){ s.history = (s.history || []).concat([{ date: today(), price: s.price }]); } r.supplies[s.id] = s; save(); dlg.close(); toast("Saved"); }}) ]);
+}
+/* Invoice / order review */
+function matchLine(l, r){ const all = Object.values(r.supplies); if (l.code){ const m = all.find(s => s.code && s.code === l.code); if (m) return m.id; }
+  const t = String(l.desc).toLowerCase().replace(/[^a-z ]/g," ").split(/\s+/).filter(w => w.length > 2);
+  let best = null, bs = 0; all.forEach(s => { const w = s.name.toLowerCase().replace(/[^a-z ]/g," ").split(/\s+/).filter(x => x.length > 2); const hit = t.filter(a => w.some(b => b.startsWith(a.slice(0,4)) || a.startsWith(b.slice(0,4)) || (b.length > 3 && a.includes(b)) || (a.length > 3 && b.includes(a)))).length; const sc = hit / Math.max(w.length, 1); if (sc > bs){ bs = sc; best = s.id; } });
+  return bs >= 0.5 ? best : null; }
+function openDoc(id){
+  const r = R(), d = r.inbox.find(x => x.id === id); if (!d) return;
+  d.lines.forEach(l => { if (l.match === undefined) l.match = matchLine(l, r); });
+  const opts = Object.values(r.supplies).sort((a,b) => a.name.localeCompare(b.name));
+  const body = [el("p",{class:"lead", text: d.supplier + ", " + nice(d.date) + ", via " + d.source + (d.kind === "order" ? ". Arriving " + (d.eta || "soon") + ". The invoice will follow when it's delivered." : ".")})];
+  const tb = el("tbody");
+  d.lines.forEach(l => {
+    const su = l.match && r.supplies[l.match], ch = su && su.price ? (l.price - su.price) / su.price : null;
+    const sel = el("select",{class:"inp", style:"min-width:180px", disabled: d.status !== "new" || d.kind === "order" ? "" : null}, el("option",{value:"", text:"Skip"}), opts.map(s => el("option",{value:s.id, text:s.name}))); sel.value = l.match || "";
+    sel.onchange = () => { l.match = sel.value || null; save(); openDoc(id); };
+    tb.append(el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:l.desc}), el("div",{class:"mini", text:l.code ? "#" + l.code : ""})), el("td",{class:"num", text:l.qty}), el("td",{class:"num", text:$$(l.price)}),
+      el("td",null, sel), el("td",{class:"num"}, ch != null && Math.abs(ch) >= 0.005 ? el("span",{class: ch > 0 ? "up" : "down", text:(ch > 0 ? "+" : "") + pc(ch)}) : su ? "same" : "—")));
+  });
+  body.push(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Line","Qty","Case price","Matches supply","vs. now"].map((h, i) => el("th",{class: i === 1 || i === 2 || i === 4 ? "num" : "", text:h})))), tb)));
+  const foot = [el("button",{class:"btn danger", text:"Delete", onclick:() => { if (confirm("Delete this document?")){ r.inbox = r.inbox.filter(x => x.id !== id); save(); dlg.close(); } }})];
+  if (d.kind === "invoice" && d.status === "new") foot.push(el("button",{class:"btn primary", text:"Approve & update prices", onclick:() => approve(d)}));
+  if (d.kind === "order") foot.push(el("button",{class:"btn primary", text:"Demo: mark delivered", onclick:() => { d.kind = "invoice"; d.status = "new"; d.number = d.number.replace("PO-","INV-"); save(); openDoc(id); toast("Delivered. The invoice is ready to review."); }}));
+  openDlg((d.kind === "order" ? "Order " : "Invoice ") + d.number, body, foot);
+}
+function approve(d){
+  const r = R(), before = JSON.parse(JSON.stringify(r.supplies)); let up = 0;
+  d.lines.forEach(l => { const s = l.match && r.supplies[l.match]; if (!s) return; if (s.price !== l.price){ s.price = l.price; s.history = (s.history || []).concat([{ date: d.date, price: l.price }]); up++; } if (l.code && !s.code) s.code = l.code; });
+  d.status = "approved";
+  const changed = Object.values(r.items).map(it => ({ it, a: stats(it, r, before).plate, b: stats(it).plate })).filter(x => Math.abs(x.b - x.a) >= 0.005);
+  save();
+  openDlg("Invoice approved", [
+    el("div",{class:"cost", style:"grid-template-columns:repeat(2,1fr)"}, el("div",null, el("span",{text:"Prices updated"}), el("b",{text:up})), el("div",null, el("span",{text:"Recipes affected"}), el("b",{text:changed.length}))),
+    changed.length ? el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Recipe","Plate cost","Change","Status"].map((h,i) => el("th",{class: i === 1 || i === 2 ? "num" : "", text:h})))),
+      el("tbody",null, changed.map(x => { const s = stats(x.it), st = STATUS[s.status]; return el("tr",{onclick:() => openRecipe(x.it.id)}, el("td",{text:x.it.name}), el("td",{class:"num", text:$$(x.b)}), el("td",{class:"num"}, el("span",{class: x.b > x.a ? "up" : "down", text:(x.b > x.a ? "+" : "") + $$(x.b - x.a)})), el("td",null, el("span",{class:"pill " + st[1], text:st[0]}))); })))) : el("p",{text:"No recipe costs changed."})
+  ], [el("span"), el("button",{class:"btn primary", text:"See profit coach", onclick:() => { dlg.close(); go("coach"); }})]);
+}
+function connectFlow(s){
+  const r = R(), cust = el("input",{class:"inp", placeholder:"e.g. 067-123456"}), rep = el("input",{class:"inp", type:"email", placeholder:"rep@" + s.id + ".com"});
+  const letter = () => "Hi,\n\nPlease set up electronic invoices (EDI 810)" + (s.id === "sysco" ? ", price file (832)" : "") + " and order confirmations for my account " + (cust.value || "[customer #]") + " to be sent to our back-office software, " + (ST.brand.product || "PlateMargin") + ".\n\nTheir integration team can be reached at integrations@" + ((ST.brand.domain || "yourbrand.com").replace(/^app\./,"")) + ".\n\nThank you,\n" + r.name;
+  const pre = el("textarea",{class:"inp", style:"min-height:170px"}); pre.value = letter(); cust.oninput = () => pre.value = letter();
+  openDlg("Connect " + s.name, [
+    el("p",{class:"lead", text:"Distributors turn feeds on through your sales rep. Send them this note; we handle the technical side with their integration team."}),
+    el("div",{class:"g2"}, fld("Your " + s.name + " customer number", cust, "On any invoice"), fld("Rep's email (optional)", rep)),
+    fld("Note for your rep", pre)
+  ], [el("button",{class:"btn quiet", text:"Copy note", onclick:() => { navigator.clipboard && navigator.clipboard.writeText(pre.value).catch(()=>{}); toast("Copied"); }}),
+      el("button",{class:"btn primary", text:"Mark as requested", onclick:() => { r.conn[s.id] = { status:"requested", customer: cust.value || "pending", since: today() }; save(); dlg.close(); toast("Requested. We'll tell you when it's live."); }})]);
+}
+function pushDemoInvoice(supplier){
+  const r = R(), sups = Object.values(r.supplies).filter(s => s.code).sort(() => Math.random() - 0.5).slice(0, 4);
+  if (!sups.length) return;
+  r.inbox.push({ id: uid("d"), kind:"invoice", source:"EDI", supplier, number:"INV-" + Math.floor(100000 + Math.random()*900000), date: today(), status:"new",
+    lines: sups.map(s => ({ code: s.code, desc: s.name.toUpperCase(), qty: 1 + Math.floor(Math.random()*3), price: Math.round(s.price * (1 + (Math.random()*0.16 - 0.04)) * 100) / 100 })) });
+}
+function uploadDemo(){
+  const r = R();
+  openDlg("Upload or photo", [
+    el("p",{class:"lead", text:"In the real product, a photo, PDF or spreadsheet is read automatically and lands here as a draft to check. For this demo, add a sample photo invoice."}),
+    el("div",{class:"card"}, el("b",{text:"Produce Market, paper invoice"}), el("p",{style:"margin:6px 0 0", text:"Romaine 24 ct, Tomatoes 25 lb, Yellow onions 50 lb"}))
+  ], [el("span"), el("button",{class:"btn primary", text:"Add sample photo invoice", onclick:() => { r.inbox.push({ id: uid("d"), kind:"invoice", source:"Photo", supplier:"Produce Market", number:"PM-" + Math.floor(1000 + Math.random()*9000), date: today(), status:"new", lines:[{ code:"", desc:"Romaine hearts 24ct", qty:1, price:41.25 },{ code:"", desc:"Tomatoes 5x6 25lb", qty:1, price:35.5 },{ code:"", desc:"Onions yellow jumbo 50lb", qty:1, price:33 }] }); save(); dlg.close(); go("inbox"); toast("Photo invoice added"); }})]);
+}
+
+load().then(render);
+})();
+</script>
+</body>
+</html>
