@@ -666,6 +666,8 @@ details.ai-fold[open] summary{padding:12px 0}
   .cls-legend .cls .mini{display:none}
 }
 
+.targets-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(200px,100%),1fr));gap:14px}
+
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
 .demo-dot{width:8px;height:8px;border-radius:50%;background:#6FC79A;flex:none;box-shadow:0 0 0 4px rgba(111,199,154,.18)}
@@ -802,6 +804,13 @@ function demoRestaurant(){
     S("Diced tomatoes, #10 can","Dry & canned","Sysco","5100311",6,"each",1,33), S("Pancake mix","Dry & canned","Sysco","8019231",480,"oz",1,50),
     S("Maple syrup","Sauces","Sysco","8019552",128,"fl oz",1,18), S("Ranch dressing","Sauces","Sysco","6100447",512,"fl oz",1,48.6),
     S("Takeout containers","Disposables","Sysco","9003104",200,"each",1,30),
+    S("Bud Light, \u00bd bbl keg","Beer","Heidelberg Distributing","10234",1984,"fl oz",0.9,118,112),
+    S("House Chardonnay, 750 ml","Wine","Heidelberg Distributing","40118",25.36,"fl oz",1,8.5),
+    S("Jose Cuervo Gold, 1 L","Liquor","Ohio Liquor","2846B",33.81,"fl oz",1,22.99),
+    S("Jack Daniel's, 1.75 L","Liquor","Ohio Liquor","1953B",59.17,"fl oz",1,49.99),
+    S("Margarita mix, 1 L","Mixers & soft drinks","Sysco","6602118",33.81,"fl oz",1,4.5),
+    S("Fountain cola","Mixers & soft drinks","Sysco","6600140",3840,"fl oz",1,95),
+    S("Limes","Produce","Sysco","1150655",48,"each",1,19.25),
   ];
   const sup = {}; sl.forEach(s => sup[s.id] = s);
   const byName = nm => sl.find(s => s.name === nm).id;
@@ -815,6 +824,10 @@ function demoRestaurant(){
     I("House Chili, cup","Dinner",4.5,85,40,[["Ground beef 80/20",10,"lb"],["Chili beans, #10 can",2],["Diced tomatoes, #10 can",2],["Onions, yellow",3,"lb"]]),
     I("Loaded Baked Potato","Sides",5,40,1,[["Potatoes, russet",10],["Cheddar, shredded",1],["Bacon, sliced",0.5],[null,1,"Sour cream"]]),
     I("Side of Fries","Sides",3.5,150,1,[["French fries, frozen",5],["Takeout containers",1]]),
+    I("Bud Light Draft, 16 oz","Bar",4,140,1,[["Bud Light, \u00bd bbl keg",16]]),
+    I("House Margarita","Bar",8,60,1,[["Jose Cuervo Gold, 1 L",1.5],["Margarita mix, 1 L",4],["Limes",0.25]]),
+    I("Glass of Chardonnay, 6 oz","Bar",7,35,1,[["House Chardonnay, 750 ml",6]]),
+    I("Jack & Coke","Bar",6.5,50,1,[["Jack Daniel's, 1.75 L",1.5],["Fountain cola",6]]),
   ];
   const items = {}; il.forEach(i => items[i.id] = i);
   const inbox = [
@@ -1022,8 +1035,31 @@ function lineCost(l, r = R(), sups = r.supplies){
   if (!a || !b || a[0] !== b[0]) return null;
   return (n(l.qty) || 0) * a[1] / b[1] * cpu;
 }
-const isDrink = it => /drink|beer|bar\b|wine|cocktail|beverage|tap|draft|liquor|spirit/i.test((it && it.section) || "");
-const targetFor = (it, r = R()) => isDrink(it) ? (n(r.drinkTarget) || 0.22) : (n(r.target) || 0.30);
+// Drinks: beer, wine, liquor (spirits and cocktails) and other drinks each have their own pour-cost target.
+const DRINK_WORDS = {
+  wine: /\b(wine|wines|vino|sangria|prosecco|champagne|chardonnay|merlot|cabernet|pinot|riesling|moscato|sauvignon|zinfandel|malbec|ros[eé] wine|ros[eé])\b/i,
+  liquor: /\b(cocktails?|liquor|spirits?|shots?|whiske?y|bourbon|scotch|vodka|tequila|rum|gin|martinis?|margaritas?|mixed drinks?|well drinks?|highballs?|old fashioned|manhattan|mules?|daiquiri|mojito|bloody mary|cosmo|long island|on the rocks)\b|\b[a-z]+ & (coke|cola|soda|tonic|ginger|sprite|7up|seven)\b/i,
+  beer: /\b(beers?|drafts?|draught|on tap|taps?|kegs?|ales?|lagers?|ipas?|stouts?|pilsners?|hard seltzers?|buckets?)\b/i,
+  any: /\b(drinks?|bar|beverages?|cocktails?|liquor|spirits?|wines?|beers?|taps?|draft)\b/i
+};
+const DRINK_LABEL = { beer:"Beer", wine:"Wine", liquor:"Liquor", drink:"Other drink" };
+function drinkKind(it){
+  if (!it) return null;
+  if (it.drinkType) return it.drinkType === "food" ? null : it.drinkType;
+  const sec = it.section || "", nm = it.name || "";
+  for (const k of ["wine", "liquor", "beer"]) if (DRINK_WORDS[k].test(sec)) return k;
+  if (!DRINK_WORDS.any.test(sec) || /\b(food|bites|grub|eats|snacks?|apps?|appetizers?|plates?|kitchen)\b/i.test(sec)) return null;   // food section
+  for (const k of ["wine", "liquor", "beer"]) if (DRINK_WORDS[k].test(nm)) return k;
+  return "drink";
+}
+const isDrink = it => !!drinkKind(it);
+const costWord = it => isDrink(it) ? "pour cost" : "food cost";
+const targetFor = (it, r = R()) => { const k = drinkKind(it);
+  if (!k) return n(r.target) || 0.30;
+  if (k === "beer") return n(r.beerTarget) || n(r.drinkTarget) || 0.22;
+  if (k === "wine") return n(r.wineTarget) || 0.30;
+  if (k === "liquor") return n(r.liquorTarget) || 0.18;
+  return n(r.drinkTarget) || 0.22; };
 function stats(it, r = R(), sups = r.supplies){
   const tgt = targetFor(it, r);
   let raw = 0, missing = 0;
@@ -1063,7 +1099,7 @@ function insights(r = R()){
       const rawTotal = lcs.reduce((a2, x) => a2 + x.c, 0);
       const big = lcs.sort((a2,b2) => b2.c - a2.c)[0];
       const share = big && rawTotal ? big.c / rawTotal : 0;
-      out.push({ sev:"bad", tag:"Losing margin", title: it.name + " is at " + pc(s.fc) + " food cost", text:"Target is " + pc(targetFor(it, r)) + ". Raise it to " + $$(s.suggested) + " (+" + $$(gap) + ")" + (big && big.c ? ", or trim the biggest cost: " + (r.supplies[big.l.s] ? r.supplies[big.l.s].name : big.l.label) + " is " + pc(share) + " of the plate." : "."), impact: gap * sold, impactLabel:"per " + per + " if raised", item:it.id, score: 100 + gap * sold });
+      out.push({ sev:"bad", tag:"Losing margin", title: it.name + " is at " + pc(s.fc) + " " + costWord(it), text:"Target is " + pc(targetFor(it, r)) + ". Raise it to " + $$(s.suggested) + " (+" + $$(gap) + ")" + (big && big.c ? ", or trim the biggest cost: " + (r.supplies[big.l.s] ? r.supplies[big.l.s].name : big.l.label) + " is " + pc(share) + " of the plate." : "."), impact: gap * sold, impactLabel:"per " + per + " if raised", item:it.id, score: 100 + gap * sold });
     }
     if (cls === "Puzzle") out.push({ sev:"push", tag:"Push this", title:"Sell more " + it.name, text:"It earns " + $$(s.profit) + " a plate, " + $$(s.profit - eng.avgCM) + " more than your average, but few people order it. Move it to the top of its section, give it a better description, or have servers recommend it.", impact: s.profit * 10, impactLabel:"for 10 more sold", item:it.id, score: 80 + s.profit });
     if (cls === "Plowhorse" && s.status !== "bad") out.push({ sev:"warn", tag:"Popular, thin margin", title:"Nudge " + it.name + " up 50¢", text:"It sells well but earns only " + $$(s.profit) + " a plate. Regulars rarely notice a small rise on a favorite.", impact: 0.5 * sold, impactLabel:"per " + per, item:it.id, score: 60 + 0.5 * sold });
@@ -1290,7 +1326,7 @@ async function aiPlan(box, ins){
   if (!sample){ box.replaceChildren(el("div",{class:"card"}, el("p",{style:"margin:0", text:"The AI plan isn't available when the app is opened as a file. Open it from your website. The ranked list below is the same advice."}))); return; }
   const r = R();
   const facts = ins.slice(0, 12).map(i => "- [" + i.tag + "] " + i.title + ". " + i.text + (i.impact != null ? " Worth about " + $0(i.impact) + " " + i.impactLabel + "." : "")).join("\n");
-  const prompt = "You are a practical restaurant profit coach talking to a busy owner of " + r.name + ". Target food cost is " + pc(r.target) + " (drinks " + pc(n(r.drinkTarget) || 0.22) + "). Here are this week's findings, already ranked:\n" + facts + "\n\nWrite a short plan for this week: 3 to 5 numbered actions in plain words, each one sentence with the dollar effect where known, then one sentence on what to watch next week. No headings, no jargon, under 150 words.";
+  const prompt = "You are a practical restaurant profit coach talking to a busy owner of " + r.name + ". Target food cost is " + pc(r.target) + "; pour-cost targets are beer " + pc(n(r.beerTarget) || n(r.drinkTarget) || 0.22) + ", wine " + pc(n(r.wineTarget) || 0.30) + ", liquor " + pc(n(r.liquorTarget) || 0.18) + ". Here are this week's findings, already ranked:\n" + facts + "\n\nWrite a short plan for this week: 3 to 5 numbered actions in plain words, each one sentence with the dollar effect where known, then one sentence on what to watch next week. No headings, no jargon, under 150 words.";
   try { const { text } = await sample(prompt, { onText: ({ text }) => { box.replaceChildren(el("div",{class:"card", style:"white-space:pre-wrap"}, text)); } });
     box.replaceChildren(el("div",{class:"card", style:"white-space:pre-wrap"}, el("h3",{text:"This week's plan"}), text)); }
   catch(e){ box.replaceChildren(el("div",{class:"card"}, el("p",{style:"margin:0", text: aiProblem(e) || "Couldn't write the plan right now. The ranked list below has the same advice."}))); }
@@ -1385,7 +1421,7 @@ function menu(m){
         el("td",null, el("span",{class:"pill " + st[1], text:st[0]})),
         hasSales ? el("td",{class:"c-cls"}, eng.cls[it.id] ? classBadge(eng.cls[it.id]) : dash()) : null));
     });
-    const heads = [["", ""], ["Item", ""], ["Price", "num"], ["Plate cost", "num c-plate"], ["Food cost", "num"], ["Profit", "num c-prof"], ["Suggested", "num c-sug"], ["Sold / " + r.period, "num c-sold"], ["Status", ""]].concat(hasSales ? [["Class", "c-cls"]] : []);
+    const heads = [["", ""], ["Item", ""], ["Price", "num"], ["Plate cost", "num c-plate"], [rows.length && rows.every(isDrink) ? "Pour cost" : "Food cost", "num"], ["Profit", "num c-prof"], ["Suggested", "num c-sug"], ["Sold / " + r.period, "num c-sold"], ["Status", ""]].concat(hasSales ? [["Class", "c-cls"]] : []);
     return el("div",{class:"tw"}, el("table",{class:"menu-t"}, el("thead",null, el("tr",null, heads.map(([h, c], i) => el("th",{class:c}, i === 0 ? head : h)))), tb));
   };
   // Grouped by category in menu order; a single flat list for other sorts.
@@ -1395,7 +1431,7 @@ function menu(m){
       const costed = rows.map(i => statsOf.get(i.id)).filter(x => x.status !== "norecipe" && x.price > 0 && !x.missing);
       const avg = costed.length ? costed.reduce((t, x) => t + x.fc, 0) / costed.length : null;
       const needs = rows.filter(i => statsOf.get(i.id).status === "norecipe").length;
-      m.append(el("div",{class:"grp-h"}, el("h2",{text:c}), el("span",{class:"mini", text:[rows.length + (rows.length === 1 ? " item" : " items"), avg != null ? "avg food cost " + pc(avg) : "", needs ? needs + " need recipes" : ""].filter(Boolean).join(", ")})), table(rows));
+      m.append(el("div",{class:"grp-h"}, el("h2",{text:c}), el("span",{class:"mini", text:[rows.length + (rows.length === 1 ? " item" : " items"), avg != null ? "avg " + (rows.every(isDrink) ? "pour" : "food") + " cost " + pc(avg) : "", needs ? needs + " need recipes" : ""].filter(Boolean).join(", ")})), table(rows));
     });
   } else m.append(table(shown.sort(sorter)));
 }
@@ -1495,7 +1531,8 @@ async function tidyNamesWithAI(){
 }
 
 /* ================= Supplies: categories & filtering ================= */
-const SUP_CATS = ["Protein","Dairy & eggs","Produce","Bakery","Frozen","Dry & canned","Sauces & dressings","Beverage","Disposables","Cleaning"];
+const SUP_CATS = ["Protein","Dairy & eggs","Produce","Bakery","Frozen","Dry & canned","Sauces & dressings","Beer","Wine","Liquor","Mixers & soft drinks","Disposables","Cleaning"];
+const BAR_CATS = ["Beer","Wine","Liquor","Mixers & soft drinks"];
 // Order matters: the first rule that matches wins. Written for distributor-style names too ("CHEESE SWS SLCD .75Z DY").
 const CAT_RULES = [
   // Distributor suffix codes are the strongest clue: FR frozen, DY dairy, MT meat, SF seafood, DS disposables.
@@ -1504,7 +1541,13 @@ const CAT_RULES = [
   ["Dry & canned", /applesauce|\bjam\b|jelly|\bbase\b|pan ?coat|\bdehy|\bhashbrown.*\bGR\b/i],
   ["Frozen", /\bFR\s*$|corn ?dogs?|onion (rings?|tangler|petals?)/i],
   ["Protein", /\b(MT|SF)\s*$/i],
-  ["Beverage", /\b(beer|ales?|lager|ipa|stout|pilsner|kegs?|bbl|wine|vodka|whiske?y|bourbon|rum|tequila|gin|liquor|seltzer|soda|pop|cola|pepsi|coke|juice|coffee|tea|water|lemonade|bud light|budweiser|miller|coors|michelob|corona|modelo|great lakes|yuengling)\b/i],
+  // Food that mentions a drink stays food: beer-battered mushrooms, bourbon BBQ sauce, wine sauce.
+  ["Frozen", /beer[- ]?batter|\bbatter(ed)?\b|\bbrd\b|\bbreaded\b/i],
+  ["Sauces & dressings", /\b(sauce|glaze|marinade|vinaigrette|reduction)\b/i],
+  ["Liquor", /\b(vodka|gin|rum|tequila|mezcal|whiske?y|bourbon|scotch|rye whiske?y|brandy|cognac|liqueur|schnapps|vermouth|triple sec|amaretto|kahlua|baileys|jameson|jack daniel'?s?|jim beam|maker'?s mark|crown royal|fireball|captain morgan|bacardi|malibu|smirnoff|tito'?s|absolut|grey goose|ketel|stoli|jose cuervo|patron|don julio|hennessy|tanqueray|beefeater|bombay|jagermeister|j[aä]germeister|seagram'?s|canadian club|black velvet|evan williams|wild turkey|buffalo trace|bulleit|woodford|svedka|new amsterdam|e ?& ?j|hpnotiq|goldschlager|rumple)\b/i],
+  ["Wine", /\b(wine|chardonnay|cabernet|merlot|pinot|riesling|moscato|sauvignon|zinfandel|malbec|prosecco|champagne|sangria|ros[eé] wine|boxed wine|franzia|barefoot|sutter home|yellow tail|woodbridge|cupcake)\b/i],
+  ["Beer", /\b(beer|ales?|lager|ipa|stout|porter|pilsner|kegs?|bbl|hard seltzer|white claw|truly|twisted tea|mike'?s hard|bud light|budweiser|miller|coors|michelob|corona|modelo|heineken|stella|blue moon|great lakes|yuengling|labatt|busch|pabst|pbr|natural light|keystone|sam adams|samuel adams|guinness|dos equis|pacifico|rolling rock)\b/i],
+  ["Mixers & soft drinks", /\b(tonic|club soda|soda water|sour mix|margarita mix|bloody mary mix|mary mix|grenadine|simple syrup|bitters|ginger beer|ginger ale|lime juice|lemon juice|cranberry juice|pineapple juice|orange juice|juice|soda|pop|cola|pepsi|coke|sprite|7 ?up|mountain dew|dr pepper|coffee|tea|water|lemonade|energy drink|red bull|bib|bag in box|cocktail cherries|maraschino)\b/i],
   ["Disposables", /(container|clamshell|napkin|\bcups?\b|\blids?\b|\bstraws?\b|\bfoil\b|\bfilm\b|\bglove|\bbags?\b|to-?go|\bbox(es)?\b|\bforks?\b|\bspoons?\b|cutlery|\btrays?\b|liner|souffl|take ?out|paper plate|deli paper|toothpick|placemat)/i],
   ["Cleaning", /(clean|sanitiz|detergent|degreas|\bsoap\b|bleach|chemical|scrubber|rinse aid)/i],
   ["Frozen", /(fries|\bfry\b|\btots?\b|tater|\bstix\b|mozz(arella)? stick|nugget|ice cream|popsicle|\baptzr\b)/i],
@@ -1781,10 +1824,14 @@ function brand(m){
   { const r = R();
     const pctIn = (k, def) => { const i = el("input",{class:"inp", type:"number", min:"5", max:"90", step:"1"}); i.value = Math.round((n(r[k]) || def) * 100); i.onchange = () => { const v2 = n(i.value); if (v2 >= 5 && v2 <= 90){ r[k] = v2 / 100; save(); toast("Saved"); } }; return i; };
     const per = el("select",{class:"inp"}, ["week","month"].map(p => el("option",{value:p, text:"Per " + p}))); per.value = r.period || "week"; per.onchange = () => { r.period = per.value; save(); };
-    m.append(el("div",{class:"card"}, el("div",{class:"g3"},
+    m.append(el("div",{class:"card"}, el("div",{class:"targets-grid"},
       fld("Food cost target %", pctIn("target", 0.30), "For " + r.name),
-      fld("Drink cost target %", pctIn("drinkTarget", 0.22), "Menu sections named Drinks, Beer, Bar, Wine…"),
-      fld("Plates sold are counted", per)))); }
+      fld("Beer pour cost %", pctIn("beerTarget", 0.22), "Draft, bottles and cans"),
+      fld("Wine pour cost %", pctIn("wineTarget", 0.30), "By the glass or bottle"),
+      fld("Liquor pour cost %", pctIn("liquorTarget", 0.18), "Shots, mixed drinks, cocktails"),
+      fld("Other drinks %", pctIn("drinkTarget", 0.22), "Soda, coffee, juice"),
+      fld("Plates sold are counted", per)),
+      el("p",{class:"mini", style:"margin:10px 0 0", text:"Drinks are recognized from their menu section (Bar, Beer, Wine, Cocktails…) and name. Set a recipe's Type to override."}))); }
   m.append(el("h2",{text:"Team"}));
   const teamBox = el("div",{class:"card"}, el("div",{class:"spin"})); m.append(teamBox); drawTeam(teamBox);
   m.append(el("h2",{text:"Locations"}));
@@ -1850,7 +1897,7 @@ function openRecipe(id){
   const aiBtn = el("button",{class:"btn primary", text:"Draft recipe", onclick:() => draftAI()}); const aiMsg = el("div",{class:"mini", style:"margin-top:6px"});
   function paint(){
     const s = stats(it);
-    costBox.replaceChildren(el("div",null, el("span",{text:"Plate cost"}), el("b",{text:$$(s.plate)})), el("div",null, el("span",{text:"Food cost"}), el("b",{text:pc(s.fc)})),
+    costBox.replaceChildren(el("div",null, el("span",{text:"Plate cost"}), el("b",{text:$$(s.plate)})), el("div",null, el("span",{text: isDrink(it) ? "Pour cost" : "Food cost"}), el("b",{text:pc(s.fc)})),
       el("div",null, el("span",{text:"Profit / plate"}), el("b",{text:$$(s.profit)})), el("div",null, el("span",{text:"Suggested price"}), el("b",{text:$$(s.suggested)})));
     let t = null;
     if (s.missing) t = ["Some parts aren't priced", s.missing + " line(s) aren't linked to a supply, so the cost is too low."];
@@ -1897,11 +1944,17 @@ function openRecipe(id){
     } catch(e){ aiMsg.textContent = aiProblem(e) || "Couldn't draft that one. Try rewording, or add ingredients by hand."; }
     aiBtn.disabled = false;
   }
+  const typeSel = el("select",{class:"inp", "aria-label":"Type"},
+    el("option",{value:"", text:"Automatic (" + (drinkKind(Object.assign({}, it, { drinkType: undefined })) ? DRINK_LABEL[drinkKind(Object.assign({}, it, { drinkType: undefined }))] : "Food") + ")"}),
+    [["food","Food"],["beer","Beer"],["wine","Wine"],["liquor","Liquor or cocktail"],["drink","Other drink"]].map(([v, t]) => el("option",{value:v, text:t})));
+  typeSel.value = it.drinkType || "";
+  typeSel.onchange = () => { if (typeSel.value) it.drinkType = typeSel.value; else delete it.drinkType; paint(); };
   drawLines(); paint();
   openDlg(isNew ? "New recipe" : it.name, [
     isPhone() ? el("details",{class:"ai ai-fold"}, el("summary",{text:"Describe it and let the app draft it"}), aiIn, el("div",{class:"row", style:"margin-top:8px"}, aiBtn), aiMsg)
       : el("div",{class:"ai"}, el("div",{class:"q", style:"font-weight:800;margin-bottom:6px", text:"Describe it and let the app draft it"}), aiIn, el("div",{class:"row", style:"margin-top:8px"}, aiBtn), aiMsg),
     el("div",{class:"g2"}, fld("Menu name", nm), fld("Section", sec)), secs,
+    fld("Type", typeSel, "Drinks are judged by their own pour-cost target"),
     el("div",{class:"g3 nums3"}, fld("Menu price", num("price","0.25")), fld(isPhone() ? "Sold / " + (r.period === "month" ? "mo" : "wk") : "Plates sold / " + r.period, num("sold","1")), fld(isPhone() ? "Portions" : "Portions per batch", num("portions","1"), isPhone() ? null : "1 unless it's a batch")),
     costBox, tip, el("h2",{style:"margin-top:4px", text:"Ingredients"}), linesBox
   ], [ !isNew ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (confirm("Delete " + it.name + "?")){ delete r.items[it.id]; save(); dlg.close(); } }}) : el("span"),
@@ -1931,7 +1984,7 @@ function openSupply(id){
     el("div",{class:"g2"}, fld("Display name", titleIn, "What you and your cooks see"), fld("Name on invoices", inp("name"), "Used to match invoices. Leave it as the supplier writes it.")),
     fld("Supplier", supIn), supList,
     el("div",{class:"g3"}, fld("Case price", inp("price","number","0.01")), fld("Case size", qtyIn), fld("Unit", un)),
-    el("div",{class:"field"}, el("span",{class:"q", text:"Drink pack sizes"}), el("div",{class:"row"}, PACKS.map(([lab, qty, yld]) => el("button",{class:"btn quiet", type:"button", style:"min-height:36px;padding:6px 10px", text:lab, onclick:() => { s.caseQty = qty; s.unit = "fl oz"; s.yield = yld; qtyIn.value = qty; un.value = "fl oz"; yl.value = Math.round(yld * 100); calc(); }})))),
+    el("div",{class:"field"}, el("span",{class:"q", text:"Drink sizes: kegs, cases and bottles"}), el("div",{class:"row"}, PACKS.map(([lab, qty, yld]) => el("button",{class:"btn quiet", type:"button", style:"min-height:36px;padding:6px 10px", text:lab, onclick:() => { s.caseQty = qty; s.unit = "fl oz"; s.yield = yld; qtyIn.value = qty; un.value = "fl oz"; yl.value = Math.round(yld * 100); calc(); }})))),
     el("div",{class:"g2"}, fld("Yield %", yl, "Usable share after trimming or cooking"), fld("Item code", inp("code"), "Used to match supplier feeds")),
     fld("Category", catSel), catList,
     out, hist ? el("p",{class:"mini", text:"Price history: " + hist}) : null
@@ -1939,7 +1992,8 @@ function openSupply(id){
        el("button",{class:"btn primary", text:"Save", onclick:() => { if (!s.name.trim()) return toast("Give it a name"); if (!s.cat) s.cat = guessCat(s.name); const old = r.supplies[s.id]; if (!old || old.price !== s.price){ s.history = (s.history || []).concat([{ date: today(), price: s.price, src:"manual" }]); } r.supplies[s.id] = s; const linked = isNew ? linkUnpriced(r, [s.id]) : 0; save(); dlg.close(); toast(linked ? "Saved and linked to " + linked + (linked === 1 ? " recipe line" : " recipe lines") : "Saved"); }}) ]);
 }
 // Keg yields allow for foam and line loss; packaged drinks are 100%.
-const PACKS = [["\u00bd bbl keg", 1984, 0.9], ["\u00bc bbl keg", 992, 0.9], ["\u2159 bbl keg", 661, 0.9], ["24 \u00d7 12 oz", 288, 1], ["24 \u00d7 16 oz", 384, 1], ["12 \u00d7 750 ml", 304.3, 1], ["6 \u00d7 1.75 L", 355, 1]];
+const PACKS = [["\u00bd bbl keg", 1984, 0.9], ["\u00bc bbl keg", 992, 0.9], ["\u2159 bbl keg", 661, 0.9], ["24 \u00d7 12 oz", 288, 1], ["24 \u00d7 16 oz", 384, 1],
+  ["750 ml bottle", 25.36, 1], ["1 L bottle", 33.81, 1], ["1.75 L bottle", 59.17, 1], ["12 \u00d7 750 ml", 304.3, 1], ["12 \u00d7 1 L", 405.7, 1], ["6 \u00d7 1.75 L", 355, 1]];
 /* Invoice / order review */
 function matchLine(l, r){ const all = Object.values(r.supplies); if (l.code){ const m = all.find(s => s.code && s.code === l.code); if (m) return m.id; }
   const t = String(l.desc).toLowerCase().replace(/[^a-z ]/g," ").split(/\s+/).filter(w => w.length > 2);
@@ -2101,7 +2155,7 @@ function approve(d){
     const pk = parsePack(l.pack) || parsePack(l.desc);
     let unit = pk ? pk.unit : "each", size = pk ? pk.size : null;
     if (isBev && unit === "oz") unit = "fl oz";
-    const ns = { id: uid("s"), name: tidyName(l.desc), cat: isBev ? "Beverage" : guessCat(l.desc), supplier: d.supplier, code: l.code || "", caseQty: size, unit, yield: pk && pk.keg ? 0.9 : 1, price: null, history:[] };
+    const ns = { id: uid("s"), name: tidyName(l.desc), cat: isBev ? (BAR_CATS.includes(guessCat(l.desc)) ? guessCat(l.desc) : "Beer") : guessCat(l.desc), supplier: d.supplier, code: l.code || "", caseQty: size, unit, yield: pk && pk.keg ? 0.9 : 1, price: null, history:[] };
     r.supplies[ns.id] = ns; l.match = ns.id; madeFor[k] = ns.id; added++;
   });
   // One price per product: the last line for it on this invoice.
@@ -3378,7 +3432,7 @@ function cmdkEntries(){
   [["Upload an invoice or price sheet", () => openUpload()], ["Import sales", () => openSalesImport()], ["Import spreadsheet", () => openSheetImport()], ["Import menu", () => openMenuImport()],
    ["New recipe", () => openRecipe(null)], ["Add a supply", () => openSupply(null)], ["Link ingredients to supplies", () => openLinkIngredients()], ["Add a supplier", () => { go("suppliers"); openVendor(null); }]]
     .forEach(([label, run]) => out.push({ kind:"Action", label, run }));
-  Object.values(r.items).forEach(it => { const st = stats(it, r); out.push({ kind:"Dish", label: it.name, sub: (it.section || "") + (st.price ? ", " + $$(st.price) : "") + (st.status !== "norecipe" && !st.missing && st.price ? ", " + pc(st.fc) + " food cost" : ""), run:() => { go("menu"); openRecipe(it.id); } }); });
+  Object.values(r.items).forEach(it => { const st = stats(it, r); out.push({ kind:"Dish", label: it.name, sub: (it.section || "") + (st.price ? ", " + $$(st.price) : "") + (st.status !== "norecipe" && !st.missing && (st.costWord = costWord(it)) && st.price ? ", " + pc(st.fc) + " " + costWord(it) : ""), run:() => { go("menu"); openRecipe(it.id); } }); });
   Object.values(r.supplies).forEach(su => out.push({ kind:"Supply", label: supName(su), sub: [su.name !== supName(su) ? su.name : "", su.supplier, n(su.price) > 0 ? $$(su.price) : ""].filter(Boolean).join(", "), extra: su.code || "", run:() => { go("supplies"); openSupply(su.id); } }));
   (r.vendors || []).forEach(v => out.push({ kind:"Supplier", label: v.name, run:() => { go("suppliers"); openVendor(v.id); } }));
   return out;
