@@ -612,6 +612,60 @@ kbd{font-family:var(--font);font-size:.7rem;border:1px solid currentColor;border
 .mm.big{border:0;padding:0;margin:0}
 .sheet.xwide{width:min(1280px,calc(100% - 24px))}
 
+/* ---------- Phone layout ---------- */
+.tabbar{display:none}
+.more-list{display:flex;flex-direction:column;gap:6px}
+.more-row{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:var(--r-ctl);padding:12px 14px;cursor:pointer;color:var(--ink);min-height:52px}
+.more-row b{font-weight:600}
+.more-row span{font-size:.84rem;color:var(--muted)}
+.more-row:hover{border-color:var(--ink-2)}
+details.ai-fold{padding:0;border:1px dashed var(--line-2);border-radius:var(--r-ctl);margin-bottom:12px}
+details.ai-fold summary{cursor:pointer;padding:12px 14px;font-weight:600;list-style:none;display:flex;align-items:center;gap:8px}
+details.ai-fold summary::before{content:"+";display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--brand);color:var(--on-brand);font-weight:700;font-size:.9rem}
+details.ai-fold[open] summary::before{content:"\2212"}
+details.ai-fold summary::-webkit-details-marker{display:none}
+details.ai-fold[open]{padding:0 14px 14px}
+details.ai-fold[open] summary{padding:12px 0}
+.mm-svg.phone .mm-label{font-size:13.5px}
+.mm-svg.phone .mm-tick{font-size:13px}
+.mm-svg.phone .mm-axis{font-size:13.5px}
+.mm-svg.phone .mm-corner text{font-size:13.5px}
+@media (max-width:900px){
+  aside{flex-direction:row;flex-wrap:nowrap;align-items:center;gap:10px;padding:10px 12px calc(10px) 12px;padding-top:calc(10px + env(safe-area-inset-top,0px))}
+  aside .brandbox{flex:none}
+  aside .brandbox > div:last-child{display:none}
+  aside .acctrow{flex:1;min-width:0}
+  aside .acct{width:100%;min-height:40px}
+  aside nav, aside .qsearch, aside .powered{display:none}
+  .tabbar{display:grid;grid-template-columns:repeat(6,1fr);position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--panel);border-top:1px solid var(--line);padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));box-shadow:0 -6px 20px rgba(16,22,19,.06)}
+  .tabbar button{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:transparent;border:0;color:var(--muted);font:inherit;font-size:.68rem;font-weight:600;min-height:52px;border-radius:10px;cursor:pointer;padding:4px 0}
+  .tabbar button .ic{width:22px;height:22px;display:grid;place-items:center}
+  .tabbar button .ic svg{width:22px;height:22px}
+  nav.tabbar button{white-space:nowrap;padding:4px 0;background:transparent}
+  nav.tabbar button[aria-current="page"]{color:var(--brand);background:transparent}
+  nav.tabbar button[aria-current="page"]::before{display:none}
+  .tabbar button[aria-current="page"] .ic{background:color-mix(in srgb,var(--brand) 14%,transparent);border-radius:999px;width:46px}
+  .tb-badge{position:absolute;top:2px;left:calc(50% + 6px);background:var(--bad);color:#fff;font-size:.62rem;font-weight:700;border-radius:999px;padding:0 5px;line-height:16px;min-width:16px;text-align:center}
+  main{padding-bottom:calc(84px + env(safe-area-inset-bottom,0px))}
+  .toast{bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+}
+@media (max-width:700px){
+  .sheet-b .g3.nums3{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .sheet-b .g3.nums3 label{font-size:.8rem}
+  .sheet-b .g3.nums3 .inp{padding:8px 10px}
+  .kstrip > div{padding:14px 14px 12px}
+  .phead h1{font-size:1.35rem}
+  .mm{padding:14px 12px 4px}
+  .mm-h .row{width:100%}
+  .mm-h .seg{flex:1}
+  .mm-h .seg button{flex:1}
+  .mm-h .btn{display:none}
+  .mm-chips{flex-wrap:nowrap;overflow-x:auto}
+  .sect-h{margin-top:22px}
+  .cls-legend{gap:6px 12px;padding:8px 10px}
+  .cls-legend .cls .mini{display:none}
+}
+
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
 .demo-dot{width:8px;height:8px;border-radius:50%;background:#6FC79A;flex:none;box-shadow:0 0 0 4px rgba(111,199,154,.18)}
@@ -620,16 +674,23 @@ kbd{font-family:var(--font);font-size:.7rem;border:1px solid currentColor;border
 .demo-btn.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
 .demo-btn:hover{border-color:#9FB0A8}
 main{padding-bottom:110px}
-@media (max-width:700px){.demo-bar{left:12px;right:12px;transform:none;flex-wrap:wrap;bottom:calc(10px + env(safe-area-inset-bottom,0px))}.demo-txt{flex:1 1 100%}.demo-btn{flex:1;justify-content:center}}
+.demo-short{display:none}
+@media (max-width:900px){
+  .demo-bar{position:relative;left:auto;right:auto;bottom:auto;transform:none;border-radius:0;border:0;border-bottom:1px solid #2B3631;box-shadow:none;max-width:none;width:100%;box-sizing:border-box;padding:6px 10px;padding-top:calc(6px + env(safe-area-inset-top,0px));font-size:.8rem;gap:8px}
+  .demo-txt{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .demo-long{display:none}.demo-short{display:inline}
+  .demo-btn{min-height:32px;padding:4px 10px;font-size:.78rem}
+  .demo-bar + .app aside{padding-top:10px}
+}
 </style>
 </head>
 <body>
 <div class="gate" id="gate"><div class="card" id="gate-card"><div class="spin"></div></div></div>
 <div class="demo-bar" role="region" aria-label="Demo">
   <span class="demo-dot" aria-hidden="true"></span>
-  <span class="demo-txt"><b>Live demo</b> with a sample diner. Click anything; your changes stay in this browser.</span>
+  <span class="demo-txt"><b>Live demo</b><span class="demo-long"> with a sample diner. Click anything; your changes stay in this browser.</span><span class="demo-short"> with sample data</span></span>
   <button type="button" class="demo-btn" onclick="window.PM_DEMO.reset()">Reset</button>
-  <a class="demo-btn primary" href="https://claude.ai/artifact/CprAoUAwo9VAvvvvTqExhJ" target="_blank" rel="noopener">Book a walkthrough</a>
+  <a class="demo-btn primary" href="https://claude.ai/artifact/CprAoUAwo9VAvvvvTqExhJ" target="_blank" rel="noopener"><span class="demo-long">Book a walkthrough</span><span class="demo-short">Book a demo</span></a>
 </div>
 <div class="app" id="app" hidden>
   <aside>
@@ -644,6 +705,7 @@ main{padding-bottom:110px}
     <div class="powered" id="powered"></div>
   </aside>
   <main id="main"></main>
+  <nav class="tabbar" id="tabbar" aria-label="Main"></nav>
   <div class="cmdk" id="cmdk" hidden><div class="cmdk-panel" role="dialog" aria-modal="true" aria-label="Search"><div class="cmdk-in"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="cmdk-q" placeholder="Search dishes, supplies, pages and actions" autocomplete="off" aria-label="Search"><kbd>Esc</kbd></div><div class="cmdk-list" id="cmdk-list" role="listbox"></div></div></div>
 </div>
 
@@ -1061,6 +1123,10 @@ function applyFont(fam){
 }
 
 /* ================= Shell ================= */
+const isPhone = () => window.matchMedia("(max-width: 700px)").matches;
+const isNarrow = () => window.matchMedia("(max-width: 900px)").matches;
+// Redraw when crossing the phone/desktop line (rotation, resizing a window).
+["(max-width: 700px)", "(max-width: 900px)"].forEach(q => { const mq = window.matchMedia(q); const fn = () => { if (typeof ST !== "undefined" && ST) render(); }; mq.addEventListener ? mq.addEventListener("change", fn) : mq.addListener(fn); });
 const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Brand & accounts"]];
 const NAV_ICONS = {
   home:'<path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
@@ -1077,6 +1143,16 @@ function renderNav(){
   const newDocs = R().inbox.filter(d => d.status === "new").length, bad = visibleInsights().filter(i => i.sev === "bad").length;
   PAGES.forEach(([id, label]) => nav.append(el("button",{"aria-current": ST.page === id ? "page" : null, onclick:() => go(id)}, navIcon(id), el("span",{class:"lbl", text:label}),
     id === "inbox" && newDocs ? el("span",{class:"badge", text:newDocs}) : null, id === "coach" && bad ? el("span",{class:"badge", text:bad}) : null)));
+  // Phone tab bar: the five pages used most, plus More.
+  const tbar = $("tabbar");
+  if (tbar){
+    const MAIN = [["home","Home"],["coach","Coach"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]];
+    const moreIc = document.createElement("span"); moreIc.className = "ic"; moreIc.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
+    const onMore = ["suppliers","brand"].includes(ST.page);
+    tbar.replaceChildren(...MAIN.map(([id, label]) => { const b = el("button",{type:"button", "aria-current": ST.page === id ? "page" : null, onclick:() => go(id)}, navIcon(id), el("span",{class:"lbl", text:label}));
+        const n2 = id === "inbox" ? newDocs : id === "coach" ? bad : 0; if (n2) b.append(el("span",{class:"tb-badge", text:n2})); return b; }),
+      el("button",{type:"button", "aria-current": onMore ? "page" : null, "aria-label":"More", onclick:() => openMore()}, moreIc, el("span",{class:"lbl", text:"More"})));
+  }
   const a = $("acct"); a.replaceChildren(...Object.values(ST.restaurants).map(r => el("option",{value:r.id, text:r.name})), el("option",{value:"__new", text:"+ Add a restaurant"})); a.value = ST.current;
 }
 $("acct").onchange = e => { if (e.target.value === "__new"){ const nm = prompt("Restaurant name?"); if (nm && nm.trim()){ const r = emptyRestaurant(nm.trim()); ST.restaurants[r.id] = r; ST.current = r.id; } } else ST.current = e.target.value; save(); go("home"); };
@@ -1133,6 +1209,16 @@ function classBadge(cls){
 }
 function classLegend(){
   return el("div",{class:"cls-legend", role:"note", "aria-label":"Menu engineering classes"}, Object.entries(CLASS_INFO).map(([k, v]) => el("span",{class:"cls " + v.c, title: v.act}, classIcon(k), el("b",{text:k}), el("span",{class:"mini", text: v.say}))));
+}
+function openMore(){
+  const item = (label, sub, fn) => el("button",{class:"more-row", type:"button", onclick:() => { dlg.close(); fn(); }}, el("b",{text:label}), sub ? el("span",{text:sub}) : null);
+  const t = currentTheme(), next = { auto:"dark", dark:"light", light:"auto" }[t];
+  openDlg("More", [el("div",{class:"more-list"},
+    item("Search", "Dishes, supplies, suppliers and actions", () => cmdkOpen()),
+    item("Suppliers", "Who you buy from, and notes for reps", () => go("suppliers")),
+    item("Brand & accounts", "Logo, colors, cost targets and your team", () => go("brand")),
+    item("Theme: " + { auto:"automatic", dark:"dark", light:"light" }[t], "Tap to switch to " + { auto:"automatic", dark:"dark", light:"light" }[next], () => { try { localStorage.setItem("pm-theme", next); } catch(e){} applyTheme(next); renderUserBox(); toast("Theme: " + next); }),
+    item(window.PM_DEMO ? "Reset the demo" : "Sign out", USER ? USER.email : "", () => signOut()))], []);
 }
 function insightCard(ins, compact){
   const acts = el("div",{class:"row acts"});
@@ -1221,6 +1307,10 @@ const SORTS = [["menu","Menu order"],["name","Name A\u2013Z"],["fc","Highest foo
 function menu(m){
   const r = R(), eng = engineering();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Menu & recipes"}), el("p",{class:"lead", text:"Tap an item to edit its recipe. Costs update when supplier prices change."})),
+    isPhone() ? el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import", onclick:() => openDlg("Import", [el("div",{class:"more-list"},
+        el("button",{class:"more-row", type:"button", onclick:() => openSalesImport()}, el("b",{text:"Sales"}), el("span",{text:"Item sales report from Clover, Toast or Square"})),
+        el("button",{class:"more-row", type:"button", onclick:() => openSheetImport()}, el("b",{text:"Costing spreadsheet"}), el("span",{text:"Your Excel or CSV costing sheet"})),
+        el("button",{class:"more-row", type:"button", onclick:() => openMenuImport()}, el("b",{text:"Menu"}), el("span",{text:"Photo, PDF or text of your menu"})))], [])}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)})) :
     el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import sales", onclick:() => openSalesImport()}), el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn quiet", text:"Import menu", onclick:() => openMenuImport()}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)}))));
   const all = Object.values(r.items);
   const setup = costSetupCard(r); if (setup) m.append(setup);
@@ -1809,9 +1899,10 @@ function openRecipe(id){
   }
   drawLines(); paint();
   openDlg(isNew ? "New recipe" : it.name, [
-    el("div",{class:"ai"}, el("div",{class:"q", style:"font-weight:800;margin-bottom:6px", text:"Describe it and let the app draft it"}), aiIn, el("div",{class:"row", style:"margin-top:8px"}, aiBtn), aiMsg),
+    isPhone() ? el("details",{class:"ai ai-fold"}, el("summary",{text:"Describe it and let the app draft it"}), aiIn, el("div",{class:"row", style:"margin-top:8px"}, aiBtn), aiMsg)
+      : el("div",{class:"ai"}, el("div",{class:"q", style:"font-weight:800;margin-bottom:6px", text:"Describe it and let the app draft it"}), aiIn, el("div",{class:"row", style:"margin-top:8px"}, aiBtn), aiMsg),
     el("div",{class:"g2"}, fld("Menu name", nm), fld("Section", sec)), secs,
-    el("div",{class:"g3"}, fld("Menu price", num("price","0.25")), fld("Plates sold / " + r.period, num("sold","1")), fld("Portions per batch", num("portions","1"), "1 unless it's a batch")),
+    el("div",{class:"g3 nums3"}, fld("Menu price", num("price","0.25")), fld(isPhone() ? "Sold / " + (r.period === "month" ? "mo" : "wk") : "Plates sold / " + r.period, num("sold","1")), fld(isPhone() ? "Portions" : "Portions per batch", num("portions","1"), isPhone() ? null : "1 unless it's a batch")),
     costBox, tip, el("h2",{style:"margin-top:4px", text:"Ingredients"}), linesBox
   ], [ !isNew ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (confirm("Delete " + it.name + "?")){ delete r.items[it.id]; save(); dlg.close(); } }}) : el("span"),
        el("button",{class:"btn primary", text:"Save recipe", onclick:() => { if (!it.name.trim()){ nm.focus(); toast("Give it a name"); return; } r.items[it.id] = it; save(); dlg.close(); toast("Saved"); }}) ]);
@@ -2984,7 +3075,7 @@ function costSetupCard(r){
   if (!summaryCopies.length && !noRecipe.length && !unlinked) return null;
   const step = (done, title, detail, btn) => el("li",{class: done ? "done" : ""}, el("span",{class:"dot", text: done ? "\u2713" : ""}), el("div",null, el("b",{text:title}), el("span",{class:"mini", text:detail})), done ? el("span") : btn);
   const sheetDone = !!r.sheetImported;
-  const view = r.setupView || "open";
+  const view = r.setupView || (isPhone() ? "collapsed" : "open");
   if (view === "hidden") return null;
   const pct = real.length ? Math.round(costed / real.length * 100) : 0;
   const head = el("div",{class:"setup-h"},
@@ -3340,7 +3431,9 @@ function menuMap(r = R(), opts = {}){
     el("p",{class:"mini mm-note"})), el("div",{class:"row", style:"gap:8px"}, toggle, enlarge));
   if (!pts.length){ holder.replaceChildren(head, chips, el("p",{class:"empty", text:"Nothing in that class right now."})); return holder; }
   const many = pts.length;
-  const W = opts.big ? 1200 : 900, H = opts.big ? 700 : Math.round(380 + Math.min(220, Math.max(0, many - 10) * 5)), L = 60, R2 = 28, T = 24, B = 48;
+  const phone = isPhone();
+  const W = phone ? 420 : opts.big ? 1200 : 900, H = phone ? Math.round(460 + Math.min(160, Math.max(0, many - 10) * 3)) : opts.big ? 700 : Math.round(380 + Math.min(220, Math.max(0, many - 10) * 5)), L = phone ? 46 : 60, R2 = phone ? 12 : 28, T = 24, B = 48;
+  const CW = phone ? 7.6 : 6.9;
   const spread = MM_SCALE === "spread";
   // X: square-root scale spreads out the crowded low end while big sellers still fit.
   const xs = spread ? (v => Math.sqrt(Math.max(0, v))) : (v => v);
@@ -3367,14 +3460,14 @@ function menuMap(r = R(), opts = {}){
   const X = v => L + ((xs(v) - xs(xMin)) / (xs(xMax) - xs(xMin) || 1)) * (W - L - R2), Y = v => T + (1 - (v - yMin) / (yMax - yMin)) * (H - T - B);
   const popX = eng.popLine * eng.totalSold, cmY = eng.avgCM;
   const NS = "http://www.w3.org/2000/svg", mk = (tag, at, txt) => { const e2 = document.createElementNS(NS, tag); Object.entries(at || {}).forEach(([k, v]) => e2.setAttribute(k, v)); if (txt != null) e2.textContent = txt; return e2; };
-  const svg = mk("svg", { viewBox:"0 0 " + W + " " + H, class:"mm-svg", role:"img", "aria-label":"Menu map: each dish by plates sold and profit per plate" });
+  const svg = mk("svg", { viewBox:"0 0 " + W + " " + H, class:"mm-svg" + (phone ? " phone" : ""), role:"img", "aria-label":"Menu map: each dish by plates sold and profit per plate" });
   const qx = Math.max(L, Math.min(W - R2, X(popX))), qy = Math.max(T, Math.min(H - B, Y(cmY)));
   [["star", qx, T, W - R2 - qx, qy - T], ["puzzle", L, T, qx - L, qy - T], ["plow", qx, qy, W - R2 - qx, H - B - qy], ["dog", L, qy, qx - L, H - B - qy]].forEach(([c, x, y, w, h]) => { if (w > 0 && h > 0) svg.append(mk("rect", { x, y, width:w, height:h, class:"mm-q " + c })); });
   for (let v = yMin; v <= yMax + 1e-9; v += yStep){ const yy = Y(v); svg.append(mk("line", { x1:L, x2:W - R2, y1:yy, y2:yy, class:"mm-grid" })); svg.append(mk("text", { x:L - 8, y:yy + 4, class:"mm-tick", "text-anchor":"end" }, "$" + (Number.isInteger(v) ? v : v.toFixed(2)))); }
   let lastTickX = -99; xTicks.forEach(v => { const xx = X(v); if (xx - lastTickX < 34 && v !== xMax) return; lastTickX = xx; svg.append(mk("line", { x1:xx, x2:xx, y1:T, y2:H - B, class:"mm-grid v" })); svg.append(mk("text", { x:xx, y:H - B + 18, class:"mm-tick", "text-anchor":"middle" }, Math.round(v))); });
   if (qx > L && qx < W - R2) svg.append(mk("line", { x1:qx, x2:qx, y1:T, y2:H - B, class:"mm-div" }));
   if (qy > T && qy < H - B) svg.append(mk("line", { x1:L, x2:W - R2, y1:qy, y2:qy, class:"mm-div" }));
-  svg.append(mk("text", { x:(L + W - R2) / 2, y:H - 8, class:"mm-axis", "text-anchor":"middle" }, "Plates sold per " + r.period + (spread ? " (spread-out scale)" : "") + " \u2192"));
+  svg.append(mk("text", { x:(L + W - R2) / 2, y:H - 8, class:"mm-axis", "text-anchor":"middle" }, "Plates sold per " + r.period + (spread && !phone ? " (spread-out scale)" : "") + " \u2192"));
   svg.append(mk("text", { x:16, y:(T + H - B) / 2, class:"mm-axis", "text-anchor":"middle", transform:"rotate(-90 16 " + ((T + H - B) / 2) + ")" }, "Profit per plate \u2192"));
   const corner = (cls, x, y, anchor) => { const g = mk("g", { class:"mm-corner " + CLASS_INFO[cls].c }); const ic = mk("svg", { x: anchor === "end" ? x - 16 : x, y: y - 12, width:14, height:14, viewBox:"0 0 24 24" }); ic.innerHTML = CLASS_INFO[cls].svg; g.append(ic, mk("text", { x: anchor === "end" ? x - 20 : x + 18, y, "text-anchor": anchor === "end" ? "end" : "start" }, cls + "s")); svg.append(g); };
   const inView = new Set(pts.map(p => p.cls));
@@ -3394,20 +3487,20 @@ function menuMap(r = R(), opts = {}){
   const pri = pts.slice().sort((a, b) => (b.x / rawMaxX + Math.abs(b.y - cmY) / (hi - lo || 1)) - (a.x / rawMaxX + Math.abs(a.y - cmY) / (hi - lo || 1)));
   const labelFor = new Map();
   pri.forEach(p => {
-    const name = p.it.name.length > 26 ? p.it.name.slice(0, 25) + "\u2026" : p.it.name, w = name.length * 6.9 + 6, h = 15;
+    const maxC = phone ? 18 : 26, name = p.it.name.length > maxC ? p.it.name.slice(0, maxC - 1) + "\u2026" : p.it.name, w = name.length * CW + 6, h = phone ? 17 : 15;
     const spots = [[p.px + 11, p.py - 7, "start", p.px + 11, p.py + 4], [p.px - 11 - w, p.py - 7, "end", p.px - 11, p.py + 4], [p.px - w / 2, p.py - 24, "middle", p.px, p.py - 13], [p.px - w / 2, p.py + 10, "middle", p.px, p.py + 21]];
     for (const [bx, by, anchor, tx, ty] of spots){ const b = { x: bx, y: by, w, h, own: [p] }; if (!hits(b)){ boxes.push(b); labelFor.set(p, { anchor, tx, ty, name }); break; } }
   });
   pts.forEach(p => {
     const g = mk("g", { class:"mm-pt " + CLASS_INFO[p.cls].c, tabindex:"0", role:"button", "aria-label": p.it.name + ", " + p.cls + ", " + p.x + " sold, " + $$(p.y) + " profit per plate" });
     g.append(mk("title", null, p.it.name + "\n" + p.cls + ": " + CLASS_INFO[p.cls].say + "\n" + p.x + " sold per " + r.period + ", " + $$(p.y) + " profit per plate"));
-    g.append(mk("circle", { cx:p.px, cy:p.py, r: many > 40 ? 5.5 : 7 }));
+    g.append(mk("circle", { cx:p.px, cy:p.py, r: phone ? (many > 40 ? 6 : 8) : many > 40 ? 5.5 : 7 }));
     const lab = labelFor.get(p); if (lab) g.append(mk("text", { x:lab.tx, y:lab.ty, "text-anchor":lab.anchor, class:"mm-label" }, lab.name));
     const open = () => openRecipe(p.it.id); g.addEventListener("click", open); g.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " "){ e.preventDefault(); open(); } });
     svg.append(g);
   });
   const unlabeled = pts.length - labelFor.size;
-  head.querySelector(".mm-note").textContent = (filtered ? "Zoomed to " + [...MM_SHOW].map(k => k + "s").join(" and ") + ". " : "Each dot is a dish. Further right sells more; higher up earns more per plate. Dashed lines mark your averages. ") + "Click a dot to open its recipe." + (unlabeled ? " Hover a dot to see names that didn't fit (" + unlabeled + ")." : "");
+  head.querySelector(".mm-note").textContent = (filtered ? "Zoomed to " + [...MM_SHOW].map(k => k + "s").join(" and ") + ". " : (phone ? "Right sells more; higher earns more per plate. " : "Each dot is a dish. Further right sells more; higher up earns more per plate. Dashed lines mark your averages. ")) + (phone ? "Tap a dot to open its recipe." : "Click a dot to open its recipe." + (unlabeled ? " Hover a dot to see names that didn't fit (" + unlabeled + ")." : ""));
   holder.replaceChildren(head, chips, svg);
   return holder;
 }
