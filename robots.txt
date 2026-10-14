@@ -1,0 +1,3 @@
+# This site is private to The Fox Den's team. Please don't index it.
+User-agent: *
+Disallow: /

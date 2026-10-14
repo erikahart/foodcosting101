@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
 <title>PlateMargin live demo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -899,7 +900,7 @@ function gateHeader(title, sub){
 function showAuth(mode = "signin", note){
   const card = gate(); const msg = el("div");
   if (note) msg.replaceChildren(el("div",{class:"msg " + note[0], text:note[1]}));
-  const email = el("input",{class:"inp", type:"email", autocomplete:"email", placeholder:"you@example.com"});
+  const email = el("input",{class:"inp", type:"email", autocomplete:"email", autocapitalize:"none", autocorrect:"off", spellcheck:"false", inputmode:"email", placeholder:"you@example.com"});
   const pass = el("input",{class:"inp", type:"password", autocomplete: mode === "signup" ? "new-password" : "current-password", placeholder: mode === "signup" ? "At least 8 characters" : ""});
   const btn = el("button",{class:"btn primary", style:"width:100%", type:"submit", text: mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Sign in"});
   const say = (kind, text) => msg.replaceChildren(el("div",{class:"msg " + kind, text}));
@@ -907,7 +908,7 @@ function showAuth(mode = "signin", note){
     mode !== "forgot" ? el("div",{class:"field"}, el("label",{text:"Password"}), pass) : null, btn);
   form.addEventListener("submit", async ev => {
     ev.preventDefault();
-    const em = email.value.trim(), pw = pass.value;
+    const em = email.value.trim().toLowerCase(), pw = pass.value;   // emails ignore capitals and stray spaces
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return say("bad", "Enter your email address.");
     if (mode !== "forgot" && pw.length < (mode === "signup" ? 8 : 1)) return say("bad", mode === "signup" ? "Use at least 8 characters for your password." : "Enter your password.");
     btn.disabled = true; btn.textContent = "One moment…";
@@ -1862,11 +1863,11 @@ async function drawTeam(box){
   });
   const parts = [el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Person"}), el("th",{text:"Role"}), el("th",{text:""}))), el("tbody",null, rows)))];
   if (canInvite){
-    const em = el("input",{class:"inp", type:"email", placeholder:"cook@example.com"});
+    const em = el("input",{class:"inp", type:"email", autocapitalize:"none", autocorrect:"off", spellcheck:"false", placeholder:"cook@example.com"});
     const rl = el("select",{class:"inp"}, el("option",{value:"member", text:"Member: can edit menu, supplies and invoices"}), el("option",{value:"manager", text:"Manager: also invites people"}));
     const msg = el("div");
     const go2 = async () => {
-      const { error } = await sb.rpc("invite_member", { p_account: ACCT.id, p_email: em.value, p_role: rl.value });
+      const { error } = await sb.rpc("invite_member", { p_account: ACCT.id, p_email: em.value.trim().toLowerCase(), p_role: rl.value });
       if (error) return msg.replaceChildren(el("div",{class:"msg bad", text:plainErr(error)}));
       const link = location.origin;
       msg.replaceChildren(el("div",{class:"msg good"}, "Invited. Tell them: go to ", el("b",{text:link}), ", choose Create account, and use " + em.value.trim() + ". They'll land in this kitchen."));
@@ -2081,6 +2082,7 @@ function openDoc(id){
   if (d.status === "new") d.lines.forEach(l => { if (l.hold === undefined && l.match && r.supplies[l.match]) l.hold = priceForSupply(l, r.supplies[l.match]).check; });
   const opts = Object.values(r.supplies).sort((a,b) => a.name.localeCompare(b.name));
   const body = [el("p",{class:"lead", text: d.supplier + ", " + nice(d.date) + ", via " + d.source + (d.kind === "order" ? ". Arriving " + (d.eta || "soon") + ". The invoice will follow when it's delivered." : ".")})];
+  if (d.note) body.push(el("div",{class:"msg bad", text:d.note}));
   const { lastIdx, firstIdx } = dupInfo(d);
   const twin = d.status === "new" ? findDuplicateInvoice(r, d) : null;
   if (twin) body.push(el("div",{class:"msg bad"}, "This looks like invoice " + twin.number + " from " + nice(twin.date) + (twin.status === "approved" ? ", which is already approved" : ", already in your inbox") + ". Approving it again won't double-count prices, but you can delete this copy. ",
@@ -2369,12 +2371,210 @@ async function aiTextChunks(lines, kind){
   const first = results.find(x => x.invoiceDate || x.invoiceNumber) || {};
   return { invoiceNumber: first.invoiceNumber || null, invoiceDate: first.invoiceDate || null, lines: results.flatMap(x => x.lines || []) };
 }
+/* ================= EDI X12 (810 invoices, 832 price catalogs) =================
+   Same reader as the supplier-feeds pipeline, kept in its own scope. */
+const X12 = (() => {
+// X12 EDI parsing for food distributor feeds.
+//   810 = invoice (and credit memo)   832 = price/sales catalog
+// Distributors bend the standard in small ways, so this parser is tolerant:
+// it reads separators from the ISA header, accepts several item-code
+// qualifiers, and keeps unknown segments in `extra` instead of failing.
+
+/** Split raw X12 text into segments of elements. */
+function tokenize(text) {
+  const raw = String(text).replace(/^\uFEFF/, "");
+  const start = raw.indexOf("ISA");
+  if (start < 0) throw new Error("Not an X12 file: no ISA header");
+  const s = raw.slice(start);
+  const el = s[3];                       // element separator: the character right after "ISA"
+  // ISA has 16 elements; the component separator is ISA16 and the segment terminator follows it.
+  let count = 0, i = 0;
+  for (; i < s.length && count < 16; i++) if (s[i] === el) count++;
+  const component = s[i];
+  const term = s[i + 1];
+  if (!term) throw new Error("Not an X12 file: ISA header is cut short");
+  const segs = s.split(term).map(x => x.replace(/^[\r\n]+|[\r\n]+$/g, "")).filter(Boolean);
+  return { el, component, term, segments: segs.map(x => x.split(el)) };
+}
+
+const num = v => { if (v == null || v === "") return null; const x = Number(v); return Number.isFinite(x) ? x : null; };
+const cents = v => { const x = num(v); return x == null ? null : x / 100; };   // TDS and SAC amounts carry 2 implied decimals
+const date = v => (v && /^\d{8}$/.test(v)) ? `${v.slice(0,4)}-${v.slice(4,6)}-${v.slice(6,8)}`
+  : (v && /^\d{6}$/.test(v) ? `20${v.slice(0,2)}-${v.slice(2,4)}-${v.slice(4,6)}` : null);
+
+// Product ID qualifiers seen from broadliners, in order of preference for the supplier's own item number.
+const ITEM_QUALS = ["VN", "VP", "SK", "IN", "BP", "SV"];
+function pickIds(pairs) {
+  const ids = {};
+  for (let k = 0; k + 1 < pairs.length; k += 2) { const q = pairs[k], v = pairs[k + 1]; if (q && v) ids[q] = v; }
+  const code = ITEM_QUALS.map(q => ids[q]).find(Boolean) || null;
+  return { code, upc: ids.UP || ids.UK || ids.EN || null, ids };
+}
+
+/** Group segments into transaction sets (ST..SE) with their envelope info. */
+function transactions(tok) {
+  const out = []; let isa = null, gs = null, cur = null;
+  for (const seg of tok.segments) {
+    const id = seg[0].trim();
+    if (id === "ISA") isa = { sender: (seg[6] || "").trim(), receiver: (seg[8] || "").trim(), control: (seg[13] || "").trim(), test: (seg[15] || "").trim() === "T" };
+    else if (id === "GS") gs = { code: seg[1], sender: seg[2], receiver: seg[3] };
+    else if (id === "ST") cur = { type: seg[1], control: seg[2], isa, gs, segs: [] };
+    else if (id === "SE") { if (cur) { cur.declaredCount = num(seg[1]); out.push(cur); } cur = null; }
+    else if (cur) cur.segs.push(seg);
+  }
+  return out;
+}
+
+/** Parse one 810 transaction into a normalized invoice. */
+function parse810(t) {
+  const inv = {
+    kind: "invoice", format: "edi810", isCredit: false, invoiceNumber: null, invoiceDate: null, poNumber: null, poDate: null,
+    supplier: { name: null, id: t.gs?.sender || t.isa?.sender || null },
+    shipTo: { name: null, customerNumber: null }, billTo: { name: null, customerNumber: null },
+    lines: [], charges: [], total: null,
+    envelope: { isaControl: t.isa?.control || null, stControl: t.control || null, test: !!t.isa?.test }, extra: [],
+  };
+  let party = null, line = null;
+  for (const s of t.segs) {
+    const id = s[0].trim();
+    switch (id) {
+      case "BIG":
+        inv.invoiceDate = date(s[1]); inv.invoiceNumber = s[2] || null; inv.poDate = date(s[3]); inv.poNumber = s[4] || null;
+        if ((s[7] || "").toUpperCase() === "CR") inv.isCredit = true;
+        break;
+      case "N1": {
+        party = s[1]; const name = s[2] || null, idv = s[4] || null;
+        // Only overwrite the customer number when this segment carries one (it may have come from REF already).
+        if (party === "ST") { inv.shipTo.name = name; if (idv) inv.shipTo.customerNumber = idv; }
+        else if (party === "BT" || party === "BY") { inv.billTo.name = name; if (idv) inv.billTo.customerNumber = idv; }
+        else if (["SE", "VN", "SU", "RE"].includes(party)) { inv.supplier.name = inv.supplier.name || name; }
+        break;
+      }
+      case "REF":
+        // Some distributors send the customer account in REF*IA / REF*VR / REF*CN instead of N1*ST.
+        if (["IA", "VR", "CN"].includes(s[1]) && !inv.shipTo.customerNumber) inv.shipTo.customerNumber = s[2] || null;
+        if (s[1] === "PO" && !inv.poNumber) inv.poNumber = s[2] || null;
+        break;
+      case "IT1": {
+        const ids = pickIds(s.slice(6));
+        line = { lineNo: s[1] || String(inv.lines.length + 1), qty: num(s[2]), uom: s[3] || null, unitPrice: num(s[4]),
+                 itemCode: ids.code, upc: ids.upc, ids: ids.ids, description: null, pack: null, extended: null };
+        if (line.qty != null && line.unitPrice != null) line.extended = Math.round(line.qty * line.unitPrice * 100) / 100;
+        inv.lines.push(line);
+        break;
+      }
+      case "PID": if (line) line.description = [line.description, s[5]].filter(Boolean).join(" ").trim() || null; break;
+      case "PO4": if (line) line.pack = { count: num(s[1]), size: num(s[2]), uom: s[3] || null }; break;
+      case "TDS": inv.total = cents(s[1]); line = null; break;
+      case "SAC": {
+        const amt = cents(s[5]); if (amt == null) break;
+        inv.charges.push({ type: s[1] === "A" ? "allowance" : "charge", code: s[2] || null, description: s[15] || null, amount: s[1] === "A" ? -amt : amt });
+        break;
+      }
+      case "CTT": case "DTM": case "ITD": case "N2": case "N3": case "N4": case "PER": case "TXI": case "CUR": case "ISS": break;
+      default: inv.extra.push(s.join("*"));
+    }
+  }
+  // Some distributors mark credits only with a negative total instead of BIG07 = CR.
+  if (!inv.isCredit && inv.total != null && inv.total < 0) inv.isCredit = true;
+  if (inv.isCredit) inv.lines.forEach(l => { if (l.qty > 0) { l.qty = -l.qty; if (l.extended != null) l.extended = -l.extended; } });
+  const sum = inv.lines.reduce((a, l) => a + (l.extended || 0), 0) + inv.charges.reduce((a, c) => a + c.amount, 0);
+  inv.computedTotal = Math.round(sum * 100) / 100;
+  const declared = inv.total == null ? null : (inv.isCredit ? -Math.abs(inv.total) : inv.total);
+  inv.totalMismatch = declared != null && Math.abs(declared - inv.computedTotal) > 0.02;
+  if (!inv.supplier.name) inv.supplier.name = inv.supplier.id;
+  return inv;
+}
+
+/** Parse one 832 transaction into a normalized price list. */
+function parse832(t) {
+  const cat = { kind: "pricelist", format: "edi832", supplier: { name: null, id: t.gs?.sender || null }, customerNumber: null, effectiveDate: null, items: [], extra: [] };
+  let item = null;
+  for (const s of t.segs) {
+    const id = s[0].trim();
+    if (id === "DTM" && ["007", "196", "092"].includes(s[1])) cat.effectiveDate = date(s[2]);
+    else if (id === "N1") {
+      if (s[1] === "ST" || s[1] === "BY") cat.customerNumber = s[4] || cat.customerNumber;
+      else if (["SE", "VN", "SU"].includes(s[1])) cat.supplier.name = s[2] || cat.supplier.name;
+    }
+    else if (id === "LIN") { const ids = pickIds(s.slice(2)); item = { itemCode: ids.code, upc: ids.upc, description: null, pack: null, price: null, uom: null }; cat.items.push(item); }
+    else if (id === "PID" && item) item.description = [item.description, s[5]].filter(Boolean).join(" ").trim() || null;
+    else if (id === "PO4" && item) item.pack = { count: num(s[1]), size: num(s[2]), uom: s[3] || null };
+    else if (id === "CTP" && item) {
+      const p = num(s[3]);
+      if (p != null && (item.price == null || s[2] === "CON" || s[2] === "NET")) { item.price = p; item.uom = (s[5] || "").split(/[^A-Z]/)[0] || item.uom; }
+    }
+    else if (!["BCT", "CTT", "REF", "PER", "N3", "N4", "DTM"].includes(id)) cat.extra.push(s.join("*"));
+  }
+  if (!cat.supplier.name) cat.supplier.name = cat.supplier.id;
+  return cat;
+}
+
+/** Parse any X12 text. Returns { documents, warnings }. Unsupported sets are reported, not thrown. */
+function parseX12(text) {
+  const tok = tokenize(text);
+  const documents = [], warnings = [];
+  for (const t of transactions(tok)) {
+    if (t.type === "810") documents.push(parse810(t));
+    else if (t.type === "832") documents.push(parse832(t));
+    else warnings.push(`Skipped transaction set ${t.type} (${t.control}); not supported yet`);
+    if (t.declaredCount != null && t.declaredCount !== t.segs.length + 2) warnings.push(`Set ${t.control}: SE says ${t.declaredCount} segments, found ${t.segs.length + 2}`);
+  }
+  return { documents, warnings };
+}
+
+const isX12 = text => /^\s*\uFEFF?ISA/.test(String(text).slice(0, 200));
+
+return { parseX12, isX12 };
+})();
+
+// "4/10 LB" style pack text from an X12 PO4 segment, for the pack-size conversion.
+const X12_UOM = { LB:"LB", OZ:"OZ", GA:"GAL", GL:"GAL", FO:"FL OZ", OZF:"FL OZ", DZ:"DZ", CT:"CT", EA:"EA", LT:"L", ML:"ML", KG:"KG", QT:"QT", PT:"PT" };
+function x12Pack(p){ if (!p || !p.size) return ""; const u = X12_UOM[String(p.uom || "").toUpperCase()]; if (!u) return ""; return (p.count && p.count > 1 ? p.count + "/" : "") + p.size + " " + u; }
+// Turn an uploaded X12 file into inbox documents (one per invoice or catalog in the file).
+function importEdi(text, fileName, typedSupplier, status, pick){
+  const r = R(); r.vendors = r.vendors || [];
+  let parsed;
+  try { parsed = X12.parseX12(text); } catch(e){ pick.hidden = false; status.replaceChildren(el("div",{class:"msg bad", text:"That EDI file couldn't be read: " + (e.message || "unknown layout") + "."})); return; }
+  const knownNames = r.vendors.map(v => v.name).concat(SUPPLIERS.map(x => x.name), Object.values(r.supplies).map(x => x.supplier)).filter(Boolean);
+  const supplierFor = raw => {
+    if (typedSupplier) return typedSupplier;
+    const t = String(raw || "").trim(); if (!t) return "EDI supplier";
+    const first = t.split(/\s+/)[0].toLowerCase();
+    return knownNames.find(nm => nm.toLowerCase() === t.toLowerCase()) || knownNames.find(nm => nm.toLowerCase().split(/\s+/)[0] === first) || tidyName(t);
+  };
+  const made = []; let credits = 0, dupes = 0, empty = 0;
+  parsed.documents.forEach(d => {
+    if (d.kind === "invoice" && d.isCredit){ credits++; return; }
+    const isPL = d.kind === "pricelist";
+    const src = isPL ? d.items : d.lines;
+    const lines = (src || []).map(l => ({ code: l.itemCode || "", desc: (l.description || (l.itemCode ? "Item " + l.itemCode : "Item")).trim(), qty: isPL ? 1 : (n(l.qty) || 1), price: isPL ? n(l.price) : n(l.unitPrice), pack: x12Pack(l.pack) }))
+      .filter(l => l.price > 0);
+    if (!lines.length){ empty++; return; }
+    const doc = { id: uid("d"), kind: isPL ? "pricelist" : "invoice", source:"EDI", supplier: supplierFor(d.supplier && d.supplier.name), number: isPL ? "Price sheet" : (d.invoiceNumber || "EDI-" + Math.floor(1000 + Math.random() * 9000)),
+      date: (isPL ? d.effectiveDate : d.invoiceDate) || today(), status:"new", lines };
+    if (!isPL && d.totalMismatch) doc.note = "The file's total doesn't match its lines; check it against the paper copy.";
+    if (findDuplicateInvoice(r, doc)){ dupes++; return; }
+    r.inbox.push(doc); made.push(doc);
+    if (!r.vendors.some(v => v.name.toLowerCase() === doc.supplier.toLowerCase()) && !SUPPLIERS.some(x => x.name.toLowerCase() === doc.supplier.toLowerCase()))
+      r.vendors.push({ id: uid("v"), name: doc.supplier, kind:"food", account:"", rep:"", repContact:"", order:"rep", invoices:"edi" });
+  });
+  const extra = [credits ? credits + (credits === 1 ? " credit memo" : " credit memos") + " set aside (returns don't change prices)" : "", dupes ? dupes + " already uploaded" : "", empty ? empty + " with no priced lines" : ""].filter(Boolean).join("; ");
+  if (!made.length){
+    pick.hidden = false;
+    status.replaceChildren(el("div",{class:"msg bad", text: "Nothing new to review in that file." + (extra ? " " + extra.charAt(0).toUpperCase() + extra.slice(1) + "." : "") + (parsed.warnings.length ? " " + parsed.warnings[0] + "." : "")}));
+    return;
+  }
+  save();
+  if (made.length === 1){ openDoc(made[0].id); toast("Read EDI " + (made[0].kind === "pricelist" ? "price catalog" : "invoice " + made[0].number) + (extra ? ". " + extra : "")); }
+  else { dlg.close(); go("inbox"); toast("Read " + made.length + " documents from the EDI file" + (extra ? ". " + extra : "") + ". Open each to review."); }
+}
 function openUpload(supplier){
   const r = R(); r.vendors = r.vendors || [];
   const names = [...new Set(r.vendors.map(v => v.name).concat(SUPPLIERS.map(x => x.name), Object.values(r.supplies).map(x => x.supplier)).filter(Boolean))];
   const sup = el("input",{class:"inp", list:"up-sups", placeholder:"Who's it from?"}); sup.value = supplier || "";
   const date = el("input",{class:"inp", type:"date"}); date.value = today();
-  const file = el("input",{type:"file", accept:"image/*,.pdf,.csv,.xlsx,.xls", hidden:""});
+  const file = el("input",{type:"file", accept:"image/*,.pdf,.csv,.xlsx,.xls,.edi,.x12,.810,.832,.txt,.dat", hidden:""});
   const status = el("div");
   let kind = "invoice";
   const pick = el("label",{class:"btn primary", style:"width:100%;min-height:64px;font-size:1.05rem"}, "Take a photo or choose a file", file);
@@ -2385,11 +2585,16 @@ function openUpload(supplier){
     dateFld.querySelector("label").textContent = kind === "pricelist" ? "Prices effective" : "Invoice date";
     dateFld.querySelector(".hint").textContent = kind === "pricelist" ? "The date these prices start. Newer prices always win." : "Used if the invoice doesn't show one";
     $("dlg-t").textContent = kind === "pricelist" ? "Upload a price sheet" : "Upload an invoice";
-    tip.textContent = kind === "pricelist" ? "Price sheets and order guides are usually long. Only items you already stock are updated; the rest are skipped unless you add them. Excel or CSV works best." : "Photos: lay the invoice flat, fill the frame, good light. Spreadsheets from a supplier's website are the most accurate. Nothing changes until you approve.";
+    tip.textContent = kind === "pricelist" ? "Price sheets and order guides are usually long. Only items you already stock are updated; the rest are skipped unless you add them. Excel or CSV works best." : "Photos: lay the invoice flat, fill the frame, good light. Spreadsheets and EDI files (X12 810 and 832) from your distributor are the most accurate. Nothing changes until you approve.";
   };
   const tip = el("p",{class:"mini", style:"margin-top:10px"});
   file.onchange = async () => {
     const f = file.files && file.files[0]; file.value = ""; if (!f) return;
+    // EDI X12: the file names its supplier, document type, number and date.
+    if (/\.(edi|x12|810|832|txt|dat)$/i.test(f.name) || f.size < 8e6){
+      let head = ""; try { head = await f.slice(0, 400).text(); } catch(e){}
+      if (/^\s*\uFEFF?ISA/.test(head)){ status.replaceChildren(el("div",{class:"spin"})); pick.hidden = true; importEdi(await f.text(), f.name, sup.value.trim(), status, pick); return; }
+    }
     if (!sup.value.trim()){ status.replaceChildren(el("div",{class:"msg bad", text:"Type who it's from first."})); sup.focus(); return; }
     status.replaceChildren(el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Reading " + f.name + "…"})); pick.hidden = true;
     let d;

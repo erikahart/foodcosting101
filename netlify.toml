@@ -8,6 +8,8 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "same-origin"
     X-Frame-Options = "DENY"
+    # Keep this site out of search engines; it's for your team only.
+    X-Robots-Tag = "noindex, nofollow, noarchive"
 
 [[headers]]
   for = "/config.js"
