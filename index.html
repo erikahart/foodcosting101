@@ -757,61 +757,6 @@ details.ai-fold[open] summary{padding:12px 0}
 .sp-thumb{width:64px;height:48px;border-radius:6px;overflow:hidden;background:var(--field);display:grid;place-items:center}
 .sp-thumb img{width:100%;height:100%;object-fit:cover}
 @media print{ .pc-fig{margin:0;display:flex;flex-direction:column;align-items:flex-end} .pc-fig figcaption{font-size:6.5pt;color:#555;margin-top:2pt} }
-
-/* ---------- Big button sections ---------- */
-.bb-wrap{display:grid;gap:18px;margin:4px 0 26px}
-.bb-sec h2{font-size:.82rem;font-weight:700;color:var(--muted);margin:0 0 8px;letter-spacing:.02em;font-family:var(--font)}
-.bb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
-.bb{position:relative;display:flex;align-items:center;gap:14px;min-height:84px;padding:16px 18px;border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:border-color .12s,transform .08s,box-shadow .12s}
-.bb:hover{border-color:var(--ink-2);box-shadow:0 6px 18px rgba(16,22,19,.06)}
-.bb:active{transform:scale(.985)}
-.bb:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 45%,transparent);outline-offset:2px}
-.bb-ic{flex:none;width:48px;height:48px;border-radius:13px;display:grid;place-items:center;background:color-mix(in srgb,var(--brand) 12%,var(--panel));color:var(--brand)}
-.bb-ic .ic,.bb-ic svg{width:26px!important;height:26px!important}
-.bb-t{display:flex;flex-direction:column;gap:2px;min-width:0}
-.bb-t b{font-size:1.05rem;font-weight:700;font-family:var(--brand-font);letter-spacing:-.01em}
-.bb-t span{font-size:.84rem;color:var(--muted);line-height:1.3}
-.bb.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
-.bb.primary .bb-ic{background:rgba(255,255,255,.18);color:var(--on-brand)}
-.bb.primary .bb-t span{color:color-mix(in srgb,var(--on-brand) 80%,transparent)}
-.bb-badge{position:absolute;top:10px;right:12px;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--bad);color:#fff;font-size:.78rem;font-weight:700;display:grid;place-items:center}
-
-/* ---------- Phones: big, thumb-friendly controls everywhere ---------- */
-@media (max-width:700px){
-  .bb-grid{grid-template-columns:1fr 1fr;gap:10px}
-  .bb{flex-direction:column;align-items:flex-start;gap:10px;min-height:128px;padding:14px}
-  .bb-ic{width:44px;height:44px}
-  .bb-t b{font-size:1rem}
-  .bb-t span{font-size:.78rem}
-  .bb-badge{top:10px;right:10px}
-  /* An odd tile at the end of a section stretches into a wide button */
-  .bb-grid > .bb:last-child:nth-child(odd){grid-column:1/-1;flex-direction:row;align-items:center;min-height:84px}
-  .phead .row > :last-child:nth-child(odd),.spread > .row > :last-child:nth-child(odd){grid-column:1/-1}
-  .btn{min-height:48px;font-size:.95rem;padding:10px 14px}
-  .inp,.search,select.inp,textarea.inp{min-height:48px;font-size:16px}
-  .chip{min-height:40px;padding:8px 14px;font-size:.9rem}
-  .linkbtn{min-height:40px;display:inline-flex;align-items:center}
-  .phead .row,.spread > .row{display:grid!important;grid-template-columns:1fr 1fr;gap:8px;width:100%}
-  .phead .row .btn,.spread > .row .btn{min-height:52px;width:100%;white-space:normal;line-height:1.2}
-  .phead .row > :only-child{grid-column:1/-1}
-  .sheet-f .btn{min-height:52px;flex:1}
-  .sheet-f{gap:10px}
-  .sheet-f > .row{flex:1}
-  .ix,.x,.close{width:44px;height:44px}
-  .kb-grid{gap:12px}
-  .kb-body b{font-size:1.02rem}
-  .kb-steps li{padding:2px 0}
-  .tw tbody tr{padding:14px}
-  .more-row{min-height:60px;padding:14px 16px}
-  .kstrip .n{font-size:1.6rem}
-  .insight .acts .btn{min-height:46px;padding:10px 14px;font-size:.92rem}
-  .insight .dismiss{min-height:44px}
-  .setup li .btn,.banner .btn{min-height:48px}
-}
-@media (max-width:900px){
-  .tabbar{padding-top:6px}
-  .tabbar button{min-height:58px;font-size:.72rem}
-}
 </style>
 </head>
 <body>
@@ -1276,13 +1221,6 @@ const NAV_ICONS = {
   suppliers:'<path d="M2 6h11v10H2zM13 9h4l3 3.5V16h-7"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
   brand:'<path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-1.2-1-1.4-1-2.4 0-.9.7-1.5 1.6-1.5H17a4 4 0 0 0 4-4C21 6.5 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/>'
 };
-Object.assign(NAV_ICONS, {
-  camera:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
-  print:'<path d="M7 9V3h10v6M7 17H4v-7h16v7h-3"/><path d="M7 14h10v7H7z"/>',
-  search:'<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
-  tag:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/>',
-  sales:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'
-});
 const navIcon = id => { const sp = document.createElement("span"); sp.className = "ic"; sp.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_ICONS[id] + '</svg>'; return sp; };
 function renderNav(){
   const nav = $("nav"); nav.replaceChildren();
@@ -1386,8 +1324,7 @@ function home(m){
   const costedAll = all.filter(x => x.s.status !== "norecipe");
   const sales = costedAll.reduce((a, x) => a + x.s.price * (n(x.i.sold) || 0), 0), cost = costedAll.reduce((a, x) => a + x.s.plate * (n(x.i.sold) || 0), 0);
   const ins = visibleInsights(r);
-  m.append(el("h1",{text:r.name}), el("p",{class:"lead", text: ACCT && ACCT.role === "member" ? "What do you need?" : "Here's where your menu stands this " + r.period + "."}));
-  m.append(bigButtons(r, ins));
+  m.append(el("h1",{text:r.name}), el("p",{class:"lead", text:"Here's where your menu stands this " + r.period + "."}));
   if (!items.length && !Object.keys(r.supplies).length){
     m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fill,minmax(240px,1fr))"},
       el("div",{class:"card"}, el("h3",{text:"1. Connect your suppliers"}), el("p",{text:"Sysco, US Foods, Gordon and PFG send invoices straight in. Everyone else: email or snap a photo."}), el("button",{class:"btn primary", text:"Connect suppliers", onclick:() => go("suppliers")})),
@@ -1586,37 +1523,6 @@ function fcCell(fc, tgt, status){
     el("span",{class:"fcbar " + (status === "bad" ? "bad" : status === "warn" ? "warn" : "")}, el("i",{style:"width:" + w + "%"}), el("b")));
 }
 
-
-/* ================= Big button sections (Home) ================= */
-function bigButtons(r, ins){
-  const cook = ACCT && ACCT.role === "member";
-  const toReview = r.inbox.filter(d => d.status === "new").length, fixes = ins.filter(i => i.sev === "bad").length;
-  const noCard = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || "") && !(cardOf(it).steps || []).length).length;
-  const tile = (icon, label, sub, run, opts = {}) => el("button",{class:"bb" + (opts.primary ? " primary" : ""), type:"button", onclick: run, "aria-label": label + (opts.badge ? ", " + opts.badge + " to look at" : "")},
-    el("span",{class:"bb-ic"}, navIcon(icon)), el("span",{class:"bb-t"}, el("b",{text:label}), el("span",{text:sub})), opts.badge ? el("span",{class:"bb-badge", text:opts.badge}) : null);
-  const snapInvoice = () => { openUpload(); setTimeout(() => { const f = document.querySelector('#dlg-b input[type=file]'); if (f && isPhone()){ f.setAttribute("capture", "environment"); f.setAttribute("accept", "image/*"); } }, 50); };
-  const priceSheet = () => { openUpload(); setTimeout(() => { const t = [...document.querySelectorAll('#dlg-b [role=tab]')].find(b => /price sheet/i.test(b.textContent)); if (t) t.click(); }, 50); };
-  const section = (title, tiles) => el("section",{class:"bb-sec", "aria-label":title}, el("h2",{text:title}), el("div",{class:"bb-grid"}, tiles.filter(Boolean)));
-  const out = el("div",{class:"bb-wrap"},
-    section("Kitchen", [
-      tile("book", "Kitchen book", "Recipe cards, photos and steps", () => go("book"), { primary: cook }),
-      tile("print", "Print cards", noCard ? noCard + " dishes still need steps" : "Binder, station or 4\u00d76 cards", () => { go("book"); openPrintCards(); }),
-      tile("search", "Search", "Any dish, supply or supplier", () => cmdkOpen())
-    ]),
-    section("Deliveries & prices", [
-      tile("camera", isPhone() ? "Snap an invoice" : "Upload an invoice", "Photo, PDF, Excel or EDI", snapInvoice, { primary: !cook, badge: toReview || 0 }),
-      cook ? null : tile("tag", "Price sheet", "A distributor's order guide", priceSheet),
-      tile("supplies", "Supplies", "Everything you buy", () => go("supplies")),
-      cook ? null : tile("suppliers", "Suppliers", "Reps, accounts and notes", () => go("suppliers")),
-      cook ? tile("inbox", "Invoices", toReview ? toReview + " waiting for review" : "Deliveries and orders", () => go("inbox"), { badge: toReview || 0 }) : null
-    ]),
-    cook ? null : section("Menu & profit", [
-      tile("coach", "Profit coach", fixes ? fixes + " prices to fix" : "What to fix first", () => go("coach"), { badge: fixes || 0 }),
-      tile("menu", "Menu & recipes", "Prices, costs and recipes", () => go("menu")),
-      tile("sales", "Import sales", r.salesImported ? "Last: " + nice(r.salesImported.to) : "From Clover, Toast or Square", () => openSalesImport())
-    ]));
-  return out;
-}
 /* ================= Kitchen book: recipe cards for the line ================= */
 const ALLERGENS = ["Milk","Eggs","Fish","Shellfish","Tree nuts","Peanuts","Wheat","Soy","Sesame"];
 const STATIONS = ["Grill","Flat top","Fryer","Sauté","Oven","Prep","Cold / salad","Breakfast","Bar","Expo"];
