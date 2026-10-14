@@ -1687,7 +1687,8 @@ async function downloadBackup(){
   toast("Backup downloaded: " + out.kitchens.length + (out.kitchens.length === 1 ? " kitchen" : " kitchens"));
 }
 function pickBackup(msgBox){
-  const f = el("input",{type:"file", accept:".json,application/json", hidden:""}); document.body.append(f);
+  // Any file type: some computers save downloads without .json; the contents are checked after choosing.
+  const f = el("input",{type:"file", style:"position:fixed;left:-9999px;top:0;opacity:0"}); document.body.append(f);
   f.onchange = async () => { const file = f.files && f.files[0]; f.remove(); if (!file) return;
     let bk; try { bk = JSON.parse(await file.text()); } catch(e){ bk = null; }
     if (!bk || bk.app !== "platemargin" || !Array.isArray(bk.kitchens) || !bk.kitchens.length){ const t = "That isn't a kitchen backup file. Use the file from \u201cDownload backup\u201d."; if (msgBox) msgBox.replaceChildren(el("div",{class:"msg bad", text:t})); else toast(t); return; }
