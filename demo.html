@@ -750,6 +750,69 @@ details.ai-fold[open] summary{padding:12px 0}
 }
 .restore-box{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
 
+.kb-imgwrap{position:relative}
+.kb-imgwrap img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block}
+.kb-aitag{position:absolute;left:8px;top:8px;background:rgba(24,33,29,.82);color:#fff;font-size:.7rem;font-weight:700;border-radius:999px;padding:2px 8px}
+.kb-aicap{font-size:.84rem;color:var(--ink-2);background:var(--warn-soft);border-radius:var(--r-ctl);padding:8px 10px;margin:-6px 0 12px}
+.sp-thumb{width:64px;height:48px;border-radius:6px;overflow:hidden;background:var(--field);display:grid;place-items:center}
+.sp-thumb img{width:100%;height:100%;object-fit:cover}
+@media print{ .pc-fig{margin:0;display:flex;flex-direction:column;align-items:flex-end} .pc-fig figcaption{font-size:6.5pt;color:#555;margin-top:2pt} }
+
+/* ---------- Big button sections ---------- */
+.bb-wrap{display:grid;gap:18px;margin:4px 0 26px}
+.bb-sec h2{font-size:.82rem;font-weight:700;color:var(--muted);margin:0 0 8px;letter-spacing:.02em;font-family:var(--font)}
+.bb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.bb{position:relative;display:flex;align-items:center;gap:14px;min-height:84px;padding:16px 18px;border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:border-color .12s,transform .08s,box-shadow .12s}
+.bb:hover{border-color:var(--ink-2);box-shadow:0 6px 18px rgba(16,22,19,.06)}
+.bb:active{transform:scale(.985)}
+.bb:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 45%,transparent);outline-offset:2px}
+.bb-ic{flex:none;width:48px;height:48px;border-radius:13px;display:grid;place-items:center;background:color-mix(in srgb,var(--brand) 12%,var(--panel));color:var(--brand)}
+.bb-ic .ic,.bb-ic svg{width:26px!important;height:26px!important}
+.bb-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.bb-t b{font-size:1.05rem;font-weight:700;font-family:var(--brand-font);letter-spacing:-.01em}
+.bb-t span{font-size:.84rem;color:var(--muted);line-height:1.3}
+.bb.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.bb.primary .bb-ic{background:rgba(255,255,255,.18);color:var(--on-brand)}
+.bb.primary .bb-t span{color:color-mix(in srgb,var(--on-brand) 80%,transparent)}
+.bb-badge{position:absolute;top:10px;right:12px;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--bad);color:#fff;font-size:.78rem;font-weight:700;display:grid;place-items:center}
+
+/* ---------- Phones: big, thumb-friendly controls everywhere ---------- */
+@media (max-width:700px){
+  .bb-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .bb{flex-direction:column;align-items:flex-start;gap:10px;min-height:128px;padding:14px}
+  .bb-ic{width:44px;height:44px}
+  .bb-t b{font-size:1rem}
+  .bb-t span{font-size:.78rem}
+  .bb-badge{top:10px;right:10px}
+  /* An odd tile at the end of a section stretches into a wide button */
+  .bb-grid > .bb:last-child:nth-child(odd){grid-column:1/-1;flex-direction:row;align-items:center;min-height:84px}
+  .phead .row > :last-child:nth-child(odd),.spread > .row > :last-child:nth-child(odd){grid-column:1/-1}
+  .btn{min-height:48px;font-size:.95rem;padding:10px 14px}
+  .inp,.search,select.inp,textarea.inp{min-height:48px;font-size:16px}
+  .chip{min-height:40px;padding:8px 14px;font-size:.9rem}
+  .linkbtn{min-height:40px;display:inline-flex;align-items:center}
+  .phead .row,.spread > .row{display:grid!important;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+  .phead .row .btn,.spread > .row .btn{min-height:52px;width:100%;white-space:normal;line-height:1.2}
+  .phead .row > :only-child{grid-column:1/-1}
+  .sheet-f .btn{min-height:52px;flex:1}
+  .sheet-f{gap:10px}
+  .sheet-f > .row{flex:1}
+  .ix,.x,.close{width:44px;height:44px}
+  .kb-grid{gap:12px}
+  .kb-body b{font-size:1.02rem}
+  .kb-steps li{padding:2px 0}
+  .tw tbody tr{padding:14px}
+  .more-row{min-height:60px;padding:14px 16px}
+  .kstrip .n{font-size:1.6rem}
+  .insight .acts .btn{min-height:46px;padding:10px 14px;font-size:.92rem}
+  .insight .dismiss{min-height:44px}
+  .setup li .btn,.banner .btn{min-height:48px}
+}
+@media (max-width:900px){
+  .tabbar{padding-top:6px}
+  .tabbar button{min-height:58px;font-size:.72rem}
+}
+
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
 .demo-dot{width:8px;height:8px;border-radius:50%;background:#6FC79A;flex:none;box-shadow:0 0 0 4px rgba(111,199,154,.18)}
@@ -812,7 +875,9 @@ window.APP_CONFIG = { supabaseUrl: "https://demo.local", supabaseAnonKey: "demo"
   window.PM_DEMO.reset = () => { store.del(DBK); store.del(SK); try { localStorage.removeItem("fc101-last-account"); } catch(e){} location.reload(); };
   // AI reading needs a server; in the demo it politely says so.
   const realFetch = window.fetch.bind(window);
-  window.fetch = (u, o) => (String(u).indexOf("/api/ai") >= 0) ? Promise.resolve(new Response("{}", { status: 501 })) : realFetch(u, o);
+  window.fetch = (u, o) => String(u).indexOf("/api/ai") >= 0 && String(u).indexOf("/api/ai-image") < 0 ? Promise.resolve(new Response("{}", { status: 501 }))
+    : String(u).indexOf("/api/") >= 0 ? Promise.resolve(new Response(JSON.stringify({ error: "This works on your own site. It's switched off in the demo." }), { status: 400, headers: { "content-type": "application/json" } }))
+    : realFetch(u, o);
   window.supabase = { createClient(){
     let session = JSON.parse(store.get(SK) || "null");
     if (!session){ const d = db(); const u = { id: id(), email: "demo@platemargin.app", confirmed: true }; d.users.push(u); put(d); session = { access_token: "demo-" + u.id, user: { id: u.id, email: u.email } }; store.set(SK, JSON.stringify(session)); }
@@ -1243,7 +1308,11 @@ const AI_REASONS = {
   model: "The AI model setting isn't available to this API key. Remove ANTHROPIC_MODEL in Netlify (or set it to a model your key can use) and redeploy.",
   busy: "The AI is getting too many requests right now. Wait a minute and try again.",
   overloaded: "The AI service is busy. Try again in a few minutes.",
-  timeout: "That took too long. Try again; smaller batches usually go through."
+  timeout: "That took too long. Try again; smaller batches usually go through.",
+  noimagekey: "AI images aren't switched on yet. Create an API key at platform.openai.com (API keys), add it in Netlify as OPENAI_API_KEY, and redeploy.",
+  imagekey: "The OpenAI key in Netlify isn't valid. Create a new one at platform.openai.com, update OPENAI_API_KEY in Netlify, and redeploy.",
+  imagecredit: "Your OpenAI account needs credit for images. Add some at platform.openai.com (Billing), then try again.",
+  imagesafety: "The image service declined this dish's description. Try again, or add a real photo instead."
 };
 const aiProblem = e => window.PM_DEMO ? "Reading photos and PDFs with AI is switched off in this demo. Spreadsheets, Excel price sheets and register sales reports still work. Book a walkthrough to see it read your own invoices." : e && e.reason && AI_REASONS[e.reason] ? AI_REASONS[e.reason] : e && e.code === "unavailable" ? "AI isn't switched on for this site yet. Whoever runs it needs to add an ANTHROPIC_API_KEY in Netlify."
   : e && e.code === "signin" ? "Please sign out and back in, then try again." : e && e.code === "not_granted" ? "This needs your OK to use Claude. Try again and allow it." : null;
@@ -1284,6 +1353,13 @@ const NAV_ICONS = {
   suppliers:'<path d="M2 6h11v10H2zM13 9h4l3 3.5V16h-7"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
   brand:'<path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-1.2-1-1.4-1-2.4 0-.9.7-1.5 1.6-1.5H17a4 4 0 0 0 4-4C21 6.5 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/>'
 };
+Object.assign(NAV_ICONS, {
+  camera:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  print:'<path d="M7 9V3h10v6M7 17H4v-7h16v7h-3"/><path d="M7 14h10v7H7z"/>',
+  search:'<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
+  tag:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/>',
+  sales:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'
+});
 const navIcon = id => { const sp = document.createElement("span"); sp.className = "ic"; sp.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_ICONS[id] + '</svg>'; return sp; };
 function renderNav(){
   const nav = $("nav"); nav.replaceChildren();
@@ -1387,7 +1463,8 @@ function home(m){
   const costedAll = all.filter(x => x.s.status !== "norecipe");
   const sales = costedAll.reduce((a, x) => a + x.s.price * (n(x.i.sold) || 0), 0), cost = costedAll.reduce((a, x) => a + x.s.plate * (n(x.i.sold) || 0), 0);
   const ins = visibleInsights(r);
-  m.append(el("h1",{text:r.name}), el("p",{class:"lead", text:"Here's where your menu stands this " + r.period + "."}));
+  m.append(el("h1",{text:r.name}), el("p",{class:"lead", text: ACCT && ACCT.role === "member" ? "What do you need?" : "Here's where your menu stands this " + r.period + "."}));
+  m.append(bigButtons(r, ins));
   if (!items.length && !Object.keys(r.supplies).length){
     m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fill,minmax(240px,1fr))"},
       el("div",{class:"card"}, el("h3",{text:"1. Connect your suppliers"}), el("p",{text:"Sysco, US Foods, Gordon and PFG send invoices straight in. Everyone else: email or snap a photo."}), el("button",{class:"btn primary", text:"Connect suppliers", onclick:() => go("suppliers")})),
@@ -1586,6 +1663,37 @@ function fcCell(fc, tgt, status){
     el("span",{class:"fcbar " + (status === "bad" ? "bad" : status === "warn" ? "warn" : "")}, el("i",{style:"width:" + w + "%"}), el("b")));
 }
 
+
+/* ================= Big button sections (Home) ================= */
+function bigButtons(r, ins){
+  const cook = ACCT && ACCT.role === "member";
+  const toReview = r.inbox.filter(d => d.status === "new").length, fixes = ins.filter(i => i.sev === "bad").length;
+  const noCard = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || "") && !(cardOf(it).steps || []).length).length;
+  const tile = (icon, label, sub, run, opts = {}) => el("button",{class:"bb" + (opts.primary ? " primary" : ""), type:"button", onclick: run, "aria-label": label + (opts.badge ? ", " + opts.badge + " to look at" : "")},
+    el("span",{class:"bb-ic"}, navIcon(icon)), el("span",{class:"bb-t"}, el("b",{text:label}), el("span",{text:sub})), opts.badge ? el("span",{class:"bb-badge", text:opts.badge}) : null);
+  const snapInvoice = () => { openUpload(); setTimeout(() => { const f = document.querySelector('#dlg-b input[type=file]'); if (f && isPhone()){ f.setAttribute("capture", "environment"); f.setAttribute("accept", "image/*"); } }, 50); };
+  const priceSheet = () => { openUpload(); setTimeout(() => { const t = [...document.querySelectorAll('#dlg-b [role=tab]')].find(b => /price sheet/i.test(b.textContent)); if (t) t.click(); }, 50); };
+  const section = (title, tiles) => el("section",{class:"bb-sec", "aria-label":title}, el("h2",{text:title}), el("div",{class:"bb-grid"}, tiles.filter(Boolean)));
+  const out = el("div",{class:"bb-wrap"},
+    section("Kitchen", [
+      tile("book", "Kitchen book", "Recipe cards, photos and steps", () => go("book"), { primary: cook }),
+      tile("print", "Print cards", noCard ? noCard + " dishes still need steps" : "Binder, station or 4\u00d76 cards", () => { go("book"); openPrintCards(); }),
+      tile("search", "Search", "Any dish, supply or supplier", () => cmdkOpen())
+    ]),
+    section("Deliveries & prices", [
+      tile("camera", isPhone() ? "Snap an invoice" : "Upload an invoice", "Photo, PDF, Excel or EDI", snapInvoice, { primary: !cook, badge: toReview || 0 }),
+      cook ? null : tile("tag", "Price sheet", "A distributor's order guide", priceSheet),
+      tile("supplies", "Supplies", "Everything you buy", () => go("supplies")),
+      cook ? null : tile("suppliers", "Suppliers", "Reps, accounts and notes", () => go("suppliers")),
+      cook ? tile("inbox", "Invoices", toReview ? toReview + " waiting for review" : "Deliveries and orders", () => go("inbox"), { badge: toReview || 0 }) : null
+    ]),
+    cook ? null : section("Menu & profit", [
+      tile("coach", "Profit coach", fixes ? fixes + " prices to fix" : "What to fix first", () => go("coach"), { badge: fixes || 0 }),
+      tile("menu", "Menu & recipes", "Prices, costs and recipes", () => go("menu")),
+      tile("sales", "Import sales", r.salesImported ? "Last: " + nice(r.salesImported.to) : "From Clover, Toast or Square", () => openSalesImport())
+    ]));
+  return out;
+}
 /* ================= Kitchen book: recipe cards for the line ================= */
 const ALLERGENS = ["Milk","Eggs","Fish","Shellfish","Tree nuts","Peanuts","Wheat","Soy","Sesame"];
 const STATIONS = ["Grill","Flat top","Fryer","Sauté","Oven","Prep","Cold / salad","Breakfast","Bar","Expo"];
@@ -1632,7 +1740,7 @@ const BKV = { q:"", cat:"all" };
 function book(m){
   const r = R(); loadPhotos();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Kitchen book"}), el("p",{class:"lead", text:"Recipe cards for the line: what it looks like, what goes on it, and how to make it."})),
-    el("div",{class:"row"}, el("button",{class:"btn primary", text:"Print cards", onclick:() => openPrintCards()}))));
+    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Photos from website", onclick:() => openSitePhotos()}), el("button",{class:"btn quiet", text:"Create AI images", onclick:() => openAIImages()}), el("button",{class:"btn primary", text:"Print cards", onclick:() => openPrintCards()}))));
   if (!PHOTOS_READY) m.append(el("div",{class:"card banner"}, el("div",null, el("b",{text:"Photos need a one-time setup."}), " Whoever manages the app runs supabase/002_recipe_photos.sql in Supabase (SQL Editor). Recipe cards work without it; only photos wait."),
     el("button",{class:"btn quiet", text:"Check again", onclick:() => { PHOTOS_READY = true; loadPhotos(true); }})));
   const all = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
@@ -1654,7 +1762,7 @@ function book(m){
   m.append(el("div",{class:"kb-grid"}, shown.map(it => {
     const c = cardOf(it), ph = PHOTOS.get(it.id), total = n(c.prepMin) + n(c.cookMin);
     return el("button",{class:"kb-card", type:"button", onclick:() => openCard(it.id), "aria-label":"Open the card for " + it.name},
-      ph ? el("img",{src:ph, alt:"", loading:"lazy"}) : plateArt(it),
+      ph ? el("div",{class:"kb-imgwrap"}, el("img",{src:ph, alt:"", loading:"lazy"}), c.photoSrc === "ai" ? el("span",{class:"kb-aitag", text:"AI image"}) : null) : plateArt(it),
       el("div",{class:"kb-body"}, el("b",{text:it.name}),
         el("div",{class:"kb-meta"}, el("span",{text:it.section || ""}), total ? el("span",{class:"kb-time", text: total + " min"}) : null, c.station ? el("span",{text:c.station}) : null),
         !(c.steps || []).length ? el("span",{class:"kb-todo", text:"No steps yet"}) : null));
@@ -1667,6 +1775,7 @@ function openCard(id){
   const total = n(c.prepMin) + n(c.cookMin);
   openDlg(it.name, [
     ph ? el("img",{class:"kb-hero", src:ph, alt:"How " + it.name + " should look"}) : el("div",{class:"kb-hero kb-hero-empty"}, plateArt(it), el("button",{class:"btn quiet", type:"button", text:"Add a photo", onclick:() => openCardEdit(id, true)})),
+    ph && c.photoSrc === "ai" ? el("p",{class:"kb-aicap"}, el("b",{text:"AI image."}), " Shows a typical version of the dish, not your plating. Replace it with a photo of your plate when you can.") : null,
     el("div",{class:"kb-facts"}, fact("Prep", mins(c.prepMin)), fact("Cook", mins(c.cookMin)), fact("Total", total ? total + " min" : ""), fact("Station", c.station), fact("Makes", n(it.portions) > 1 ? it.portions + " portions" : c.yieldText || "")),
     (c.allergens || []).length ? el("div",{class:"kb-allergens", role:"note"}, el("b",{text:"Contains: "}), c.allergens.join(", ")) : null,
     el("div",{class:"kb-cols"},
@@ -1695,13 +1804,15 @@ function openCardEdit(id, focusPhoto){
       photoBox.replaceChildren(el("div",{class:"spin"}));
       try { const url = await photoDataUrl(f); const { error } = await sb.rpc("save_photo", { p_account: ACCT.id, p_item: id, p_data: url });
         if (error) throw new Error(/function|PGRST202|42883|schema cache/i.test((error.code || "") + (error.message || "")) ? "Photos need the one-time setup in Supabase (002_recipe_photos.sql)." : error.message || "Couldn't save the photo.");
-        PHOTOS.set(id, url); toast("Photo saved"); }
+        PHOTOS.set(id, url); it.card = Object.assign({}, it.card || {}, { photoSrc:"upload" }); c.photoSrc = "upload"; save(); toast("Photo saved"); }
       catch(e){ toast(e.message || "Couldn't save the photo"); }
       paintPhoto();
     };
     photoBox.replaceChildren(ph ? el("img",{src:ph, alt:""}) : plateArt(it),
       el("div",{class:"row"}, el("label",{class:"btn quiet"}, ph ? "Replace photo" : "Add a photo", file),
-        ph ? el("button",{class:"btn quiet", type:"button", text:"Remove", onclick: async () => { const { error } = await sb.rpc("delete_photo", { p_account: ACCT.id, p_item: id }); if (!error){ PHOTOS.delete(id); paintPhoto(); } }}) : null),
+        el("button",{class:"btn quiet", type:"button", text:"Create with AI", onclick: async () => { photoBox.replaceChildren(el("div",{class:"spin"}), el("p",{class:"mini", style:"text-align:center", text:"Creating a picture of " + it.name + ". This takes 10 to 30 seconds…"}));
+          try { await aiImageFor(it, r); c.photoSrc = "ai"; toast("AI image saved"); } catch(e){ toast(aiProblem(e) || e.message || "Couldn't create an image right now"); } paintPhoto(); }}),
+        ph ? el("button",{class:"btn quiet", type:"button", text:"Remove", onclick: async () => { const { error } = await sb.rpc("delete_photo", { p_account: ACCT.id, p_item: id }); if (!error){ PHOTOS.delete(id); delete c.photoSrc; if (it.card) delete it.card.photoSrc; save(); paintPhoto(); } }}) : null),
       el("span",{class:"mini", text:"On a phone this opens the camera. Shoot the finished plate from above, in good light."}));
     if (focusPhoto) setTimeout(() => { file.click(); focusPhoto = false; }, 80);
   };
@@ -1732,6 +1843,7 @@ function openCardEdit(id, focusPhoto){
   ], [el("button",{class:"btn quiet", text:"Back", onclick:() => openCard(id)}), el("button",{class:"btn primary", text:"Save card", onclick:() => {
     c.steps = steps.value.split("\n").map(t => t.replace(/^\s*(\d+[.)]|[-\u2022*])\s*/, "").trim()).filter(Boolean);
     c.plating = plating.value.trim(); c.notes = notes.value.trim();
+    if (it.card && it.card.photoSrc && !c.photoSrc) c.photoSrc = it.card.photoSrc;
     r.items[id].card = c; save(); toast("Card saved"); openCard(id);
   }})]);
 }
@@ -1761,7 +1873,7 @@ function printCardEl(it, r, o = {}){
   const total = n(c.prepMin) + n(c.cookMin);
   const facts = [c.station, c.prepMin ? "Prep " + mins(c.prepMin) : "", c.cookMin ? "Cook " + mins(c.cookMin) : "", total ? "Total " + total + " min" : "", n(it.portions) > 1 ? "Makes " + it.portions : c.yieldText || ""].filter(Boolean);
   return el("article",{class:"pc"},
-    el("header",{class:"pc-head"}, el("div",null, el("h1",{text:it.name}), el("p",{class:"pc-sec", text:it.section || ""})), ph ? el("img",{src:ph, alt:""}) : null),
+    el("header",{class:"pc-head"}, el("div",null, el("h1",{text:it.name}), el("p",{class:"pc-sec", text:it.section || ""})), ph ? el("figure",{class:"pc-fig"}, el("img",{src:ph, alt:""}), c.photoSrc === "ai" ? el("figcaption",{text:"AI image, not our plating"}) : null) : null),
     facts.length ? el("p",{class:"pc-meta", text:facts.join("   |   ")}) : null,
     o.allergens !== false && (c.allergens || []).length ? el("p",{class:"pc-al"}, el("b",{text:"Contains: "}), c.allergens.join(", ")) : null,
     el("div",{class:"pc-cols"},
@@ -1823,6 +1935,121 @@ function openPrintCards(preset, title){
   paint();
 }
 
+
+/* ================= Photos from the website, and AI pictures ================= */
+async function apiPost(path, body){
+  const { data: { session } } = sb ? await sb.auth.getSession() : { data:{} };
+  const res = await fetch(path, { method:"POST", headers:{ "content-type":"application/json", authorization:"Bearer " + (session ? session.access_token : "") }, body: JSON.stringify(body) });
+  let j = {}; try { j = await res.json(); } catch(e){}
+  if (res.status === 401) throw { code:"signin" };
+  if (res.status === 404) throw { code:"unavailable", reason: path.includes("ai-image") ? "noimagekey" : undefined, message:"This feature isn't on your site yet. Upload the latest netlify/functions files and redeploy." };
+  if (!res.ok) throw { code:"error", reason: j.reason || (res.status === 504 ? "timeout" : "other"), message: j.error, status: res.status };
+  return j;
+}
+const b64ToBlob = (b64, type) => { const bin = atob(b64), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new Blob([u], { type }); };
+async function storePhoto(it, blob, src, from){
+  const url = await photoDataUrl(blob);
+  const { error } = await sb.rpc("save_photo", { p_account: ACCT.id, p_item: it.id, p_data: url });
+  if (error) throw new Error(/function|PGRST202|42883|schema cache/i.test((error.code || "") + (error.message || "")) ? "Photos need the one-time setup in Supabase." : error.message || "Couldn't save the photo.");
+  PHOTOS.set(it.id, url);
+  it.card = Object.assign({}, it.card || {}, { photoSrc: src }, from ? { photoFrom: from } : {});
+}
+async function aiImageFor(it, r){
+  const c = cardOf(it), ings = ingredientRows(it, r).map(x => x.name).slice(0, 10).join(", ");
+  const details = [it.desc, ings ? "Made with " + ings + "." : "", c.plating ? "Plating: " + c.plating : ""].filter(Boolean).join(" ");
+  const d = await apiPost("/api/ai-image", { dish: it.name, details });
+  await storePhoto(it, b64ToBlob(d.data, d.type || "image/png"), "ai");
+  save();
+}
+async function openSitePhotos(){
+  const r = R();
+  const site = el("input",{class:"inp", placeholder:"e.g. thefoxdendinerandbar.com", inputmode:"url", autocapitalize:"none"}); site.value = r.website || "";
+  const status = el("div");
+  const scan = el("button",{class:"btn primary", text:"Find photos", onclick: async () => {
+    const v = site.value.trim(); if (!v) return site.focus();
+    r.website = v; save(); scan.disabled = true; status.replaceChildren(el("div",{class:"spin"}), el("p",{class:"mini", style:"text-align:center", text:"Reading your website\u2026"}));
+    try { const d = await apiPost("/api/site-photos", { action:"scan", site: v }); reviewSitePhotos(d); }
+    catch(e){ scan.disabled = false; status.replaceChildren(el("div",{class:"msg bad", text: e.message || aiProblem(e) || "Couldn't read that website."})); }
+  }});
+  openDlg("Photos from your website", [
+    el("p",{class:"lead", text:"The app looks through your website's pages (gallery, menus, specials) for food photos, then suggests which menu item each one shows. You approve every match."}),
+    fld("Your website", site, "Your home page or gallery page"), scan, status
+  ], []);
+}
+function reviewSitePhotos(d){
+  const r = R(), photos = d.photos || [];
+  const items = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
+  if (!photos.length){ openDlg("Photos from your website", [el("div",{class:"msg bad", text:"No food photos were found on " + d.site + ". If your photos are on a different page, enter that page's address instead."})], [el("span"), el("button",{class:"btn quiet", text:"Try another address", onclick:openSitePhotos})]); return; }
+  const fileWords = src => decodeURIComponent(src.split("/").pop().replace(/\.[a-z]+(\?.*)?$/i, "")).replace(/[-_]+/g, " ");
+  // A short caption whose words all appear in the dish name ("Meatloaf" in "HomeStyle Meatloaf") is a likely match too.
+  const within = (short, long) => { const A2 = [...new Set(words(short))], B2 = [...new Set(words(long))]; return A2.length && A2.every(x => B2.some(y => wordHit(x, y))) ? 0.75 : 0; };
+  const scoreFor = (it, p) => Math.max(simScore(it.name, p.caption || ""), simScore(it.name, p.alt || "") * 0.9, simScore(it.name, fileWords(p.src)) * 0.85, within(p.caption || fileWords(p.src), it.name));
+  let replace = false;
+  const rows = items.map(it => { let best = null, bs = 0; photos.forEach(p => { const sc = scoreFor(it, p); if (sc > bs){ bs = sc; best = p; } }); return { it, pick: best && bs >= 0.6 ? best.src : "", sure: bs >= 0.85, has: PHOTOS.has(it.id) }; });
+  const tb = el("tbody"), go2 = el("button",{class:"btn primary"});
+  const label = p => (p.caption || p.alt || fileWords(p.src)).slice(0, 60);
+  const draw = () => {
+    const shown = rows.filter(x => x.pick || !x.has).sort((a, b) => (!!b.pick - !!a.pick) || a.it.name.localeCompare(b.it.name));
+    tb.replaceChildren(...shown.map(x => {
+      const sel = el("select",{class:"inp", style:"min-height:36px", "aria-label":"Photo for " + x.it.name}, el("option",{value:"", text:"No photo"}), photos.map(p => el("option",{value:p.src, text:label(p)})));
+      sel.value = x.pick; const thumb = el("div",{class:"sp-thumb"});
+      const paintThumb = () => thumb.replaceChildren(x.pick ? el("img",{src:x.pick, alt:"", loading:"lazy"}) : el("span",{class:"mini", text:"\u2014"}));
+      sel.onchange = () => { x.pick = sel.value; x.sure = true; paintThumb(); paint(); }; paintThumb();
+      return el("tr",{style:"cursor:default"}, el("td",null, thumb), el("td",{style:"white-space:normal"}, el("b",{text:x.it.name}), el("div",{class:"mini", text:(x.it.section || "") + (x.has ? ", has a photo" : "")})),
+        el("td",null, sel), el("td",null, x.pick ? el("span",{class:"pill " + (x.sure ? "good" : "warn"), text: x.sure ? "Match" : "Check"}) : el("span",{class:"dash", text:"\u2014"})));
+    }));
+  };
+  const paint = () => { const k = rows.filter(x => x.pick && (replace || !x.has)).length; go2.textContent = "Use " + k + (k === 1 ? " photo" : " photos"); go2.disabled = !k; };
+  const rp = el("input",{type:"checkbox"}); rp.onchange = () => { replace = rp.checked; paint(); };
+  go2.onclick = async () => {
+    const todo = rows.filter(x => x.pick && (replace || !x.has));
+    const bar = el("div",{style:"height:10px;background:var(--line);border-radius:999px;overflow:hidden"}, el("div",{style:"height:100%;width:0%;background:var(--brand);transition:width .3s"}));
+    const lab = el("p",{style:"text-align:center", text:"Saving photos\u2026"});
+    openDlg("Saving photos", [lab, bar], []);
+    let ok = 0, failed = 0, done = 0;
+    for (const x of todo){
+      try { const img = await apiPost("/api/site-photos", { action:"image", site: d.site, src: x.pick }); await storePhoto(x.it, b64ToBlob(img.data, img.type), "site", x.pick); ok++; }
+      catch(e){ failed++; }
+      done++; bar.firstChild.style.width = Math.round(done / todo.length * 100) + "%"; lab.textContent = "Saved " + ok + " of " + todo.length + "\u2026";
+    }
+    save(); dlg.close(); render();
+    toast("Added " + ok + (ok === 1 ? " photo" : " photos") + " from your website" + (failed ? "; " + failed + " couldn't be downloaded" : "") + ".");
+  };
+  draw(); paint();
+  const matched = rows.filter(x => x.pick).length;
+  openDlg("Match photos to dishes", [
+    el("p",{class:"lead", text:"Found " + photos.length + " photos on " + d.pages.length + (d.pages.length === 1 ? " page" : " pages") + " of " + d.site.replace(/^https?:\/\//, "") + ". " + matched + " look like dishes on your menu. Check each match, change any that are wrong, and pick photos for others if one fits."}),
+    el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Photo"}), el("th",{text:"Menu item"}), el("th",{text:"Website photo"}), el("th",{text:"Match"}))), tb)),
+    el("label",{class:"row", style:"font-weight:600;margin-top:10px;gap:8px"}, rp, "Also replace photos that dishes already have")
+  ], [el("button",{class:"btn quiet", text:"Back", onclick:openSitePhotos}), go2]);
+}
+function openAIImages(){
+  const r = R(), items = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
+  const missing = items.filter(it => !PHOTOS.has(it.id));
+  if (!missing.length) return toast("Every dish already has a photo");
+  const n2 = missing.length;
+  openDlg("Create AI images", [
+    el("p",{class:"lead", text: n2 + (n2 === 1 ? " dish has" : " dishes have") + " no photo. AI can create a picture of each one from its name, ingredients and plating notes."}),
+    el("div",{class:"msg", style:"background:var(--warn-soft);color:var(--ink)", text:"AI pictures show a typical version of each dish, not how your kitchen plates it. They're tagged \u201cAI image\u201d on cards and printouts. Replace them with real photos of your plates whenever you can: open a card, Edit card, Replace photo."}),
+    el("p",{class:"mini", text:"Uses OpenAI's image service: about 1 to 2 cents per picture, billed to your OpenAI account. Each picture takes 10 to 30 seconds; you can stop anytime and keep what's done."})
+  ], [el("span"), el("button",{class:"btn primary", text:"Create " + n2 + (n2 === 1 ? " image" : " images"), onclick:() => runAIImages(missing)})]);
+}
+async function runAIImages(list){
+  const r = R(); let stop = false, done = 0, ok = 0, problem = null;
+  const bar = el("div",{style:"height:10px;background:var(--line);border-radius:999px;overflow:hidden"}, el("div",{style:"height:100%;width:0%;background:var(--brand);transition:width .3s"}));
+  const lab = el("p",{style:"text-align:center", text:"Creating pictures\u2026"});
+  openDlg("Creating AI images", [lab, bar, el("p",{class:"mini", text:"Each picture is saved as it's made."})], [el("span"), el("button",{class:"btn quiet", text:"Stop", onclick:() => stop = true})]);
+  for (const it of list){
+    if (stop) break;
+    lab.textContent = "Creating " + it.name + " (" + (done + 1) + " of " + list.length + ")\u2026";
+    try { await aiImageFor(it, r); ok++; }
+    catch(e){ problem = e; if (e && (e.code === "unavailable" || e.code === "signin" || ["noimagekey","imagekey","imagecredit"].includes(e.reason))) break; }
+    done++; bar.firstChild.style.width = Math.round(done / list.length * 100) + "%";
+  }
+  dlg.close(); render();
+  if (!ok && problem) openDlg("Create AI images", [el("div",{class:"msg bad", text: aiProblem(problem) || problem.message || "Couldn't create images right now."})], []);
+  else toast("Created " + ok + (ok === 1 ? " picture" : " pictures") + (problem && done < list.length ? ". Stopped early: " + (aiProblem(problem) || "an error") : "") + ".");
+}
 /* ================= Backup & restore ================= */
 async function downloadBackup(){
   toast("Preparing your backup\u2026");
