@@ -677,6 +677,49 @@ details.ai-fold[open] summary{padding:12px 0}
 .reg-cell .inp{width:100%}
 .reg-cell .linkbtn{padding:2px 0}
 
+/* ---------- Kitchen book ---------- */
+.kb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.kb-card{display:flex;flex-direction:column;text-align:left;padding:0;border:1px solid var(--line);border-radius:var(--r-panel);background:var(--panel);overflow:hidden;cursor:pointer;color:var(--ink);font:inherit;transition:border-color .12s,transform .12s}
+.kb-card:hover{border-color:var(--ink-2)}
+.kb-card img,.kb-card .kb-ph{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--field)}
+.kb-ph{display:grid!important;place-items:center;color:var(--muted)}
+.kb-body{padding:12px 14px 14px;display:flex;flex-direction:column;gap:4px}
+.kb-body b{font-weight:600;font-size:1rem;line-height:1.25}
+.kb-meta{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:.8rem;color:var(--muted)}
+.kb-time{color:var(--ink-2);font-weight:600}
+.kb-todo{font-size:.76rem;color:var(--warn);font-weight:600}
+.kb-hero{width:100%;max-height:360px;object-fit:cover;border-radius:12px;display:block;margin-bottom:14px}
+.kb-hero-empty{display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px;background:var(--field);border:1px dashed var(--line-2)}
+.kb-facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));border:1px solid var(--line);border-radius:var(--r-ctl);overflow:hidden;margin-bottom:12px}
+.kb-facts > div{padding:10px 12px;border-left:1px solid var(--line)}
+.kb-facts > div:first-child{border-left:0}
+.kb-facts span{display:block;font-size:.76rem;color:var(--muted);font-weight:600}
+.kb-facts b{font-family:var(--brand-font);font-size:1.15rem}
+.kb-allergens{background:var(--warn-soft);border-radius:var(--r-ctl);padding:10px 12px;margin-bottom:12px;font-size:.95rem}
+.kb-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:22px}
+.kb-cols h3{margin:6px 0 8px}
+.kb-ings{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.kb-ings li{padding-bottom:6px;border-bottom:1px solid var(--line)}
+.kb-ings b{font-weight:700;margin-right:4px}
+.kb-steps{margin:0;padding-left:22px;display:grid;gap:10px;font-size:1.02rem}
+.kb-steps li::marker{font-weight:700;color:var(--brand)}
+.kb-photo-edit{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.kb-photo-edit img,.kb-photo-edit .kb-ph{width:100%;max-height:240px;object-fit:cover;border-radius:12px;aspect-ratio:16/9;background:var(--field)}
+.kb-al-pick{display:flex;flex-wrap:wrap;gap:8px}
+.kb-al-pick label{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line-2);border-radius:999px;padding:6px 12px;font-weight:500;cursor:pointer}
+@media (max-width:700px){.kb-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.kb-cols{grid-template-columns:1fr}.kb-steps{font-size:1.06rem}.kb-body{padding:10px 12px 12px}}
+#printArea{display:none}
+@media print{
+  body.printing > *:not(#app), body.printing #app > *:not(#printArea), body.printing dialog{display:none!important}
+  body.printing #app{display:block!important}
+  body.printing #printArea{display:block!important;color:#000;font-family:"IBM Plex Sans",Arial,sans-serif}
+  .pc h1{font-size:24pt;margin:0 0 4pt} .pc-meta{margin:0 0 10pt;color:#333}
+  .pc img{width:100%;max-height:3.4in;object-fit:cover;border-radius:6pt;margin-bottom:10pt}
+  .pc-al{border:1.5pt solid #000;padding:6pt 8pt;margin:0 0 10pt}
+  .pc-cols{display:grid;grid-template-columns:1fr 1.5fr;gap:18pt} .pc h2{font-size:13pt;margin:8pt 0 4pt}
+  .pc ol li{margin-bottom:5pt;font-size:12pt}
+}
+
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
 .demo-dot{width:8px;height:8px;border-radius:50%;background:#6FC79A;flex:none;box-shadow:0 0 0 4px rgba(111,199,154,.18)}
@@ -716,6 +759,7 @@ main{padding-bottom:110px}
     <div class="powered" id="powered"></div>
   </aside>
   <main id="main"></main>
+  <div id="printArea" aria-hidden="true"></div>
   <nav class="tabbar" id="tabbar" aria-label="Main"></nav>
   <div class="cmdk" id="cmdk" hidden><div class="cmdk-panel" role="dialog" aria-modal="true" aria-label="Search"><div class="cmdk-in"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg><input id="cmdk-q" placeholder="Search dishes, supplies, pages and actions" autocomplete="off" aria-label="Search"><kbd>Esc</kbd></div><div class="cmdk-list" id="cmdk-list" role="listbox"></div></div></div>
 </div>
@@ -768,6 +812,9 @@ window.APP_CONFIG = { supabaseUrl: "https://demo.local", supabaseAnonKey: "demo"
       cancel_invite(d, { p_invite }){ d.invites = d.invites.filter(i => i.id !== p_invite); put(d); },
       remove_member(){ throw ["demo","You can't remove people in the demo."]; },
       set_member_role(){ throw ["demo","Roles can't be changed in the demo."]; },
+      get_photos(d, { p_account, p_items }){ if (!need(d, p_account)) throw ["42501","Not allowed"]; const ph = (d.photos || {})[p_account] || {}; return Object.entries(ph).filter(([k]) => !p_items || p_items.includes(k)).map(([k, v]) => ({ item_id:k, data:v, updated_at:"" })); },
+      save_photo(d, { p_account, p_item, p_data }){ if (!need(d, p_account)) throw ["42501","Not allowed"]; d.photos = d.photos || {}; d.photos[p_account] = d.photos[p_account] || {}; d.photos[p_account][p_item] = p_data; try { put(d); } catch(e){ throw ["54000","The demo's storage is full. Reset the demo to add more photos."]; } },
+      delete_photo(d, { p_account, p_item }){ if (!need(d, p_account)) throw ["42501","Not allowed"]; if (d.photos && d.photos[p_account]) delete d.photos[p_account][p_item]; put(d); },
     };
     return { auth, async rpc(name, args = {}){ if (!me()) return err("28000","Not signed in"); try { return { data: R[name] ? R[name](db(), args) : null, error:null }; } catch(e){ return err(e[0], e[1]); } } };
   } };
@@ -843,6 +890,16 @@ function demoRestaurant(){
     { id: uid("d"), kind:"order", source:"EDI", supplier:"Sysco", number:"PO-88213", date: today(), eta:"Tomorrow", status:"open", lines:[{ code:"4172003", desc:"EGG SHELL LRG GRADE AA", qty:2, price:46.5 },{ code:"3015521", desc:"POTATO FRY 3/8 STRT", qty:3, price:51.9 }] },
     { id: uid("d"), kind:"invoice", source:"Photo", supplier:"Local Bakery", number:"1042", date: today(), status:"new", lines:[{ code:"", desc:"Hamburger buns 4 dz", qty:1, price:19.5 },{ code:"", desc:"White sandwich bread", qty:2, price:28 }] },
   ];
+  // Sample recipe cards for the Kitchen book.
+  const CARDS = {
+    "Two Egg Breakfast": { prepMin:2, cookMin:6, station:"Breakfast", steps:["Crack 2 eggs onto a buttered flat top and cook to order","Drop hash browns on the flat top, press flat, flip when golden","Toast 2 slices; butter while hot","Plate eggs at 6 o'clock, hash browns at 12, toast on the side"], plating:"Oval plate. Eggs front, hash browns back, toast cut on the diagonal.", allergens:["Eggs","Milk","Wheat"] },
+    "Pancake Stack": { prepMin:1, cookMin:5, station:"Breakfast", steps:["Ladle three 4 oz pours of batter onto a 350\u00b0F flat top","Flip when bubbles pop and edges set, about 2 minutes","Cook 1 to 2 minutes more until springy","Stack three, top with a butter pat, syrup on the side"], plating:"Round plate, stack centered, warm syrup in a ramekin.", allergens:["Wheat","Milk","Eggs"] },
+    "Cheeseburger Basket": { prepMin:2, cookMin:8, station:"Grill", steps:["Season a 4 oz patty with salt and pepper; grill 3 to 4 minutes per side to 160\u00b0F","Add American cheese for the last minute, covered","Toast the bun cut-side down","Drop fries (5 oz) for 3 minutes; salt as they come out","Build: bun, lettuce, tomato, patty with cheese, top bun"], plating:"Paper-lined basket, burger left, fries right, pickle spear on top.", allergens:["Wheat","Milk"], notes:"Cook to 160\u00b0F unless the guest asks otherwise." },
+    "House Chili, cup": { prepMin:1, cookMin:2, station:"Prep", steps:["Stir the chili in the steam well; check it's at 165\u00b0F","Ladle 8 oz into a cup","Top with shredded cheddar and diced onion"], plating:"Cup on a saucer with crackers on the side.", allergens:["Milk"], notes:"Hold at 135\u00b0F or above. Toss after 4 hours on the line." },
+    "Bud Light Draft, 16 oz": { prepMin:0, cookMin:1, station:"Bar", steps:["Rinse a pint glass","Tilt to 45\u00b0 and pour down the side","Straighten halfway; finish with about 1 inch of head"], allergens:["Wheat"] },
+    "House Margarita": { prepMin:1, cookMin:1, station:"Bar", steps:["Rim a rocks glass with salt (ask first)","Fill a shaker with ice; add 1.5 oz tequila and 4 oz margarita mix","Shake 10 seconds and strain over fresh ice","Garnish with a lime wedge"], allergens:[] }
+  };
+  il.forEach(it => { if (CARDS[it.name]) it.card = CARDS[it.name]; });
   return { id: uid("r"), name:"Main Street Diner", target:0.30, tol:0.05, q:0.03, round:0.25, period:"week", supplies: sup, items, inbox,
     conn:{ sysco:{ status:"active", customer:"067-123456", since:"2026-09-01" } }, emailIn:"invoices+mainst@inbox.example.com" };
 }
@@ -1183,10 +1240,11 @@ const isPhone = () => window.matchMedia("(max-width: 700px)").matches;
 const isNarrow = () => window.matchMedia("(max-width: 900px)").matches;
 // Redraw when crossing the phone/desktop line (rotation, resizing a window).
 ["(max-width: 700px)", "(max-width: 900px)"].forEach(q => { const mq = window.matchMedia(q); const fn = () => { if (typeof ST !== "undefined" && ST) render(); }; mq.addEventListener ? mq.addEventListener("change", fn) : mq.addListener(fn); });
-const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Brand & accounts"]];
+const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["book","Kitchen book"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Brand & accounts"]];
 const NAV_ICONS = {
   home:'<path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
   coach:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
+  book:'<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20v-3M9 7h7M9 10.5h5"/>',
   menu:'<path d="M5 3v8a2 2 0 0 0 2 2v8M9 3v8a2 2 0 0 1-2 2M7 3v6M17 21V3c-2 1-3 3.5-3 7v3h3"/>',
   supplies:'<path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/>',
   inbox:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
@@ -1202,9 +1260,9 @@ function renderNav(){
   // Phone tab bar: the five pages used most, plus More.
   const tbar = $("tabbar");
   if (tbar){
-    const MAIN = [["home","Home"],["coach","Coach"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]];
+    const MAIN = ACCT && ACCT.role === "member" ? [["book","Book"],["home","Home"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]] : [["home","Home"],["coach","Coach"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]];
     const moreIc = document.createElement("span"); moreIc.className = "ic"; moreIc.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
-    const onMore = ["suppliers","brand"].includes(ST.page);
+    const onMore = !MAIN.some(([id]) => id === ST.page);
     tbar.replaceChildren(...MAIN.map(([id, label]) => { const b = el("button",{type:"button", "aria-current": ST.page === id ? "page" : null, onclick:() => go(id)}, navIcon(id), el("span",{class:"lbl", text:label}));
         const n2 = id === "inbox" ? newDocs : id === "coach" ? bad : 0; if (n2) b.append(el("span",{class:"tb-badge", text:n2})); return b; }),
       el("button",{type:"button", "aria-current": onMore ? "page" : null, "aria-label":"More", onclick:() => openMore()}, moreIc, el("span",{class:"lbl", text:"More"})));
@@ -1225,7 +1283,7 @@ function labelTables(root){
     }));
   });
 }
-function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, supplies, inbox, suppliers, brand })[ST.page](m); pageHeader(m); labelTables(m); }
+function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, book, supplies, inbox, suppliers, brand })[ST.page](m); pageHeader(m); labelTables(m); }
 // Group each page's title, description and main actions into one header with a fine rule under it.
 function pageHeader(m){
   const first = m.firstElementChild; if (!first) return;
@@ -1271,6 +1329,8 @@ function openMore(){
   const t = currentTheme(), next = { auto:"dark", dark:"light", light:"auto" }[t];
   openDlg("More", [el("div",{class:"more-list"},
     item("Search", "Dishes, supplies, suppliers and actions", () => cmdkOpen()),
+    item("Kitchen book", "Recipe cards with photos and steps for the line", () => go("book")),
+    item("Profit coach", "What to fix first, in dollars per week", () => go("coach")),
     item("Suppliers", "Who you buy from, and notes for reps", () => go("suppliers")),
     item("Brand & accounts", "Logo, colors, cost targets and your team", () => go("brand")),
     item("Theme: " + { auto:"automatic", dark:"dark", light:"light" }[t], "Tap to switch to " + { auto:"automatic", dark:"dark", light:"light" }[next], () => { try { localStorage.setItem("pm-theme", next); } catch(e){} applyTheme(next); renderUserBox(); toast("Theme: " + next); }),
@@ -1491,6 +1551,191 @@ function fcCell(fc, tgt, status){
   const w = Math.max(2, Math.min(100, fc / (tgt * 2) * 100));
   return el("span",{class:"fc", title:"Food cost " + pc(fc) + ", target " + pc(tgt)}, el("span",{text:pc(fc)}),
     el("span",{class:"fcbar " + (status === "bad" ? "bad" : status === "warn" ? "warn" : "")}, el("i",{style:"width:" + w + "%"}), el("b")));
+}
+
+/* ================= Kitchen book: recipe cards for the line ================= */
+const ALLERGENS = ["Milk","Eggs","Fish","Shellfish","Tree nuts","Peanuts","Wheat","Soy","Sesame"];
+const STATIONS = ["Grill","Flat top","Fryer","Sauté","Oven","Prep","Cold / salad","Breakfast","Bar","Expo"];
+// Photos are stored separately (see supabase/002_recipe_photos.sql) and cached here per kitchen.
+const PHOTOS = new Map(); let PHOTOS_FOR = null, PHOTOS_LOADING = false, PHOTOS_READY = true;
+async function loadPhotos(force){
+  if (!ACCT || PHOTOS_LOADING || (PHOTOS_FOR === ACCT.id && !force)) return;
+  PHOTOS_LOADING = true;
+  const { data, error } = await sb.rpc("get_photos", { p_account: ACCT.id, p_items: null });
+  PHOTOS_LOADING = false;
+  if (error){ PHOTOS_READY = !/function|PGRST202|42883|does not exist|schema cache/i.test((error.code || "") + " " + (error.message || "")); PHOTOS_FOR = ACCT.id; if (ST && ST.page === "book") render(); return; }
+  PHOTOS.clear(); (data || []).forEach(p => PHOTOS.set(p.item_id, p.data)); PHOTOS_FOR = ACCT.id; PHOTOS_READY = true;
+  if (ST && ST.page === "book") render();
+}
+async function photoDataUrl(file){
+  const img = await imageFromBlob(file);
+  for (const [max, qual] of [[1000, 0.74], [800, 0.66], [640, 0.6]]){
+    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, sc = Math.min(1, max / Math.max(w, h));
+    const c = document.createElement("canvas"); c.width = Math.round(w * sc); c.height = Math.round(h * sc);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    const url = c.toDataURL("image/jpeg", qual); if (url.length < 650000) return url;
+  }
+  throw new Error("That photo is too large. Try a smaller one.");
+}
+const cardOf = it => it.card || {};
+const mins = v => n(v) > 0 ? Math.round(n(v)) + " min" : "";
+function plateArt(it){
+  // Placeholder until a photo is added: a plate with the dish's initials.
+  const initials = (it.name || "?").replace(/[^A-Za-z0-9 ]/g, " ").split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("");
+  const d = el("div",{class:"kb-ph", "aria-hidden":"true"});
+  d.innerHTML = '<svg viewBox="0 0 120 120" width="72" height="72"><circle cx="60" cy="60" r="46" fill="none" stroke="currentColor" stroke-width="3" opacity=".35"/><circle cx="60" cy="60" r="32" fill="none" stroke="currentColor" stroke-width="2" opacity=".25"/><text x="60" y="68" text-anchor="middle" font-size="24" font-weight="700" fill="currentColor" opacity=".55" font-family="IBM Plex Sans, sans-serif">' + initials + '</text></svg>';
+  return d;
+}
+function ingredientRows(it, r){
+  return (it.lines || []).map(l => {
+    const su = l.s && r.supplies[l.s];
+    const name = su ? supName(su) : (l.label || "Ingredient");
+    const unit = l.unit || (su ? su.unit : "");
+    const qty = n(l.qty) ? (Math.round(n(l.qty) * 100) / 100) : "";
+    return { qty: qty + (unit ? " " + unit : ""), name };
+  });
+}
+const BKV = { q:"", cat:"all" };
+function book(m){
+  const r = R(); loadPhotos();
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Kitchen book"}), el("p",{class:"lead", text:"Recipe cards for the line: what it looks like, what goes on it, and how to make it."}))));
+  if (!PHOTOS_READY) m.append(el("div",{class:"card banner"}, el("div",null, el("b",{text:"Photos need a one-time setup."}), " Whoever manages the app runs supabase/002_recipe_photos.sql in Supabase (SQL Editor). Recipe cards work without it; only photos wait."),
+    el("button",{class:"btn quiet", text:"Check again", onclick:() => { PHOTOS_READY = true; loadPhotos(true); }})));
+  const all = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
+  if (!all.length){ m.append(el("div",{class:"card empty", text:"No menu items yet. Add recipes on Menu & recipes and they appear here as cards."})); return; }
+  const order = sectionOrder(r).filter(c => all.some(it => (it.section || "Menu") === c));
+  if (BKV.cat !== "all" && !order.includes(BKV.cat)) BKV.cat = "all";
+  const search = el("input",{class:"search", type:"search", placeholder:"Search dishes, ingredients or stations", "aria-label":"Search the kitchen book"}); search.value = BKV.q;
+  search.oninput = () => { BKV.q = search.value; const pos = search.selectionStart; render(); const s2 = document.querySelector("main .search"); if (s2){ s2.focus(); try { s2.setSelectionRange(pos, pos); } catch(e){} } };
+  const chip = (key, label, count) => el("button",{class:"chip", "aria-pressed": String(BKV.cat === key), onclick:() => { BKV.cat = key; render(); }}, label, el("span",{class:"ct", text:count}));
+  const withCards = all.filter(it => (cardOf(it).steps || []).length).length;
+  m.append(el("div",{class:"filters"}, el("div",{class:"row"}, search),
+    el("div",{class:"chips", role:"group", "aria-label":"Category"}, chip("all","All", all.length), order.map(c => chip(c, c, all.filter(it => (it.section || "Menu") === c).length)))));
+  if (withCards < all.length) m.append(el("p",{class:"mini", style:"margin:0 0 12px"}, withCards + " of " + all.length + " dishes have steps written. ",
+    el("button",{class:"linkbtn", type:"button", text:"Draft the missing ones with AI", onclick:() => draftCards(all.filter(it => !(cardOf(it).steps || []).length))})));
+  const q = BKV.q.trim().toLowerCase();
+  const shown = all.filter(it => (BKV.cat === "all" || (it.section || "Menu") === BKV.cat) && (!q || it.name.toLowerCase().includes(q) || (cardOf(it).station || "").toLowerCase().includes(q) || ingredientRows(it, r).some(x => x.name.toLowerCase().includes(q))))
+    .sort((a, b) => order.indexOf(a.section || "Menu") - order.indexOf(b.section || "Menu") || (a.order || 0) - (b.order || 0));
+  if (!shown.length){ m.append(el("div",{class:"card empty", text:"Nothing matches that search."})); return; }
+  m.append(el("div",{class:"kb-grid"}, shown.map(it => {
+    const c = cardOf(it), ph = PHOTOS.get(it.id), total = n(c.prepMin) + n(c.cookMin);
+    return el("button",{class:"kb-card", type:"button", onclick:() => openCard(it.id), "aria-label":"Open the card for " + it.name},
+      ph ? el("img",{src:ph, alt:"", loading:"lazy"}) : plateArt(it),
+      el("div",{class:"kb-body"}, el("b",{text:it.name}),
+        el("div",{class:"kb-meta"}, el("span",{text:it.section || ""}), total ? el("span",{class:"kb-time", text: total + " min"}) : null, c.station ? el("span",{text:c.station}) : null),
+        !(c.steps || []).length ? el("span",{class:"kb-todo", text:"No steps yet"}) : null));
+  })));
+}
+function openCard(id){
+  const r = R(), it = r.items[id]; if (!it) return;
+  const c = cardOf(it), ph = PHOTOS.get(it.id), ings = ingredientRows(it, r);
+  const fact = (k, v) => v ? el("div",null, el("span",{text:k}), el("b",{text:v})) : null;
+  const total = n(c.prepMin) + n(c.cookMin);
+  openDlg(it.name, [
+    ph ? el("img",{class:"kb-hero", src:ph, alt:"How " + it.name + " should look"}) : el("div",{class:"kb-hero kb-hero-empty"}, plateArt(it), el("button",{class:"btn quiet", type:"button", text:"Add a photo", onclick:() => openCardEdit(id, true)})),
+    el("div",{class:"kb-facts"}, fact("Prep", mins(c.prepMin)), fact("Cook", mins(c.cookMin)), fact("Total", total ? total + " min" : ""), fact("Station", c.station), fact("Makes", n(it.portions) > 1 ? it.portions + " portions" : c.yieldText || "")),
+    (c.allergens || []).length ? el("div",{class:"kb-allergens", role:"note"}, el("b",{text:"Contains: "}), c.allergens.join(", ")) : null,
+    el("div",{class:"kb-cols"},
+      el("section",null, el("h3",{text:"Ingredients"}), ings.length ? el("ul",{class:"kb-ings"}, ings.map(x => el("li",null, el("b",{text:x.qty}), " ", x.name))) : el("p",{class:"mini", text:"No ingredients listed yet."})),
+      el("section",null, el("h3",{text:"Steps"}), (c.steps || []).length ? el("ol",{class:"kb-steps"}, c.steps.map(t => el("li",{text:t}))) : el("p",{class:"mini", text:"No steps written yet. Tap Edit card, or let AI draft them."}),
+        c.plating ? el("div",null, el("h3",{text:"Plating"}), el("p",{text:c.plating})) : null,
+        c.notes ? el("div",null, el("h3",{text:"Notes"}), el("p",{text:c.notes})) : null))
+  ], [el("button",{class:"btn quiet", text:"Print", onclick:() => printCard(id)}), el("button",{class:"btn primary", text:"Edit card", onclick:() => openCardEdit(id)})]);
+}
+function openCardEdit(id, focusPhoto){
+  const r = R(), it = r.items[id]; if (!it) return;
+  const c = JSON.parse(JSON.stringify(cardOf(it)));
+  const num = (k, ph) => { const i = el("input",{class:"inp", type:"number", min:"0", step:"1", inputmode:"numeric", placeholder: ph || ""}); i.value = c[k] || ""; i.oninput = () => c[k] = n(i.value) || 0; return i; };
+  const station = el("input",{class:"inp", list:"kb-stations", placeholder:"e.g. Grill"}); station.value = c.station || ""; station.oninput = () => c.station = station.value.trim();
+  const yieldIn = el("input",{class:"inp", placeholder:"e.g. 1 plate, 2 qt"}); yieldIn.value = c.yieldText || ""; yieldIn.oninput = () => c.yieldText = yieldIn.value.trim();
+  const steps = el("textarea",{class:"inp", rows:"7", placeholder:"One step per line, e.g.\nCrack 2 eggs onto the flat top\nToast the muffin, butter both halves"}); steps.value = (c.steps || []).join("\n");
+  const plating = el("textarea",{class:"inp", rows:"2", placeholder:"How it goes on the plate"}); plating.value = c.plating || "";
+  const notes = el("textarea",{class:"inp", rows:"2", placeholder:"Holding times, 86 rules, substitutions"}); notes.value = c.notes || "";
+  const al = el("div",{class:"kb-al-pick"}, ALLERGENS.map(a => { const cb = el("input",{type:"checkbox"}); cb.checked = (c.allergens || []).includes(a); cb.onchange = () => { c.allergens = ALLERGENS.filter(x => x === a ? cb.checked : (c.allergens || []).includes(x)); }; return el("label",null, cb, a); }));
+  const photoBox = el("div",{class:"kb-photo-edit"});
+  const paintPhoto = () => {
+    const ph = PHOTOS.get(id);
+    const file = el("input",{type:"file", accept:"image/*", capture:"environment", hidden:""});
+    file.onchange = async () => {
+      const f = file.files && file.files[0]; file.value = ""; if (!f) return;
+      photoBox.replaceChildren(el("div",{class:"spin"}));
+      try { const url = await photoDataUrl(f); const { error } = await sb.rpc("save_photo", { p_account: ACCT.id, p_item: id, p_data: url });
+        if (error) throw new Error(/function|PGRST202|42883|schema cache/i.test((error.code || "") + (error.message || "")) ? "Photos need the one-time setup in Supabase (002_recipe_photos.sql)." : error.message || "Couldn't save the photo.");
+        PHOTOS.set(id, url); toast("Photo saved"); }
+      catch(e){ toast(e.message || "Couldn't save the photo"); }
+      paintPhoto();
+    };
+    photoBox.replaceChildren(ph ? el("img",{src:ph, alt:""}) : plateArt(it),
+      el("div",{class:"row"}, el("label",{class:"btn quiet"}, ph ? "Replace photo" : "Add a photo", file),
+        ph ? el("button",{class:"btn quiet", type:"button", text:"Remove", onclick: async () => { const { error } = await sb.rpc("delete_photo", { p_account: ACCT.id, p_item: id }); if (!error){ PHOTOS.delete(id); paintPhoto(); } }}) : null),
+      el("span",{class:"mini", text:"On a phone this opens the camera. Shoot the finished plate from above, in good light."}));
+    if (focusPhoto) setTimeout(() => { file.click(); focusPhoto = false; }, 80);
+  };
+  paintPhoto();
+  const aiBtn = el("button",{class:"btn quiet", type:"button", text:"Draft with AI", onclick: async () => {
+    aiBtn.disabled = true; aiBtn.textContent = "Drafting\u2026";
+    try {
+      const d = await draftCardAI(it, r);
+      if (d.steps && d.steps.length){ steps.value = d.steps.join("\n"); }
+      if (d.plating && !plating.value) plating.value = d.plating;
+      if (n(d.prepMin)) c.prepMin = n(d.prepMin); if (n(d.cookMin)) c.cookMin = n(d.cookMin);
+      if (d.station && !c.station){ c.station = d.station; station.value = d.station; }
+      if (Array.isArray(d.allergens)) { c.allergens = ALLERGENS.filter(a => d.allergens.includes(a) || (c.allergens || []).includes(a)); al.querySelectorAll("input").forEach((cb, i) => cb.checked = c.allergens.includes(ALLERGENS[i])); }
+      prepIn.value = c.prepMin || ""; cookIn.value = c.cookMin || "";
+      toast("Drafted. Read it over and adjust to how your kitchen does it.");
+    } catch(e){ toast(aiProblem(e) || "Couldn't draft right now"); }
+    aiBtn.disabled = false; aiBtn.textContent = "Draft with AI";
+  }});
+  const prepIn = num("prepMin", "min"), cookIn = num("cookMin", "min");
+  openDlg("Edit card: " + it.name, [
+    photoBox,
+    el("div",{class:"g3 nums3"}, fld("Prep (min)", prepIn), fld("Cook (min)", cookIn), fld("Station", station)), el("datalist",{id:"kb-stations"}, STATIONS.map(x => el("option",{value:x}))),
+    fld("Makes", yieldIn, n(it.portions) > 1 ? "This recipe is set to " + it.portions + " portions" : null),
+    el("div",{class:"row", style:"justify-content:space-between;align-items:center;margin-top:6px"}, el("b",{text:"Steps"}), aiBtn), steps,
+    fld("Plating", plating), el("div",{class:"field"}, el("span",{class:"q", text:"Allergens"}), al),
+    fld("Notes", notes),
+    el("p",{class:"mini", text:"Ingredients and amounts come from the recipe on Menu & recipes, so the card and the costing always match."})
+  ], [el("button",{class:"btn quiet", text:"Back", onclick:() => openCard(id)}), el("button",{class:"btn primary", text:"Save card", onclick:() => {
+    c.steps = steps.value.split("\n").map(t => t.replace(/^\s*(\d+[.)]|[-\u2022*])\s*/, "").trim()).filter(Boolean);
+    c.plating = plating.value.trim(); c.notes = notes.value.trim();
+    r.items[id].card = c; save(); toast("Card saved"); openCard(id);
+  }})]);
+}
+async function draftCardAI(it, r){
+  const ings = ingredientRows(it, r).map(x => x.qty + " " + x.name).join("; ") || "(not listed)";
+  return await aiJSON("You write recipe cards for line cooks in a small diner and bar. Be practical and brief: short imperative steps a cook can follow during a rush, 3 to 8 steps. Estimate realistic prep and cook minutes for one order. Pick the station from: " + STATIONS.join(", ") + ". List likely allergens from exactly these: " + ALLERGENS.join(", ") + ".\nDish: " + it.name + (it.desc ? " (" + it.desc + ")" : "") + ", menu section " + (it.section || "") + ".\nIngredients for one order: " + ings +
+    "\nReturn ONLY JSON: {\"prepMin\": number, \"cookMin\": number, \"station\": string, \"steps\": [string], \"plating\": string, \"allergens\": [string]}");
+}
+async function draftCards(list){
+  const r = R(); if (!list.length) return;
+  const bar = el("div",{style:"height:10px;background:var(--line);border-radius:999px;overflow:hidden"}, el("div",{style:"height:100%;width:0%;background:var(--brand);transition:width .3s"}));
+  const label = el("p",{style:"text-align:center", text:"Drafting cards\u2026"}); let stop = false, done = 0, ok = 0, problem = null;
+  openDlg("Drafting recipe cards", [label, bar, el("p",{class:"mini", text:"Each card is saved as it's drafted. You can stop and continue later."})], [el("span"), el("button",{class:"btn quiet", text:"Stop", onclick:() => stop = true})]);
+  for (const it of list){
+    if (stop) break;
+    try { const d = await draftCardAI(it, r); const c = Object.assign({}, cardOf(it));
+      c.steps = (d.steps || []).map(String).filter(Boolean); c.plating = c.plating || d.plating || ""; c.prepMin = c.prepMin || n(d.prepMin); c.cookMin = c.cookMin || n(d.cookMin); c.station = c.station || d.station || "";
+      c.allergens = ALLERGENS.filter(a => (d.allergens || []).includes(a)); c.drafted = true; r.items[it.id].card = c; ok++; save(); }
+    catch(e){ problem = aiProblem(e); if (e && (e.code === "unavailable" || e.code === "signin" || ["credit","key","model"].includes(e.reason))) break; }
+    done++; bar.firstChild.style.width = Math.round(done / list.length * 100) + "%"; label.textContent = "Drafted " + done + " of " + list.length + "\u2026";
+  }
+  dlg.close(); render(); toast(ok ? "Drafted " + ok + " cards. Read them over and adjust to how your kitchen does it." : (problem || "Couldn't draft cards right now"));
+}
+function printCard(id){
+  const r = R(), it = r.items[id]; if (!it) return;
+  const c = cardOf(it), ph = PHOTOS.get(id), ings = ingredientRows(it, r), area = $("printArea");
+  const total = n(c.prepMin) + n(c.cookMin);
+  area.replaceChildren(el("div",{class:"pc"},
+    el("h1",{text:it.name}),
+    el("p",{class:"pc-meta", text:[it.section, c.station, c.prepMin ? "Prep " + mins(c.prepMin) : "", c.cookMin ? "Cook " + mins(c.cookMin) : "", total ? "Total " + total + " min" : ""].filter(Boolean).join("   |   ")}),
+    ph ? el("img",{src:ph, alt:""}) : null,
+    (c.allergens || []).length ? el("p",{class:"pc-al"}, el("b",{text:"Contains: "}), c.allergens.join(", ")) : null,
+    el("div",{class:"pc-cols"}, el("div",null, el("h2",{text:"Ingredients"}), el("ul",null, ings.map(x => el("li",null, el("b",{text:x.qty}), " ", x.name)))),
+      el("div",null, el("h2",{text:"Steps"}), el("ol",null, (c.steps || []).map(t => el("li",{text:t}))), c.plating ? el("div",null, el("h2",{text:"Plating"}), el("p",{text:c.plating})) : null, c.notes ? el("div",null, el("h2",{text:"Notes"}), el("p",{text:c.notes})) : null))));
+  document.body.classList.add("printing");
+  const done = () => { document.body.classList.remove("printing"); window.removeEventListener("afterprint", done); };
+  window.addEventListener("afterprint", done);
+  setTimeout(() => { window.print(); setTimeout(done, 1500); }, 60);
 }
 /* ================= Friendly supply names ================= */
 // Distributor descriptions ("BEEF STK PHLL BRKAWAY MT") become plain names ("Philly Steak, Breakaway").
@@ -1986,7 +2231,7 @@ function openRecipe(id){
       return names.length ? el("p",{class:"mini", style:"margin:-4px 0 10px"}, "Register buttons counted here: " + names.join(", ") + ". ", el("button",{class:"linkbtn", type:"button", text:"Change", onclick:() => openRegisterMatches()})) : null; })(),
     el("div",{class:"g3 nums3"}, fld("Menu price", num("price","0.25")), fld(isPhone() ? "Sold / " + (r.period === "month" ? "mo" : "wk") : "Plates sold / " + r.period, num("sold","1")), fld(isPhone() ? "Portions" : "Portions per batch", num("portions","1"), isPhone() ? null : "1 unless it's a batch")),
     costBox, tip, el("h2",{style:"margin-top:4px", text:"Ingredients"}), linesBox
-  ], [ !isNew ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (confirm("Delete " + it.name + "?")){ delete r.items[it.id]; save(); dlg.close(); } }}) : el("span"),
+  ], [ !isNew ? el("div",{class:"row"}, el("button",{class:"btn danger", text:"Delete", onclick:() => { if (confirm("Delete " + it.name + "?")){ delete r.items[it.id]; save(); dlg.close(); } }}), el("button",{class:"btn quiet", text:"Kitchen card", onclick:() => { r.items[it.id] = it; save(); openCard(it.id); }})) : el("span"),
        el("button",{class:"btn primary", text:"Save recipe", onclick:() => { if (!it.name.trim()){ nm.focus(); toast("Give it a name"); return; } r.items[it.id] = it; save(); dlg.close(); toast("Saved"); }}) ]);
 }
 /* Supply editor */
