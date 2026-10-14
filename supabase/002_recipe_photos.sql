@@ -6,6 +6,13 @@
 -- Like everything else, the table is locked: the app reaches it only through the
 -- functions below, which check that you belong to the kitchen.
 
+-- Stop with a clear message if this isn't the app's project (the one that already has your kitchens).
+do $$ begin
+  if to_regclass('public.accounts') is null or to_regprocedure('public._require_member(uuid, text[])') is null then
+    raise exception 'This Supabase project is not the one your app uses: it has no "accounts" table. Open the project whose ID matches config.js (Project Settings > General > Project ID) and run this script there. If the app has never been set up in this project, run setup.sql first.';
+  end if;
+end $$;
+
 create table if not exists item_photos (
   account_id uuid not null references accounts(id) on delete cascade,
   item_id    text not null,

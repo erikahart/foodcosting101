@@ -719,6 +719,7 @@ details.ai-fold[open] summary{padding:12px 0}
   .pc-cols{display:grid;grid-template-columns:1fr 1.5fr;gap:18pt} .pc h2{font-size:13pt;margin:8pt 0 4pt}
   .pc ol li{margin-bottom:5pt;font-size:12pt}
 }
+.restore-box{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -966,7 +967,10 @@ function showCreateKitchen(){
     await afterLogin(name);
   });
   fillIn(card, ...gateHeader("Set up your kitchen", "Signed in as " + (USER && USER.email) + ". If someone invited you, ask them to check the email they used; you'll see their kitchen as soon as they do."),
-    msg, form, el("button",{class:"linkbtn", type:"button", style:"margin-top:10px", text:"Sign out", onclick:signOut}));
+    msg, form,
+    el("div",{class:"restore-box"}, el("b",{text:"Moving from another setup?"}), el("span",{class:"mini", text:"Restore a backup file and your kitchens come back exactly as they were."}),
+      el("button",{class:"btn quiet", type:"button", text:"Restore from a backup", onclick:() => pickBackup(msg)})),
+    el("button",{class:"linkbtn", type:"button", style:"margin-top:10px", text:"Sign out", onclick:signOut}));
   setTimeout(() => nm.focus(), 30);
 }
 async function afterLogin(preferName){
@@ -1662,6 +1666,62 @@ function printCard(id){
   window.addEventListener("afterprint", done);
   setTimeout(() => { window.print(); setTimeout(done, 1500); }, 60);
 }
+
+/* ================= Backup & restore ================= */
+async function downloadBackup(){
+  toast("Preparing your backup\u2026");
+  const out = { app:"platemargin", version:1, exportedAt: new Date().toISOString(), exportedBy: USER ? USER.email : "", kitchens: [] };
+  for (const a of ACCOUNTS){
+    const { data, error } = await sb.rpc("load_state", { p_account: a.id });
+    if (error || !data || !data[0]){ toast("Couldn't read " + a.name + ": " + plainErr(error)); continue; }
+    const k = { name: a.name, role: a.role, state: data[0].state, photos: {} };
+    const ph = await sb.rpc("get_photos", { p_account: a.id, p_items: null });
+    if (!ph.error) (ph.data || []).forEach(p => k.photos[p.item_id] = p.data);
+    out.kitchens.push(k);
+  }
+  if (!out.kitchens.length) return toast("Nothing to back up");
+  const blob = new Blob([JSON.stringify(out)], { type:"application/json" });
+  const url = URL.createObjectURL(blob), a = document.createElement("a");
+  a.href = url; a.download = "kitchen-backup-" + today() + ".json"; document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
+  toast("Backup downloaded: " + out.kitchens.length + (out.kitchens.length === 1 ? " kitchen" : " kitchens"));
+}
+function pickBackup(msgBox){
+  const f = el("input",{type:"file", accept:".json,application/json", hidden:""}); document.body.append(f);
+  f.onchange = async () => { const file = f.files && f.files[0]; f.remove(); if (!file) return;
+    let bk; try { bk = JSON.parse(await file.text()); } catch(e){ bk = null; }
+    if (!bk || bk.app !== "platemargin" || !Array.isArray(bk.kitchens) || !bk.kitchens.length){ const t = "That isn't a kitchen backup file. Use the file from \u201cDownload backup\u201d."; if (msgBox) msgBox.replaceChildren(el("div",{class:"msg bad", text:t})); else toast(t); return; }
+    restoreBackup(bk, msgBox);
+  };
+  f.click();
+}
+async function restoreBackup(bk, msgBox){
+  const existing = new Map(ACCOUNTS.map(a => [a.name.trim().toLowerCase(), a]));
+  const clash = bk.kitchens.filter(k => existing.has(k.name.trim().toLowerCase()));
+  if (clash.length && !confirm("These kitchens already exist here and will be replaced by the backup: " + clash.map(k => k.name).join(", ") + ". Continue?")) return;
+  const say = t => { if (msgBox) msgBox.replaceChildren(el("div",{class:"msg good", text:t})); else toast(t); };
+  let done = 0, photos = 0, failed = [];
+  for (const k of bk.kitchens){
+    say("Restoring " + k.name + "\u2026");
+    let id = existing.get(k.name.trim().toLowerCase()) && existing.get(k.name.trim().toLowerCase()).id;
+    if (id){
+      const cur = await sb.rpc("load_state", { p_account: id });
+      const ver = cur.data && cur.data[0] ? cur.data[0].version : 0;
+      const { error } = await sb.rpc("save_state", { p_account: id, p_state: k.state, p_base_version: ver });
+      if (error){ failed.push(k.name + " (" + plainErr(error) + ")"); continue; }
+    } else {
+      const { data, error } = await sb.rpc("create_account", { p_name: k.name, p_state: k.state });
+      if (error){ failed.push(k.name + " (" + plainErr(error) + ")"); continue; }
+      id = data;
+    }
+    for (const [item, url] of Object.entries(k.photos || {})){ const { error } = await sb.rpc("save_photo", { p_account: id, p_item: item, p_data: url }); if (!error) photos++; }
+    done++;
+  }
+  PHOTOS_FOR = null;
+  if (failed.length) alert("Some kitchens couldn't be restored:\n" + failed.join("\n"));
+  say("Restored " + done + (done === 1 ? " kitchen" : " kitchens") + (photos ? " and " + photos + " photos" : "") + ".");
+  await afterLogin(bk.kitchens[0].name);
+}
 /* ================= Friendly supply names ================= */
 // Distributor descriptions ("BEEF STK PHLL BRKAWAY MT") become plain names ("Philly Steak, Breakaway").
 // The original stays as su.name for invoice matching; su.title holds a custom or AI-tidied name.
@@ -2011,6 +2071,10 @@ function brand(m){
       el("div",{class:"field"}, el("label",{text:"Your web address"}), el("span",{class:"hint", text:"Customers log in here. Set up once with your host."}), dom),
       el("label",{class:"row", style:"font-weight:700"}, pw, "Show \u201cPowered by\u201d in the menu")),
     el("div",null, el("div",{class:"mini", style:"margin-bottom:6px", text:"What your customers see"}), pv)));
+  m.append(el("h2",{text:"Backup"}));
+  m.append(el("div",{class:"card", style:"display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:space-between"},
+    el("div",{style:"flex:1 1 300px"}, el("b",{text:"Keep a copy of your kitchens."}), " Downloads one file with every kitchen you belong to: supplies, recipes, cards, photos, invoices, sales and matches. Use it to move to a new database or as a safety copy."),
+    el("div",{class:"row"}, el("button",{class:"btn primary", text:"Download backup", onclick:() => downloadBackup()}), el("button",{class:"btn quiet", text:"Restore\u2026", onclick:() => pickBackup()}))));
   m.append(el("h2",{text:"Cost targets"}));
   { const r = R();
     const pctIn = (k, def) => { const i = el("input",{class:"inp", type:"number", min:"5", max:"90", step:"1"}); i.value = Math.round((n(r[k]) || def) * 100); i.onchange = () => { const v2 = n(i.value); if (v2 >= 5 && v2 <= 90){ r[k] = v2 / 100; save(); toast("Saved"); } }; return i; };
