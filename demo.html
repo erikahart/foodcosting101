@@ -1136,14 +1136,23 @@ async function getSample(){
     const res = await fetch("/api/ai", { method:"POST", headers:{ "content-type":"application/json", "authorization": "Bearer " + (session ? session.access_token : "") }, body: JSON.stringify({ prompt }) });
     if (res.status === 401) throw { code:"signin" };
     if (res.status === 404 || res.status === 501) throw { code:"unavailable" };
-    if (!res.ok) throw { code:"error" };
+    if (!res.ok){ let j = {}; try { j = await res.json(); } catch(e){} throw { code:"error", reason: j.reason || (res.status === 504 || res.status === 502 && !j.error ? "timeout" : "other"), status: res.status }; }
     return (await res.json()).text || "";
   };
   const f = async (prompt, opts = {}) => { const text = await call(prompt); if (opts.onText) opts.onText({ text, delta:text }); return { text }; };
   f.json = async prompt => { const t = (await call(prompt)).replace(/```json|```/g, ""); return JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1)); };
   return f;
 }
-const aiProblem = e => window.PM_DEMO ? "Reading photos and PDFs with AI is switched off in this demo. Spreadsheets, Excel price sheets and register sales reports still work. Book a walkthrough to see it read your own invoices." : e && e.code === "unavailable" ? "AI isn't switched on for this site yet. Whoever runs it needs to add an ANTHROPIC_API_KEY in Netlify."
+const AI_REASONS = {
+  credit: "Your Anthropic account is out of credit. Add credit at console.anthropic.com (Billing), then try again.",
+  key: "The Anthropic API key in Netlify isn't valid. Create a new key at console.anthropic.com, update ANTHROPIC_API_KEY in Netlify, and redeploy.",
+  permission: "The Anthropic API key doesn't have permission for this. Check the key's workspace at console.anthropic.com.",
+  model: "The AI model setting isn't available to this API key. Remove ANTHROPIC_MODEL in Netlify (or set it to a model your key can use) and redeploy.",
+  busy: "The AI is getting too many requests right now. Wait a minute and try again.",
+  overloaded: "The AI service is busy. Try again in a few minutes.",
+  timeout: "That took too long. Try again; smaller batches usually go through."
+};
+const aiProblem = e => window.PM_DEMO ? "Reading photos and PDFs with AI is switched off in this demo. Spreadsheets, Excel price sheets and register sales reports still work. Book a walkthrough to see it read your own invoices." : e && e.reason && AI_REASONS[e.reason] ? AI_REASONS[e.reason] : e && e.code === "unavailable" ? "AI isn't switched on for this site yet. Whoever runs it needs to add an ANTHROPIC_API_KEY in Netlify."
   : e && e.code === "signin" ? "Please sign out and back in, then try again." : e && e.code === "not_granted" ? "This needs your OK to use Claude. Try again and allow it." : null;
 
 /* ================= Branding ================= */
@@ -2297,7 +2306,7 @@ async function readInvoiceFile(f, kind){
     body: JSON.stringify({ prompt: kind === "pricelist" ? PRICE_PROMPT : READ_PROMPT, file: { data: await b64(blob), mediaType: isPdf ? "application/pdf" : "image/jpeg" } }) });
   if (res.status === 401) throw { code:"signin" };
   if (res.status === 404 || res.status === 501) throw { code:"unavailable" };
-  if (!res.ok) throw { code:"error" };
+  if (!res.ok){ let j = {}; try { j = await res.json(); } catch(e){} throw { code:"error", reason: j.reason || (res.status === 504 || res.status === 502 && !j.error ? "timeout" : "other"), status: res.status }; }
   return parseLoose((await res.json()).text || "");
 }
 // Parse an AI answer; if it was cut off mid-list, keep every complete line instead of failing.
@@ -2654,7 +2663,7 @@ async function aiJSON(prompt, f){
   const res = await fetch("/api/ai", { method:"POST", headers:{ "content-type":"application/json", authorization:"Bearer " + (session ? session.access_token : "") }, body: JSON.stringify(file ? { prompt, file } : { prompt }) });
   if (res.status === 401) throw { code:"signin" };
   if (res.status === 404 || res.status === 501) throw { code:"unavailable" };
-  if (!res.ok) throw { code:"error" };
+  if (!res.ok){ let j = {}; try { j = await res.json(); } catch(e){} throw { code:"error", reason: j.reason || (res.status === 504 || res.status === 502 && !j.error ? "timeout" : "other"), status: res.status }; }
   return parseLoose((await res.json()).text || "");
 }
 const MENU_PROMPT = 'Read this restaurant or bar menu. Return ONLY JSON: {"items":[{"name": string, "section": string, "price": number|null, "desc": string}]}. "section" is the menu heading the item sits under (such as Appetizers, Burgers, Dinners, Drinks). If an item has several sizes or prices, make one item per size, such as "Wings (6)" and "Wings (12)". Keep "desc" under 15 words. Leave out add-ons and extras like "add cheese $1". Keep the JSON compact.';
@@ -3801,18 +3810,21 @@ async function openEstimates(){
   const todo = groups.concat(noPrice).slice(0, 120);
   if (!todo.length){ toast("Nothing needs an estimate: every ingredient has a price"); return; }
   openDlg("Estimating costs", [el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Estimating typical prices for " + todo.length + (todo.length === 1 ? " ingredient" : " ingredients") + "\u2026"})], []);
-  const out = [];
-  try {
-    for (let k = 0; k < todo.length; k += 25){
-      const batch = todo.slice(k, k + 25);
+  const out = []; let failed = 0, lastErr = null;
+  const batches = []; for (let k = 0; k < todo.length; k += 10) batches.push(todo.slice(k, k + 10));
+  const runBatch = async batch => {
       const d = await aiJSON("You estimate typical " + new Date().getFullYear() + " US foodservice distributor prices (Sysco, Gordon Food Service, US Foods; Midwest) for a small independent restaurant and bar. For each ingredient, pick the usual product a kitchen like this buys and give its case pack and case price. Units must be one of: " + UNIT_NAMES.join(", ") + ". Prefer the unit kind of how it's used (weight, volume or count). Return ONLY compact JSON: {\"items\":[{\"name\": ingredient exactly as given, \"product\": short product name, \"pack\": pack text like \"4/2.5 lb\", \"caseQty\": number of units in the case, \"unit\": unit, \"price\": typical case price in USD, \"low\": low end, \"high\": high end}]}. If you truly can't tell, omit the item.\nIngredients (name; how a recipe uses it):\n" +
         batch.map(t => t.label + "; " + t.use).join("\n"));
       (d.items || []).forEach(x => { const t = batch.find(b => b.label.toLowerCase() === String(x.name || "").trim().toLowerCase()); if (t && n(x.price) > 0 && n(x.caseQty) > 0 && UNITS[x.unit]) out.push(Object.assign({}, t, { product: String(x.product || t.label).slice(0, 60), pack: x.pack || "", caseQty: n(x.caseQty), unit: x.unit, price: Math.round(n(x.price) * 100) / 100, low: n(x.low), high: n(x.high), take: true })); });
-    }
-  } catch(e){
-    openDlg("Estimate costs", [el("div",{class:"msg bad", text: aiProblem(e) || "Estimates aren't available right now."})], []); return;
+  };
+  // Three batches at a time; each failed batch gets one retry. Problems that won't fix themselves stop early.
+  const fatal = e => e && (e.code === "unavailable" || e.code === "signin" || ["credit","key","permission","model"].includes(e.reason));
+  for (let k = 0; k < batches.length; k += 3){
+    const res = await Promise.allSettled(batches.slice(k, k + 3).map(b => runBatch(b).catch(async e => { if (fatal(e)) throw e; await new Promise(r2 => setTimeout(r2, 1500)); return runBatch(b); })));
+    res.forEach((x, i) => { if (x.status === "rejected"){ failed += batches[k + i].length; lastErr = x.reason; } });
+    if (lastErr && fatal(lastErr)) break;
   }
-  if (!out.length){ openDlg("Estimate costs", [el("p",{text:"AI couldn't estimate these. Link them to supplies, or add the supplies by hand."})], []); return; }
+  if (!out.length){ openDlg("Estimate costs", [el("div",{class:"msg bad", text: aiProblem(lastErr) || (lastErr ? "Estimates aren't available right now (error " + (lastErr.status || "unknown") + "). Try again in a minute." : "AI couldn't estimate these. Link them to supplies, or add the supplies by hand.")})], []); return; }
   const tb = el("tbody"), addBtn = el("button",{class:"btn primary"});
   const paint = () => { const k = out.filter(x => x.take).length; addBtn.textContent = "Use " + k + (k === 1 ? " estimate" : " estimates"); addBtn.disabled = !k; };
   out.forEach(x => {
@@ -3847,7 +3859,8 @@ async function openEstimates(){
   openDlg("Check the estimates", [
     el("div",{class:"msg", style:"background:var(--warn-soft);color:var(--ink)", text:"These are typical distributor prices, not your prices. They're labeled \u201cAI estimate\u201d everywhere, and the first invoice or price sheet with the real price replaces them."}),
     el("div",{class:"tw", style:"margin-top:12px"}, el("table",null, el("thead",null, el("tr",null, el("th"), el("th",{text:"Ingredient"}), el("th",{text:"Typical product"}), el("th",{class:"num", text:"Case price"}), el("th",{class:"num", text:"Per unit"}))), tb)),
-    el("p",{class:"mini", text:"Edit any price you know better. Untick anything you'd rather leave unpriced."})
+    el("p",{class:"mini", text:"Edit any price you know better. Untick anything you'd rather leave unpriced."}),
+    failed ? el("p",{class:"mini", style:"color:var(--warn)", text: failed + " couldn't be estimated this time" + (aiProblem(lastErr) ? ": " + aiProblem(lastErr) : ". Run Estimate again later for the rest.")}) : null
   ], [el("span"), addBtn]);
 }
 

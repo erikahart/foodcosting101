@@ -42,7 +42,17 @@ export default async (req) => {
     // A fast model by default: Netlify stops a function after 30 seconds.
     body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-haiku-5-5", max_tokens: body?.file ? 8000 : 4000, messages: [{ role: "user", content }] }),
   });
-  if (!res.ok) { console.error("Anthropic API error", res.status, (await res.text().catch(() => "")).slice(0, 300)); return json(502, { error: "AI service error" }); }
+  if (!res.ok) {
+    const detail = (await res.text().catch(() => "")).slice(0, 600);
+    console.error("Anthropic API error", res.status, detail);
+    // A plain reason the app can show, without exposing anything sensitive.
+    const reason = /credit balance|billing|purchase credits/i.test(detail) ? "credit"
+      : res.status === 401 || /invalid x-api-key|authentication/i.test(detail) ? "key"
+      : res.status === 403 ? "permission"
+      : res.status === 404 || /model/i.test(detail) && res.status === 400 ? "model"
+      : res.status === 429 ? "busy" : res.status === 529 || res.status >= 500 ? "overloaded" : "other";
+    return json(502, { error: "AI service error", reason, status: res.status });
+  }
   const out = await res.json();
   return json(200, { text: (out.content || []).filter(b => b.type === "text").map(b => b.text).join("\n") });
 };
