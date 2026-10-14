@@ -710,14 +710,43 @@ details.ai-fold[open] summary{padding:12px 0}
 @media (max-width:700px){.kb-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.kb-cols{grid-template-columns:1fr}.kb-steps{font-size:1.06rem}.kb-body{padding:10px 12px 12px}}
 #printArea{display:none}
 @media print{
-  body.printing > *:not(#app), body.printing #app > *:not(#printArea), body.printing dialog{display:none!important}
-  body.printing #app{display:block!important}
-  body.printing #printArea{display:block!important;color:#000;font-family:"IBM Plex Sans",Arial,sans-serif}
-  .pc h1{font-size:24pt;margin:0 0 4pt} .pc-meta{margin:0 0 10pt;color:#333}
-  .pc img{width:100%;max-height:3.4in;object-fit:cover;border-radius:6pt;margin-bottom:10pt}
-  .pc-al{border:1.5pt solid #000;padding:6pt 8pt;margin:0 0 10pt}
-  .pc-cols{display:grid;grid-template-columns:1fr 1.5fr;gap:18pt} .pc h2{font-size:13pt;margin:8pt 0 4pt}
-  .pc ol li{margin-bottom:5pt;font-size:12pt}
+  body.printing > *:not(#app), body.printing #app > *:not(#printArea), body.printing dialog, body.printing .demo-bar{display:none!important}
+  body.printing, body.printing #app{display:block!important;background:#fff!important;padding:0!important}
+  body.printing #printArea{display:block!important;color:#000;font-family:"IBM Plex Sans",Arial,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .pc{box-sizing:border-box;display:flex;flex-direction:column;break-inside:avoid;page-break-inside:avoid;overflow:hidden}
+  .pc-head{display:flex;justify-content:space-between;gap:14pt;align-items:flex-start}
+  .pc h1{margin:0;font-family:"Bricolage Grotesque","IBM Plex Sans",Arial,sans-serif;line-height:1.05}
+  .pc-sec{margin:2pt 0 0;color:#444}
+  .pc-meta{margin:6pt 0;font-weight:600}
+  .pc-al{border:1.5pt solid #000;border-radius:4pt;padding:4pt 7pt;margin:0 0 7pt}
+  .pc-cols{display:grid;grid-template-columns:1fr 1.55fr;gap:14pt;flex:1}
+  .pc h2{margin:6pt 0 3pt;text-transform:none;letter-spacing:0}
+  .pc ul{list-style:none;margin:0;padding:0}
+  .pc ul li{border-bottom:0.5pt solid #bbb;padding:2pt 0}
+  .pc ol{margin:0;padding-left:16pt}
+  .pc p{margin:0 0 4pt}
+  .pc-foot{margin-top:auto;padding-top:6pt;font-size:7.5pt;color:#666;border-top:0.5pt solid #ccc}
+  /* Full page: one card per sheet */
+  .pa-full .pc{height:9.9in;break-after:page;page-break-after:always;font-size:12.5pt}
+  .pa-full .pc h1{font-size:28pt} .pa-full .pc h2{font-size:14pt}
+  .pa-full .pc img{width:2.6in;height:2.1in;object-fit:cover;border-radius:6pt}
+  .pa-full .pc ol li{margin-bottom:6pt}
+  /* Half page: two per sheet with a cut line between */
+  .pa-half .pc{height:4.95in;font-size:10pt;padding-bottom:4pt}
+  .pa-half .pc:nth-child(odd){border-bottom:1pt dashed #888;margin-bottom:0.08in}
+  .pa-half .pc:nth-child(even){break-after:page;page-break-after:always;padding-top:0.08in}
+  .pa-half .pc h1{font-size:19pt} .pa-half .pc h2{font-size:11pt}
+  .pa-half .pc img{width:1.7in;height:1.25in;object-fit:cover;border-radius:4pt}
+  .pa-half .pc ol li{margin-bottom:2.5pt}
+  /* 4x6 index card */
+  .pa-index .pc{height:3.62in;break-after:page;page-break-after:always;font-size:7.6pt}
+  .pa-index .pc h1{font-size:13pt} .pa-index .pc h2{font-size:8.5pt;margin:3pt 0 1pt}
+  .pa-index .pc-sec{font-size:7pt}
+  .pa-index .pc img{width:1.05in;height:0.78in;object-fit:cover;border-radius:3pt}
+  .pa-index .pc-cols{gap:8pt} .pa-index .pc-meta{margin:3pt 0}
+  .pa-index .pc-al{padding:2pt 5pt;margin-bottom:4pt}
+  .pa-index .pc-foot{display:none}
+}
 }
 .restore-box{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
 
@@ -1602,7 +1631,8 @@ function ingredientRows(it, r){
 const BKV = { q:"", cat:"all" };
 function book(m){
   const r = R(); loadPhotos();
-  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Kitchen book"}), el("p",{class:"lead", text:"Recipe cards for the line: what it looks like, what goes on it, and how to make it."}))));
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Kitchen book"}), el("p",{class:"lead", text:"Recipe cards for the line: what it looks like, what goes on it, and how to make it."})),
+    el("div",{class:"row"}, el("button",{class:"btn primary", text:"Print cards", onclick:() => openPrintCards()}))));
   if (!PHOTOS_READY) m.append(el("div",{class:"card banner"}, el("div",null, el("b",{text:"Photos need a one-time setup."}), " Whoever manages the app runs supabase/002_recipe_photos.sql in Supabase (SQL Editor). Recipe cards work without it; only photos wait."),
     el("button",{class:"btn quiet", text:"Check again", onclick:() => { PHOTOS_READY = true; loadPhotos(true); }})));
   const all = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
@@ -1725,21 +1755,72 @@ async function draftCards(list){
   }
   dlg.close(); render(); toast(ok ? "Drafted " + ok + " cards. Read them over and adjust to how your kitchen does it." : (problem || "Couldn't draft cards right now"));
 }
-function printCard(id){
-  const r = R(), it = r.items[id]; if (!it) return;
-  const c = cardOf(it), ph = PHOTOS.get(id), ings = ingredientRows(it, r), area = $("printArea");
+// One printable card. Layouts: "full" (one per page), "half" (two per letter page), "index" (4x6 card).
+function printCardEl(it, r, o = {}){
+  const c = cardOf(it), ph = o.photos !== false ? PHOTOS.get(it.id) : null, ings = ingredientRows(it, r);
   const total = n(c.prepMin) + n(c.cookMin);
-  area.replaceChildren(el("div",{class:"pc"},
-    el("h1",{text:it.name}),
-    el("p",{class:"pc-meta", text:[it.section, c.station, c.prepMin ? "Prep " + mins(c.prepMin) : "", c.cookMin ? "Cook " + mins(c.cookMin) : "", total ? "Total " + total + " min" : ""].filter(Boolean).join("   |   ")}),
-    ph ? el("img",{src:ph, alt:""}) : null,
-    (c.allergens || []).length ? el("p",{class:"pc-al"}, el("b",{text:"Contains: "}), c.allergens.join(", ")) : null,
-    el("div",{class:"pc-cols"}, el("div",null, el("h2",{text:"Ingredients"}), el("ul",null, ings.map(x => el("li",null, el("b",{text:x.qty}), " ", x.name)))),
-      el("div",null, el("h2",{text:"Steps"}), el("ol",null, (c.steps || []).map(t => el("li",{text:t}))), c.plating ? el("div",null, el("h2",{text:"Plating"}), el("p",{text:c.plating})) : null, c.notes ? el("div",null, el("h2",{text:"Notes"}), el("p",{text:c.notes})) : null))));
+  const facts = [c.station, c.prepMin ? "Prep " + mins(c.prepMin) : "", c.cookMin ? "Cook " + mins(c.cookMin) : "", total ? "Total " + total + " min" : "", n(it.portions) > 1 ? "Makes " + it.portions : c.yieldText || ""].filter(Boolean);
+  return el("article",{class:"pc"},
+    el("header",{class:"pc-head"}, el("div",null, el("h1",{text:it.name}), el("p",{class:"pc-sec", text:it.section || ""})), ph ? el("img",{src:ph, alt:""}) : null),
+    facts.length ? el("p",{class:"pc-meta", text:facts.join("   |   ")}) : null,
+    o.allergens !== false && (c.allergens || []).length ? el("p",{class:"pc-al"}, el("b",{text:"Contains: "}), c.allergens.join(", ")) : null,
+    el("div",{class:"pc-cols"},
+      el("div",null, el("h2",{text:"Ingredients"}), ings.length ? el("ul",null, ings.map(x => el("li",null, el("b",{text:x.qty}), " ", x.name))) : el("p",{text:"Not listed"})),
+      el("div",null, el("h2",{text:"Steps"}), (c.steps || []).length ? el("ol",null, c.steps.map(t => el("li",{text:t}))) : el("p",{text:"Not written yet"}),
+        c.plating ? el("div",null, el("h2",{text:"Plating"}), el("p",{text:c.plating})) : null,
+        c.notes ? el("div",null, el("h2",{text:"Notes"}), el("p",{text:c.notes})) : null)),
+    el("footer",{class:"pc-foot", text: (ACCT ? ACCT.name : "") + "   |   Printed " + nice(today())}));
+}
+function printCards(list, o = {}){
+  const r = R(), area = $("printArea"), layout = o.layout || "full";
+  area.className = "pa-" + layout;
+  area.replaceChildren(...list.map(it => printCardEl(it, r, o)));
+  // The page size has to be set per print job.
+  let ps = $("printPageStyle"); if (!ps){ ps = document.createElement("style"); ps.id = "printPageStyle"; document.head.append(ps); }
+  ps.textContent = "@media print{@page{" + (layout === "index" ? "size:6in 4in;margin:0.18in" : "size:letter;margin:0.45in") + "}}";
   document.body.classList.add("printing");
   const done = () => { document.body.classList.remove("printing"); window.removeEventListener("afterprint", done); };
   window.addEventListener("afterprint", done);
-  setTimeout(() => { window.print(); setTimeout(done, 1500); }, 60);
+  // Let photos finish loading first.
+  const imgs = [...area.querySelectorAll("img")].filter(i => !i.complete);
+  Promise.all(imgs.map(i => new Promise(res => { i.onload = i.onerror = res; }))).then(() => setTimeout(() => { window.print(); setTimeout(done, 1500); }, 60));
+}
+function printCard(id){ const it = R().items[id]; if (it) openPrintCards([it], it.name); }
+function openPrintCards(preset, title){
+  const r = R(), all = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
+  const order = sectionOrder(r).filter(c => all.some(it => (it.section || "Menu") === c));
+  const sortIt = list => list.slice().sort((a, b) => order.indexOf(a.section || "Menu") - order.indexOf(b.section || "Menu") || (a.order || 0) - (b.order || 0));
+  const q = BKV.q.trim().toLowerCase();
+  const inView = sortIt(all.filter(it => (BKV.cat === "all" || (it.section || "Menu") === BKV.cat) && (!q || it.name.toLowerCase().includes(q) || (cardOf(it).station || "").toLowerCase().includes(q) || ingredientRows(it, r).some(x => x.name.toLowerCase().includes(q)))));
+  let which = preset ? "preset" : "view", cat = order[0] || "", layout = "full", photos = true, allergens = true, onlyWritten = true;
+  const count = el("b");
+  const listFor = () => { let l = which === "preset" ? preset : which === "cat" ? sortIt(all.filter(it => (it.section || "Menu") === cat)) : which === "all" ? sortIt(all) : inView;
+    return onlyWritten && which !== "preset" ? l.filter(it => (cardOf(it).steps || []).length) : l; };
+  const paint = () => { const k = listFor().length; count.textContent = k + (k === 1 ? " card" : " cards"); go2.disabled = !k; go2.textContent = "Print " + k + (k === 1 ? " card" : " cards");
+    const sheets = layout === "half" ? Math.ceil(k / 2) : k; sheetNote.textContent = layout === "index" ? k + " index cards (4\u00d76)" : sheets + (sheets === 1 ? " sheet" : " sheets") + " of letter paper"; };
+  const radio = (name, val, cur, label, sub, on) => { const rb = el("input",{type:"radio", name, value:val}); rb.checked = val === cur; rb.onchange = () => { on(val); paint(); }; return el("label",null, rb, el("div",null, label, sub ? el("span",{text:sub}) : null)); };
+  const catSel = el("select",{class:"inp", style:"margin-top:6px"}, order.map(c => el("option",{value:c, text:c}))); catSel.value = cat; catSel.onchange = () => { cat = catSel.value; which = "cat"; whichBox.querySelector('input[value="cat"]').checked = true; paint(); };
+  const whichBox = el("div",{class:"choice"},
+    preset ? radio("pc-which", "preset", which, preset.length === 1 ? "Just this card" : preset.length + " cards", preset.length === 1 ? preset[0].name : null, v => which = v) : null,
+    radio("pc-which", "view", which, "What's showing in the book", inView.length + " dishes" + (BKV.cat !== "all" ? " in " + BKV.cat : "") + (q ? " matching \u201c" + BKV.q + "\u201d" : ""), v => which = v),
+    order.length ? el("div",null, radio("pc-which", "cat", which, "One category", null, v => which = v), catSel) : null,
+    radio("pc-which", "all", which, "Every card", all.length + " dishes", v => which = v));
+  const layoutBox = el("div",{class:"choice"},
+    radio("pc-layout", "full", layout, "Full page", "One card per sheet: binders and sheet protectors", v => layout = v),
+    radio("pc-layout", "half", layout, "Half page", "Two cards per sheet: cut in half and post at a station", v => layout = v),
+    radio("pc-layout", "index", layout, "4\u00d76 index card", "For a recipe box or laminating; set your printer to 4\u00d76 cards", v => layout = v));
+  const chk = (label, val, on) => { const cb = el("input",{type:"checkbox"}); cb.checked = val; cb.onchange = () => { on(cb.checked); paint(); }; return el("label",{class:"row", style:"font-weight:600;gap:8px"}, cb, label); };
+  const sheetNote = el("span",{class:"mini"});
+  const go2 = el("button",{class:"btn primary", onclick:() => { const l = listFor(); if (!l.length) return; dlg.close(); printCards(l, { layout, photos, allergens }); }});
+  openDlg(title ? "Print: " + title : "Print recipe cards", [
+    el("h3",{style:"margin:0 0 8px", text:"Which cards"}), whichBox,
+    el("h3",{style:"margin:16px 0 8px", text:"Layout"}), layoutBox,
+    el("h3",{style:"margin:16px 0 8px", text:"Include"}),
+    el("div",{style:"display:grid;gap:6px"}, chk("Photos", photos, v => photos = v), chk("Allergens", allergens, v => allergens = v), preset ? null : chk("Skip dishes with no steps written yet", onlyWritten, v => onlyWritten = v)),
+    el("p",{style:"margin:16px 0 0"}, count, " \u2192 ", sheetNote),
+    el("p",{class:"mini", text:"Your printer window opens next. Choose \u201cSave as PDF\u201d there to keep a file instead."})
+  ], [el("span"), go2]);
+  paint();
 }
 
 /* ================= Backup & restore ================= */
@@ -1762,7 +1843,8 @@ async function downloadBackup(){
   toast("Backup downloaded: " + out.kitchens.length + (out.kitchens.length === 1 ? " kitchen" : " kitchens"));
 }
 function pickBackup(msgBox){
-  const f = el("input",{type:"file", accept:".json,application/json", hidden:""}); document.body.append(f);
+  // Any file type: some computers save downloads without .json; the contents are checked after choosing.
+  const f = el("input",{type:"file", style:"position:fixed;left:-9999px;top:0;opacity:0"}); document.body.append(f);
   f.onchange = async () => { const file = f.files && f.files[0]; f.remove(); if (!file) return;
     let bk; try { bk = JSON.parse(await file.text()); } catch(e){ bk = null; }
     if (!bk || bk.app !== "platemargin" || !Array.isArray(bk.kitchens) || !bk.kitchens.length){ const t = "That isn't a kitchen backup file. Use the file from \u201cDownload backup\u201d."; if (msgBox) msgBox.replaceChildren(el("div",{class:"msg bad", text:t})); else toast(t); return; }
