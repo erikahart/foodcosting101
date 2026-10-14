@@ -673,6 +673,9 @@ details.ai-fold[open] summary{padding:12px 0}
 .est{color:var(--warn)}
 .lc.est{font-style:italic}
 .lc.why{font-size:.74rem;font-weight:600;color:var(--warn);white-space:normal;line-height:1.2;text-align:right}
+.reg-cell{display:flex;flex-direction:column;align-items:flex-start;gap:4px;min-width:200px}
+.reg-cell .inp{width:100%}
+.reg-cell .linkbtn{padding:2px 0}
 
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
@@ -1362,9 +1365,10 @@ function menu(m){
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Menu & recipes"}), el("p",{class:"lead", text:"Tap an item to edit its recipe. Costs update when supplier prices change."})),
     isPhone() ? el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import", onclick:() => openDlg("Import", [el("div",{class:"more-list"},
         el("button",{class:"more-row", type:"button", onclick:() => openSalesImport()}, el("b",{text:"Sales"}), el("span",{text:"Item sales report from Clover, Toast or Square"})),
+        r.salesLast ? el("button",{class:"more-row", type:"button", onclick:() => openRegisterMatches()}, el("b",{text:"Register matches"}), el("span",{text:"Fix which register items count toward each menu item"})) : null,
         el("button",{class:"more-row", type:"button", onclick:() => openSheetImport()}, el("b",{text:"Costing spreadsheet"}), el("span",{text:"Your Excel or CSV costing sheet"})),
         el("button",{class:"more-row", type:"button", onclick:() => openMenuImport()}, el("b",{text:"Menu"}), el("span",{text:"Photo, PDF or text of your menu"})))], [])}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)})) :
-    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import sales", onclick:() => openSalesImport()}), el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn quiet", text:"Import menu", onclick:() => openMenuImport()}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)}))));
+    el("div",{class:"row"}, r.salesLast ? el("button",{class:"btn quiet", text:"Register matches", title:"Fix which register items count toward which menu items", onclick:() => openRegisterMatches()}) : null, el("button",{class:"btn quiet", text:"Import sales", onclick:() => openSalesImport()}), el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn quiet", text:"Import menu", onclick:() => openMenuImport()}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)}))));
   const all = Object.values(r.items);
   const setup = costSetupCard(r); if (setup) m.append(setup);
   if (!all.length){ m.append(el("div",{class:"card empty", text:"No recipes yet. Already keep costs in a spreadsheet? Tap \u201cImport spreadsheet\u201d. Otherwise \u201cImport menu\u201d brings in your menu from a photo or PDF."})); return; }
@@ -1978,6 +1982,8 @@ function openRecipe(id){
       : el("div",{class:"ai"}, el("div",{class:"q", style:"font-weight:800;margin-bottom:6px", text:"Describe it and let the app draft it"}), aiIn, el("div",{class:"row", style:"margin-top:8px"}, aiBtn), aiMsg),
     el("div",{class:"g2"}, fld("Menu name", nm), fld("Section", sec)), secs,
     fld("Type", typeSel, "Drinks are judged by their own pour-cost target"),
+    (() => { const names = Object.entries(r.posMap || {}).filter(([, v]) => v === it.id).map(([k]) => ((r.salesLast && r.salesLast.lines || []).find(l => l.name.toLowerCase() === k) || { name: k }).name);
+      return names.length ? el("p",{class:"mini", style:"margin:-4px 0 10px"}, "Register buttons counted here: " + names.join(", ") + ". ", el("button",{class:"linkbtn", type:"button", text:"Change", onclick:() => openRegisterMatches()})) : null; })(),
     el("div",{class:"g3 nums3"}, fld("Menu price", num("price","0.25")), fld(isPhone() ? "Sold / " + (r.period === "month" ? "mo" : "wk") : "Plates sold / " + r.period, num("sold","1")), fld(isPhone() ? "Portions" : "Portions per batch", num("portions","1"), isPhone() ? null : "1 unless it's a batch")),
     costBox, tip, el("h2",{style:"margin-top:4px", text:"Ingredients"}), linesBox
   ], [ !isNew ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (confirm("Delete " + it.name + "?")){ delete r.items[it.id]; save(); dlg.close(); } }}) : el("span"),
@@ -3237,7 +3243,7 @@ function findDuplicateInvoice(r, doc){
 
 /* ================= Matching names ================= */
 const NUMWORDS = { 1:"one", 2:"two", 3:"three", 4:"four", 5:"five", 6:"six", 8:"eight", 10:"ten", 12:"twelve" };
-const ABBR = { chs:"cheese", stk:"steak", chix:"chicken", chkn:"chicken", bf:"beef", pot:"potato", hb:"hashbrowns", tst:"toast", sws:"swiss", amer:"american", brst:"breast", bnls:"boneless", sau:"sauce", mush:"mushroom", tom:"tomato", let:"lettuce", yw:"your way" };
+const ABBR = { bkfst:"breakfast", bfst:"breakfast", brkfst:"breakfast", bfast:"breakfast", sand:"sandwich", sndw:"sandwich", sndwch:"sandwich", sammie:"sandwich", burg:"burger", brgr:"burger", dbl:"double", qtr:"quarter", grld:"grilled", gril:"grilled", frd:"fried", app:"appetizer", apps:"appetizers", pncke:"pancake", pncks:"pancakes", hcakes:"hotcakes", omlt:"omelette", omlet:"omelette", omelet:"omelette", mozz:"mozzarella", stx:"sticks", wng:"wings", wngs:"wings", tndr:"tender", tndrs:"tenders", chs:"cheese", stk:"steak", chix:"chicken", chkn:"chicken", bf:"beef", pot:"potato", hb:"hashbrowns", tst:"toast", sws:"swiss", amer:"american", brst:"breast", bnls:"boneless", sau:"sauce", mush:"mushroom", tom:"tomato", let:"lettuce", yw:"your way" };
 function words(t){
   return String(t || "").toLowerCase().replace(/\b(\d+)\b/g, (m0, d) => NUMWORDS[d] || d).replace(/[^a-z0-9 ]+/g, " ").split(/\s+/)
     .map(w => ABBR[w] || w).join(" ").split(/\s+/).filter(w => (w.length > 2 || /\d/.test(w) && /[a-z]/.test(w)) && !/^(the|and|with|your|for|our|fresh)$/.test(w))
@@ -3564,76 +3570,128 @@ function openSalesImport(){
     pick, status
   ], []);
 }
-function reviewSales(lines, from, to, fromFile, fileName){
+// Match register (Clover, Toast, Square) item names to menu items. Used right after an upload,
+// and again any time from "Register matches", which recalculates plates sold from the last report.
+function reviewSales(lines, from, to, fromFile, fileName, opts = {}){
   const r = R();
   r.posMap = r.posMap || {};
   const days = Math.max(1, Math.round((new Date(to + "T12:00:00") - new Date(from + "T12:00:00")) / 864e5) + 1);
   const per = r.period === "month" ? 30.4 : 7, periods = days / per;
-  const items = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
-  const byName = new Map(items.map(it => [it.name.trim().toLowerCase(), it]));
-  // Remembered choices first, then exact names, then the closest similar name.
-  lines.forEach(l => {
+  const items = () => Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
+  const avgOf = l => l.sales > 0 && l.qty > 0 ? l.sales / l.qty : null;
+  // Remembered matches first, then exact names, then similar names with the selling price as a tie-breaker.
+  const autoMatch = l => {
     const k = l.name.toLowerCase(), memo = r.posMap[k];
     if (memo === "skip"){ l.pick = ""; l.how = "remembered"; return; }
     if (memo && r.items[memo]){ l.pick = memo; l.how = "remembered"; return; }
-    const ex = byName.get(k); if (ex){ l.pick = ex.id; l.how = "exact"; return; }
-    let best = null, bs = 0; items.forEach(it => { const sc = simScore(l.name, it.name); if (sc > bs){ bs = sc; best = it; } });
+    const all = items(), ex = all.find(it => it.name.trim().toLowerCase() === k); if (ex){ l.pick = ex.id; l.how = "exact"; return; }
+    const avg = avgOf(l); let best = null, bs = 0;
+    all.forEach(it => { let sc = simScore(l.name, it.name); if (avg && n(it.price) > 0 && Math.abs(avg - it.price) < 0.02) sc += 0.15; if (sc > bs){ bs = sc; best = it; } });
     if (best && bs >= 0.6){ l.pick = best.id; l.how = bs >= 0.85 ? "close" : "similar"; } else { l.pick = ""; l.how = ""; }
-  });
-  const opts = items.slice().sort((a, b) => a.name.localeCompare(b.name));
-  let remember = true, zeroOthers = false;
+  };
+  lines.forEach(l => { if (l.pick === undefined) autoMatch(l); });
+  let remember = true, zeroOthers = false, onlyOpen = false, q = "";
+  const dlId = "menu-dl-" + Math.random().toString(36).slice(2, 7);
+  const dl = el("datalist",{id: dlId});
+  const paintDl = () => dl.replaceChildren(el("option",{value:"Don't count"}), ...items().sort((a, b) => a.name.localeCompare(b.name)).map(it => el("option",{value: it.name, label: (it.section || "") + (n(it.price) > 0 ? ", " + $$(it.price) : "")})));
+  paintDl();
   const tb = el("tbody"), sumEl = el("div");
   const applyBtn = el("button",{class:"btn primary"});
+  const tagFor = l => l.pick ? el("span",{class:"pill " + (l.how === "similar" || l.how === "ai" ? "warn" : "good"), text: { remembered:"Remembered", exact:"Same name", close:"Close match", similar:"Check", ai:"AI match, check", chosen:"You chose", added:"Added to menu" }[l.how] || "Matched"}) : el("span",{class:"pill", text:"Not counted"});
   const paint = () => {
     const used = lines.filter(l => l.pick), soldAll = lines.reduce((t, l) => t + l.qty, 0), soldUsed = used.reduce((t, l) => t + l.qty, 0);
-    const targets = new Set(used.map(l => l.pick));
+    const targets = new Set(used.map(l => l.pick)), open = lines.filter(l => !l.pick).length;
     sumEl.replaceChildren(el("div",{class:"cost", style:"grid-template-columns:repeat(4,1fr)"},
       el("div",null, el("span",{text:"Register items"}), el("b",{text:lines.length})),
       el("div",null, el("span",{text:"Matched"}), el("b",{text:used.length})),
       el("div",null, el("span",{text:"Share of plates sold"}), el("b",{text: soldAll ? pc(soldUsed / soldAll) : "\u2014"})),
-      el("div",null, el("span",{text:"Period"}), el("b",{text: days + " days"}))),
-      el("p",{class:"mini", style:"margin:8px 0 0", text: nice(from) + " to " + nice(to) + (fromFile ? ", read from the report." : ", from the dates you chose.") + " Totals are divided into plates sold per " + r.period + "."}));
-    applyBtn.textContent = "Update " + targets.size + (targets.size === 1 ? " menu item" : " menu items"); applyBtn.disabled = !targets.size;
+      el("div",null, el("span",{text:"Not counted"}), el("b",{text:open}))),
+      el("p",{class:"mini", style:"margin:8px 0 0", text: nice(from) + " to " + nice(to) + " (" + days + " days)" + (fromFile ? ", read from the report." : ", from the dates you chose.") + " Totals become plates sold per " + r.period + "."}));
+    applyBtn.textContent = (opts.edit ? "Save matches, update " : "Update ") + targets.size + (targets.size === 1 ? " menu item" : " menu items"); applyBtn.disabled = !targets.size;
   };
-  lines.forEach(l => {
-    const sel = el("select",{class:"inp", style:"min-height:36px", "aria-label":"Menu item for " + l.name}, el("option",{value:"", text:"Don't count"}), opts.map(it => el("option",{value:it.id, text:it.name})));
-    sel.value = l.pick || "";
-    const tag = el("span");
-    const paintTag = () => tag.replaceChildren(l.pick ? el("span",{class:"pill " + (l.how === "similar" ? "warn" : "good"), text: l.how === "remembered" ? "Remembered" : l.how === "exact" ? "Same name" : l.how === "close" ? "Close match" : l.how === "similar" ? "Check" : "You chose"}) : el("span",{class:"dash", text:"\u2014"}));
-    sel.onchange = () => { l.pick = sel.value; l.how = "chosen"; paintTag(); paint(); };
-    paintTag();
-    tb.append(el("tr",{style:"cursor:default"}, el("td",{style:"white-space:normal"}, el("b",{text:l.name}), l.cat ? el("div",{class:"mini", text:l.cat}) : null),
-      el("td",{class:"num", text: Math.round(l.qty)}), el("td",{class:"num", text: Math.round(l.qty / periods)}), el("td",null, sel), el("td",null, tag)));
-  });
+  const drawRows = () => {
+    const shown = lines.slice().sort((a, b) => (!!a.pick - !!b.pick) || b.qty - a.qty)
+      .filter(l => (!onlyOpen || !l.pick) && (!q || l.name.toLowerCase().includes(q) || (l.pick && r.items[l.pick] && r.items[l.pick].name.toLowerCase().includes(q))));
+    tb.replaceChildren(...shown.map(l => {
+      const inp = el("input",{class:"inp", list: dlId, style:"min-height:36px", placeholder:"Type a menu item\u2026", "aria-label":"Menu item for " + l.name});
+      inp.value = l.pick && r.items[l.pick] ? r.items[l.pick].name : (l.how === "remembered" ? "Don't count" : "");
+      const tag = el("span", null, tagFor(l));
+      const commit = () => {
+        const v = inp.value.trim().toLowerCase();
+        if (!v || v === "don't count" || v === "dont count"){ l.pick = ""; l.how = "chosen"; }
+        else { const it = items().find(x => x.name.trim().toLowerCase() === v); if (!it){ inp.setCustomValidity("Pick a menu item from the list"); inp.reportValidity(); return; } l.pick = it.id; l.how = "chosen"; }
+        inp.setCustomValidity(""); tag.replaceChildren(tagFor(l)); paint();
+      };
+      inp.onchange = commit;
+      const avg = avgOf(l);
+      const addBtn = !l.pick ? el("button",{class:"linkbtn", type:"button", style:"font-size:.8rem", text:"+ Add to menu", title:"Create a menu item from this register item", onclick:() => {
+        const nm = /[a-z]/.test(l.name) ? l.name.trim() : tidyName(l.name);
+        const order = Math.max(0, ...Object.values(r.items).map(i => i.order || 0)) + 1;
+        const it = { id: uid("m"), name: nm, section: l.cat || "From register", price: avg ? Math.round(avg * 100) / 100 : 0, sold: 0, portions: 1, lines: [], order };
+        r.items[it.id] = it; l.pick = it.id; l.how = "added"; paintDl(); drawRows(); paint(); toast("Added " + nm + " to your menu");
+      }}) : null;
+      return el("tr",{style:"cursor:default"},
+        el("td",{style:"white-space:normal"}, el("b",{text:l.name}), el("div",{class:"mini", text: [l.cat, avg ? "avg " + $$(avg) : ""].filter(Boolean).join(", ")})),
+        el("td",{class:"num", text: Math.round(l.qty)}), el("td",{class:"num", text: Math.round(l.qty / periods)}),
+        el("td",{class:"reg-pick"}, el("div",{class:"reg-cell"}, inp, addBtn)), el("td",null, tag));
+    }));
+    if (!shown.length) tb.append(el("tr",null, el("td",{colspan:"5", class:"empty", text: onlyOpen ? "Everything is matched or set to \u201cDon't count\u201d." : "No register items match that search."})));
+  };
+  const search = el("input",{class:"search", type:"search", placeholder:"Search register or menu names", "aria-label":"Search"});
+  search.oninput = () => { q = search.value.trim().toLowerCase(); drawRows(); };
+  const openOnly = el("input",{type:"checkbox"}); openOnly.onchange = () => { onlyOpen = openOnly.checked; drawRows(); };
+  const aiBtn = el("button",{class:"btn quiet", type:"button", text:"Match the rest with AI", onclick: async () => {
+    const left = lines.filter(l => !l.pick && l.how !== "chosen" && l.how !== "remembered"); if (!left.length) return toast("Nothing left to match");
+    aiBtn.disabled = true; aiBtn.textContent = "Matching\u2026";
+    const menu = items().map(it => it.name + (n(it.price) > 0 ? " ($" + n(it.price).toFixed(2) + ")" : ""));
+    let matched = 0;
+    try {
+      for (let k = 0; k < left.length; k += 50){
+        const batch = left.slice(k, k + 50);
+        const d = await aiJSON("Match each restaurant register (POS) button name to the menu item it sells. Register names are often abbreviated or in capitals (BKFST = breakfast, SAND = sandwich, W/ = with). Average selling prices are given to help. Use \"\" for modifiers, add-ons, drinks or anything not clearly on the menu.\nMenu items:\n" + menu.join("\n") +
+          "\n\nRegister items:\n" + batch.map(l => l.name + (avgOf(l) ? " (avg $" + avgOf(l).toFixed(2) + ")" : "")).join("\n") + "\n\nReturn ONLY JSON: {\"match\": {\"<register name exactly as given>\": \"<menu item name exactly as listed, without the price, or empty>\"}}");
+        batch.forEach(l => { const nm = d.match && d.match[l.name]; const it = nm && items().find(x => x.name.trim().toLowerCase() === String(nm).trim().toLowerCase()); if (it){ l.pick = it.id; l.how = "ai"; matched++; } });
+      }
+    } catch(e){ toast(aiProblem(e) || "AI couldn't match them right now"); }
+    aiBtn.disabled = false; aiBtn.textContent = "Match the rest with AI"; drawRows(); paint();
+    toast(matched ? "Matched " + matched + ". Check the ones tagged \u201cAI match\u201d." : "No confident matches. Pick the rest by hand or add them to the menu.");
+  }});
   const rem = el("input",{type:"checkbox"}); rem.checked = true; rem.onchange = () => remember = rem.checked;
   const zero = el("input",{type:"checkbox"}); zero.onchange = () => zeroOthers = zero.checked;
   applyBtn.onclick = () => {
     const totals = {};
     lines.forEach(l => { if (l.pick) totals[l.pick] = (totals[l.pick] || 0) + l.qty; if (remember) r.posMap[l.name.toLowerCase()] = l.pick || "skip"; });
     let updated = 0;
-    Object.entries(totals).forEach(([id, q]) => { const it = r.items[id]; if (!it) return; it.sold = Math.round(q / periods); updated++; });
+    Object.entries(totals).forEach(([id, qn]) => { const it = r.items[id]; if (!it) return; it.sold = Math.round(qn / periods); updated++; });
     let zeroed = 0;
-    if (zeroOthers) items.forEach(it => { if (!(it.id in totals) && n(it.sold) > 0){ it.sold = 0; zeroed++; } });
+    if (zeroOthers) items().forEach(it => { if (!(it.id in totals) && n(it.sold) > 0){ it.sold = 0; zeroed++; } });
     r.salesImported = { from, to, on: today(), file: fileName };
+    r.salesLast = { from, to, fromFile, fileName, lines: lines.map(l => ({ name: l.name, qty: l.qty, sales: l.sales || 0, cat: l.cat || "" })) };
     if (r.hidden) delete r.hidden.sales;
     save();
-    const tops = Object.entries(totals).map(([id, q]) => ({ it: r.items[id], q })).filter(x => x.it).sort((a, b) => b.q - a.q).slice(0, 5);
-    openDlg("Sales imported", [
+    const tops = Object.entries(totals).map(([id, qn]) => ({ it: r.items[id], qn })).filter(x => x.it).sort((a, b) => b.qn - a.qn).slice(0, 5);
+    openDlg(opts.edit ? "Matches saved" : "Sales imported", [
       el("div",{class:"cost", style:"grid-template-columns:repeat(2,1fr)"}, el("div",null, el("span",{text:"Menu items updated"}), el("b",{text:updated})), el("div",null, el("span",{text:"Set to zero"}), el("b",{text:zeroed}))),
       tops.length ? el("p",{style:"margin:12px 0 4px;font-weight:600", text:"Best sellers"}) : null,
       tops.length ? el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Item"}), el("th",{class:"num", text:"Per " + r.period}))),
         el("tbody",null, tops.map(x => el("tr",{style:"cursor:default"}, el("td",{text:x.it.name}), el("td",{class:"num", text:n(x.it.sold)})))))) : null,
-      el("p",{class:"mini", text:"The Profit Coach now ranks every suggestion by what it's worth per " + r.period + ". Upload a fresh report each month to keep it current."})
+      el("p",{class:"mini", text:"Fix any match later from Menu & recipes \u2192 Register matches. Your matches are remembered for next month's report."})
     ], [el("button",{class:"btn quiet", text:"See my menu", onclick:() => { dlg.close(); go("menu"); }}), el("button",{class:"btn primary", text:"Open the coach", onclick:() => { dlg.close(); go("coach"); }})]);
   };
-  paint();
-  openDlg("Check the sales: " + fileName, [
+  drawRows(); paint();
+  openDlg(opts.edit ? "Register matches" : "Check the sales: " + fileName, [
     sumEl,
-    el("div",{class:"tw", style:"margin-top:12px"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Register item"}), el("th",{class:"num", text:"Sold"}), el("th",{class:"num", text:"Per " + r.period}), el("th",{text:"Counts toward"}), el("th",{text:"Match"}))), tb)),
-    el("p",{class:"mini", text:"Several register buttons can count toward one menu item (sizes, flavors, combos). Add-ons and items you don't cost can stay at \u201cDon't count\u201d."}),
-    el("label",{class:"row", style:"font-weight:600;margin-top:6px"}, rem, "Remember these choices for next time"),
+    el("div",{class:"row", style:"margin-top:12px;gap:10px;flex-wrap:wrap"}, search, el("label",{class:"row", style:"font-weight:600;gap:6px"}, openOnly, "Only show what isn't counted"), aiBtn),
+    el("div",{class:"tw", style:"margin-top:10px"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Register item"}), el("th",{class:"num", text:"Sold"}), el("th",{class:"num", text:"Per " + r.period}), el("th",{text:"Counts toward"}), el("th",{text:"Match"}))), tb)), dl,
+    el("p",{class:"mini", text:"Type a few letters to pick a menu item. Several register buttons can count toward one item (sizes, flavors, combos). Add-ons and drinks you don't cost can stay at \u201cDon't count\u201d."}),
+    el("label",{class:"row", style:"font-weight:600;margin-top:6px"}, rem, "Remember these matches for next time"),
     el("label",{class:"row", style:"font-weight:600"}, zero, "Set menu items that aren't in this report to zero")
-  ], [el("button",{class:"btn quiet", text:"Start over", onclick:openSalesImport}), applyBtn]);
+  ], [opts.edit ? el("span") : el("button",{class:"btn quiet", text:"Start over", onclick:openSalesImport}), applyBtn]);
+}
+function openRegisterMatches(){
+  const r = R(), last = r.salesLast;
+  if (!last || !last.lines || !last.lines.length){ openSalesImport(); toast("Upload a sales report first; then you can fix matches any time."); return; }
+  reviewSales(last.lines.map(l => Object.assign({}, l)), last.from, last.to, last.fromFile, last.fileName || "last report", { edit:true });
 }
 
 /* ================= Light / dark ================= */
