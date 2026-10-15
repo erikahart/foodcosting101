@@ -815,6 +815,13 @@ details.ai-fold[open] summary{padding:12px 0}
 .feed-card{margin-bottom:18px;border-left:4px solid var(--brand)}
 .feed-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
 .feed-h h3{margin:0}
+
+.email-steps{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.email-steps summary{cursor:pointer;font-weight:700}
+.email-steps ol{list-style:none;margin:10px 0 0;padding:0;display:grid;gap:12px}
+.email-steps li b{display:block}
+.step-body{margin-top:3px;line-height:1.5}
+.step-body code,.q-code{background:var(--field);border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:.8rem;word-break:break-all}
 </style>
 </head>
 <body>
@@ -1087,6 +1094,7 @@ async function openAccount(id){
   ST = null; await reloadState();
   if (!ST) return;
   $("gate").hidden = true; $("app").hidden = false; render();
+  setTimeout(() => readEmailedInvoices(false), 1500);
 }
 async function signOut(){ await sb.auth.signOut(); USER = null; ACCT = null; ST = null; showAuth("signin", ["good", "You're signed out."]); }
 function renderUserBox(){
@@ -1979,6 +1987,126 @@ async function runAIImages(list){
   if (!ok && problem) openDlg("Create AI images", [el("div",{class:"msg bad", text: aiProblem(problem) || problem.message || "Couldn't create images right now."})], []);
   else toast("Created " + ok + (ok === 1 ? " picture" : " pictures") + (problem && done < list.length ? ". Stopped early: " + (aiProblem(problem) || "an error") : "") + ".");
 }
+
+/* ================= Emailed invoices (Gmail -> Postmark -> app) ================= */
+const emailParts = v => String(v || "").toLowerCase().split(/[,;\s]+/).map(x => x.trim()).filter(Boolean);
+function vendorForEmail(r, from, name, subject){
+  const addr = String(from || "").toLowerCase(), dom = addr.split("@")[1] || "";
+  const vs = r.vendors || [];
+  const byRule = vs.find(v => emailParts(v.emailFrom).some(p => p.includes("@") ? (p.startsWith("@") ? addr.endsWith(p) : addr === p) : dom === p || dom.endsWith("." + p)));
+  if (byRule) return { name: byRule.name, matched: true };
+  const text = ((name || "") + " " + (subject || "") + " " + dom).toLowerCase();
+  const byName = vs.slice().sort((a, b) => b.name.length - a.name.length).find(v => v.name.length >= 3 && text.includes(v.name.toLowerCase().split(/\s+/)[0]));
+  if (byName) return { name: byName.name, matched: false };
+  return { name: (name || dom.split(".")[0] || "Emailed invoice").replace(/^"|"$/g, "").trim(), matched: false };
+}
+function ediToDocs(text, supplier){
+  const parsed = X12.parseX12(text), out = [];
+  parsed.documents.forEach(d => {
+    if (d.kind === "invoice" && d.isCredit) return;
+    const isPL = d.kind === "pricelist";
+    const lines = ((isPL ? d.items : d.lines) || []).map(l => ({ code: l.itemCode || "", desc: (l.description || (l.itemCode ? "Item " + l.itemCode : "Item")).trim(), qty: isPL ? 1 : (n(l.qty) || 1), price: isPL ? n(l.price) : n(l.unitPrice), pack: x12Pack(l.pack) })).filter(l => l.price > 0);
+    if (lines.length) out.push({ kind: isPL ? "pricelist" : "invoice", number: isPL ? "Price sheet" : d.invoiceNumber, date: (isPL ? d.effectiveDate : d.invoiceDate) || null, lines });
+  });
+  return out;
+}
+// Turns one emailed file into inbox documents, using the same readers as a manual upload.
+async function docsFromFile(blob, name, type, kindGuess){
+  const head = await blob.slice(0, 400).text().catch(() => "");
+  if (/^\s*\uFEFF?ISA/.test(head)) return ediToDocs(await blob.text(), "");
+  const file = new File([blob], name, { type: type || "" });
+  let d;
+  if (/\.csv$/i.test(name) || /csv/i.test(type)) d = { lines: linesFromCSV(await blob.text()) };
+  else if (/\.xlsx?$/i.test(name) || /spreadsheet|excel/i.test(type)) d = { lines: await linesFromExcel(file) };
+  else d = await readInvoiceFile(file, kindGuess);
+  const lines = (d.lines || []).map(l => ({ code: String(l.code || ""), desc: String(l.desc || "").trim(), qty: n(l.qty) || 1, price: n(l.price) != null ? n(l.price) : (n(l.total) != null ? n(l.total) / (n(l.qty) || 1) : null), pack: l.pack || "" })).filter(l => l.desc && l.price != null);
+  return lines.length ? [{ kind: kindGuess, number: d.invoiceNumber || null, date: d.invoiceDate || null, lines }] : [];
+}
+let EMAIL_BUSY = false;
+async function readEmailedInvoices(loud){
+  if (EMAIL_BUSY || !ACCT || !ST || window.PM_DEMO) return;
+  EMAIL_BUSY = true;
+  try {
+    const { data, error } = await sb.rpc("inbound_waiting", { p_account: ACCT.id });
+    if (error){ if (loud) toast(/function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "Email-in needs its one-time setup (004_email_inbox.sql)." : plainErr(error)); return; }
+    if (!data || !data.length){ if (loud) toast("No emailed invoices waiting."); return; }
+    const r = R(); r.vendors = r.vendors || [];
+    let filed = 0, problems = 0;
+    for (const m2 of data){
+      try {
+        const sup = vendorForEmail(r, m2.from_addr, m2.from_name, m2.subject);
+        const kindGuess = /price|order guide|catalog|special price/i.test((m2.subject || "") + " " + (m2.filename || "")) ? "pricelist" : "invoice";
+        const docs = await docsFromFile(b64ToBlob(m2.data || "", m2.content_type || "application/octet-stream"), m2.filename || "attachment", m2.content_type, kindGuess);
+        if (!docs.length){ await sb.rpc("inbound_mark", { p_account: ACCT.id, p_id: m2.id, p_status: "error", p_message: "No product lines found in " + (m2.filename || "the attachment") }); problems++; continue; }
+        const names = [];
+        for (const x of docs){
+          // A spreadsheet often has no invoice number of its own; the email subject usually does ("Invoice 55120").
+          const subjNo = ((m2.subject || "").match(/\b(?:invoice|inv)\b[\s#:.-]*([A-Z0-9][A-Z0-9-]{2,})/i) || [])[1];
+          const doc = { id: uid("d"), kind: x.kind, source: "Email", supplier: sup.name, number: x.kind === "pricelist" ? "Price sheet" : (x.number || subjNo || ("EM-" + Math.floor(1000 + Math.random() * 9000))),
+            date: (x.date && /^\d{4}-\d{2}-\d{2}$/.test(x.date)) ? x.date : String(m2.received_at || today()).slice(0, 10), status: "new", lines: x.lines, emailFrom: m2.from_addr, emailSubject: m2.subject, emailFile: m2.filename };
+          if (findDuplicateInvoice(r, doc)) { names.push("already had " + doc.number); continue; }
+          r.inbox.push(doc); filed++; names.push((doc.kind === "pricelist" ? "price sheet" : "invoice " + doc.number) + " from " + sup.name);
+        }
+        if (!r.vendors.some(v => v.name.toLowerCase() === sup.name.toLowerCase()) && !SUPPLIERS.some(x => x.name.toLowerCase() === sup.name.toLowerCase()))
+          r.vendors.push({ id: uid("v"), name: sup.name, kind:"food", account:"", rep:"", repContact:"", order:"rep", invoices:"pdf", emailFrom: "@" + (String(m2.from_addr || "").split("@")[1] || "") });
+        save();
+        await sb.rpc("inbound_mark", { p_account: ACCT.id, p_id: m2.id, p_status: "done", p_message: "Filed: " + names.join(", ") });
+      } catch(e){
+        problems++;
+        await sb.rpc("inbound_mark", { p_account: ACCT.id, p_id: m2.id, p_status: "error", p_message: aiProblem(e) || e.message || "Couldn't read it" });
+      }
+    }
+    if (filed) toast(filed + (filed === 1 ? " emailed invoice is" : " emailed invoices are") + " ready to review in Invoices & orders.");
+    else if (loud && problems) toast("Some emails couldn't be read. See Suppliers > Email invoices in.");
+    if (ST && ["inbox","suppliers","home"].includes(ST.page)) render();
+  } finally { EMAIL_BUSY = false; }
+}
+function emailInPanel(){
+  const r = R(), box = el("div",{class:"card feed-card email-card"}, el("div",{class:"spin"}));
+  const canManage = ACCT && ["owner","manager"].includes(ACCT.role);
+  (async () => {
+    const st = await sb.rpc("feed_status", { p_account: ACCT.id, p_source: "email" });
+    const rec = await sb.rpc("inbound_recent", { p_account: ACCT.id });
+    if (st.error || rec.error){
+      box.replaceChildren(el("div",{class:"feed-h"}, el("h3",{text:"Email invoices in"}), el("span",{class:"pill", text:"Not set up"})),
+        el("p",{text:"One-time setup: run supabase/003_gfs_feed.sql (if you haven't) and supabase/004_email_inbox.sql in Supabase's SQL Editor, then reload this page."}));
+      return;
+    }
+    const on = !!st.data.enabled, recent = rec.data || [];
+    const conf = recent.find(x => x.kind === "confirmation" && Date.now() - new Date(x.received_at) < 7 * 864e5);
+    const addr = el("input",{class:"inp", placeholder:"e.g. a1b2c3d4@inbound.postmarkapp.com", autocapitalize:"none", inputmode:"email"}); addr.value = r.emailIn || "";
+    addr.onchange = () => { r.emailIn = addr.value.trim(); save(); render(); };
+    const froms = [...new Set((r.vendors || []).flatMap(v => emailParts(v.emailFrom)))];
+    const query = froms.length ? "from:(" + froms.join(" OR ") + ") has:attachment" : "";
+    const copy = (t, what) => el("button",{class:"btn quiet", type:"button", text:"Copy", onclick:() => { navigator.clipboard && navigator.clipboard.writeText(t).catch(() => {}); toast("Copied " + what); }});
+    const statusText = x => ({ done:"Filed", error:"Problem", ignored:"Nothing to file", waiting:"Waiting" })[x.status] || x.status;
+    const rows = recent.filter(x => x.kind !== "confirmation").slice(0, 8);
+    const list = rows.length ? el("div",{class:"tw", style:"margin-top:10px"}, el("table",null,
+      el("thead",null, el("tr",null, el("th",{text:"Email"}), el("th",{text:"Received"}), el("th",{text:"Result"}))),
+      el("tbody",null, rows.map(x => el("tr",{style:"cursor:default"},
+        el("td",{style:"white-space:normal"}, el("b",{text: x.from_name || x.from_addr || "Unknown sender"}), el("div",{class:"mini", text:(x.subject || "") + (x.filename ? "  \u2014 " + x.filename : "")})),
+        el("td",{text: new Date(x.received_at).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })}),
+        el("td",{style:"white-space:normal"}, el("span",{class:"pill " + (x.status === "done" ? "good" : x.status === "error" ? "bad" : x.status === "waiting" ? "warn" : ""), text:statusText(x)}), x.message ? el("div",{class:"mini", text:x.message}) : null,
+          x.status === "error" ? el("button",{class:"linkbtn", type:"button", text:"Try again", onclick: async () => { await sb.rpc("inbound_mark", { p_account: ACCT.id, p_id: x.id, p_status: "waiting" }); await readEmailedInvoices(true); render(); }}) : null)))))) : null;
+    const toggle = el("button",{class:"btn " + (on ? "quiet" : "primary"), text: on ? "Turn off" : "Turn on for this kitchen", onclick: async () => {
+      const { error } = await sb.rpc("feed_enable", { p_account: ACCT.id, p_source: "email", p_on: !on }); if (error) return toast(plainErr(error)); render(); }});
+    const step = (nmb, title, body) => el("li",null, el("b",{text: nmb + ". " + title}), el("div",{class:"mini step-body"}, ...body));
+    box.replaceChildren(
+      el("div",{class:"feed-h"}, el("div",null, el("h3",{text:"Email invoices in"}), el("p",{class:"mini", style:"margin:2px 0 0", text:"Supplier emails with invoice attachments, forwarded by Gmail, filed for review automatically."})), el("span",{class:"pill " + (on ? "good" : ""), text: on ? "On" : "Off"})),
+      conf && conf.info && conf.info.code ? el("div",{class:"msg good", style:"margin-top:10px"}, "Gmail sent a confirmation code: ", el("b",{text:conf.info.code}), " ", copy(conf.info.code, "code"), conf.info.link ? el("span",null, " or ", el("a",{href:conf.info.link, target:"_blank", rel:"noopener", text:"confirm in Gmail"})) : null) : null,
+      canManage ? el("div",{class:"row", style:"margin-top:12px"}, toggle, on ? el("button",{class:"btn quiet", text:"Read waiting emails now", onclick:() => readEmailedInvoices(true)}) : null) : null,
+      el("details",{class:"email-steps", open: on && r.emailIn ? null : ""}, el("summary",{text:"How to set it up"}),
+        el("ol",null,
+          step(1, "Get your private address", ["Sign up at postmarkapp.com (free for 100 emails a month), create a server, and open ", el("b",{text:"Default Inbound Stream"}), ". Copy the inbound address and paste it here:", el("div",{style:"margin-top:6px"}, addr)]),
+          step(2, "Connect Postmark to the app", ["In that stream's ", el("b",{text:"Settings"}), ", set the Webhook URL to ", el("code",{text: location.origin + "/api/inbound-email?key=YOUR-KEY"}), ", using the same made-up phrase you saved in Netlify as ", el("b",{text:"INBOUND_KEY"}), "."]),
+          step(3, "Tell the app who sends invoices", ["On each supplier below (Atlantic, TPC\u2026), click ", el("b",{text:"Edit"}), " and fill in ", el("b",{text:"Invoice emails come from"}), ". Look at a recent invoice email for the sender's address."]),
+          step(4, "Add the forwarding address in Gmail", ["Gmail \u2192 Settings \u2192 See all settings \u2192 ", el("b",{text:"Forwarding and POP/IMAP"}), " \u2192 Add a forwarding address \u2192 paste your Postmark address. Gmail sends a code to it; it appears at the top of this panel within a minute."]),
+          step(5, "Create the Gmail filter", query ? ["In Gmail's search box, paste this search, click the filter icon \u2192 ", el("b",{text:"Create filter"}), " \u2192 tick ", el("b",{text:"Forward it to"}), " your Postmark address \u2192 Create filter.", el("div",{class:"row", style:"margin-top:6px"}, el("code",{class:"q-code", text:query}), copy(query, "search"))] : ["Fill in step 3 first; the exact Gmail search to use will appear here."]),
+          step(6, "Turn it on", ["Click ", el("b",{text:"Turn on for this kitchen"}), " above. From then on, supplier invoice emails show up in Invoices & orders as \u201cNeeds review\u201d."]))),
+      list || el("p",{class:"mini", style:"margin-top:10px", text: on ? "No emails yet." : ""}));
+  })();
+  return box;
+}
 /* ================= GFS automatic EDI feed ================= */
 const FEED_REASONS = {
   nosftp: "The GFS login isn't set up on the server yet. In Netlify, add GFS_SFTP_USER and GFS_SFTP_PASSWORD, then redeploy.",
@@ -2372,6 +2500,7 @@ function suppliers(m){
       el("div",{class:"row"}, el("button",{class:"btn primary", text:"Upload invoice", onclick:() => openUpload(v.name)}), el("button",{class:"btn quiet", text:"Edit", onclick:() => openVendor(v.id)}), el("button",{class:"btn quiet", text:"Note for rep", onclick:() => repNote(v)}))));
   });
   m.append(g);
+  m.append(emailInPanel());
   m.append(gfsFeedPanel());
   m.append(el("h2",{text:"Big distributors with automatic feeds"}), el("p",{class:"lead", text:"Sysco, US Foods, Gordon and PFG can send invoices automatically once we're set up with them. Until then, upload their invoices like any other supplier."}));
   const g2 = el("div",{class:"grid sup-grid"});
@@ -2394,6 +2523,7 @@ function openVendor(id){
     el("div",{class:"g2"}, fld("Supplier name", name), fld("What they sell", sel("kind", VENDOR_KIND))),
     el("div",{class:"g2"}, fld("Your account number", inp("account","On any invoice")), fld("Rep's name", inp("rep"))),
     fld("Rep's email or phone", inp("repContact")),
+    fld("Invoice emails come from", inp("emailFrom","an address or domain, e.g. invoices@atlanticfoods.com or @tpcfood.com"), "Used to file emailed invoices under this supplier. Separate several with commas."),
     el("div",{class:"g2"}, fld("How you order", sel("order", ORDER_HOW)), fld("How invoices come", sel("invoices", INVOICE_HOW))),
     el("p",{class:"mini", text:"Use the same name on your supplies and invoices so everything links up."})
   ], [ id ? el("button",{class:"btn danger", text:"Remove", onclick:() => { if (confirm("Remove " + v.name + "? Supplies and invoices stay.")){ r.vendors = r.vendors.filter(x => x.id !== id); save(); dlg.close(); } }}) : el("span"),
