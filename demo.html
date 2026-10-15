@@ -927,6 +927,53 @@ nav button[aria-current="page"] .ic{color:#fff}
   .kstrip > div b,.kstrip .n{font-size:2.1rem}
 }
 
+/* =====================================================================
+   Calmer pass: signage type only for the page title, big numbers and
+   ticket totals; everything else in the readable face. Flat surfaces.
+   ===================================================================== */
+h2,h3,.tk h3,.kb-body b,.bb-t b,.feed-h h3{font-family:var(--font);letter-spacing:0}
+h1{font-size:clamp(2rem,3.4vw,2.55rem);font-weight:800;margin-bottom:4px}
+h2{font-size:1.15rem;font-weight:700;line-height:1.25}
+h3{font-size:1.02rem;font-weight:700;line-height:1.3}
+.lead{margin-top:2px;color:var(--muted);font-size:1rem}
+.phead{margin-bottom:18px}
+.card,.kstrip,.mm,.tw,.feed-card,.kb-card,.bb{box-shadow:none}
+.card,.kstrip,.mm,.feed-card{border-color:var(--line)}
+.sect-h{margin:30px 0 10px;align-items:baseline}
+.sect-h h2{margin:0}
+.kstrip{margin-top:16px}
+.kstrip > div{padding:16px 18px}
+.kstrip > div b,.kstrip .n{font-size:2.15rem}
+.kstrip .l{color:var(--muted);font-size:.9rem}
+.cost b{font-family:var(--font);font-weight:700;font-size:1.25rem}
+.kb-body{border-top-width:2px}
+.kb-body b{font-size:1rem;font-weight:700}
+.tk h3{font-size:1.05rem}
+
+/* Sidebar: navigation, not a second menu */
+aside .brandbox b{font-size:1.3rem}
+#nav button{font-size:.95rem;padding:9px 12px;min-height:40px}
+#nav button .ic svg{width:18px;height:18px}
+
+/* Quick actions: one slim row */
+.qa{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:20px 0 4px}
+.qa-btn{position:relative;display:flex;align-items:center;gap:10px;min-height:54px;padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink);font:inherit;font-weight:600;text-align:left;cursor:pointer}
+.qa-btn:hover{border-color:var(--ink-2)}
+.qa-btn:focus-visible{outline:3px solid var(--mustard);outline-offset:2px}
+.qa-ic{flex:none;width:32px;height:32px;border-radius:9px;display:grid;place-items:center;background:var(--jade-pale);color:var(--jade)}
+.qa-ic .ic,.qa-ic svg{width:18px!important;height:18px!important}
+.qa-btn.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.qa-btn.primary .qa-ic{background:color-mix(in srgb,var(--on-brand) 18%,transparent);color:var(--on-brand)}
+.qa-badge{margin-left:auto;min-width:22px;height:22px;padding:0 7px;border-radius:999px;background:var(--ketchup);color:#fff;font-size:.78rem;font-weight:700;display:grid;place-items:center}
+.bb.primary,.bb.primary .bb-t b,.bb.primary .bb-t span{color:var(--on-brand)}
+@media (max-width:900px){.qa{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:700px){
+  .qa{gap:8px;margin-top:14px}
+  .qa-btn{min-height:58px;font-size:.95rem;padding:10px 12px}
+  h1{font-size:2rem}
+  .kstrip > div b,.kstrip .n{font-size:1.9rem}
+}
+
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
 .demo-dot{width:8px;height:8px;border-radius:50%;background:#6FC79A;flex:none;box-shadow:0 0 0 4px rgba(111,199,154,.18)}
@@ -1604,7 +1651,7 @@ function home(m){
   const sales = costedAll.reduce((a, x) => a + x.s.price * (n(x.i.sold) || 0), 0), cost = costedAll.reduce((a, x) => a + x.s.plate * (n(x.i.sold) || 0), 0);
   const ins = visibleInsights(r);
   m.append(el("h1",{text:r.name}), el("p",{class:"lead", text: ACCT && ACCT.role === "member" ? "What do you need?" : "Here's where your menu stands this " + r.period + "."}));
-  m.append(bigButtons(r, ins));
+  m.append(quickActions(r));
   if (!items.length && !Object.keys(r.supplies).length){
     m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fill,minmax(240px,1fr))"},
       el("div",{class:"card"}, el("h3",{text:"1. Connect your suppliers"}), el("p",{text:"Sysco, US Foods, Gordon and PFG send invoices straight in. Everyone else: email or snap a photo."}), el("button",{class:"btn primary", text:"Connect suppliers", onclick:() => go("suppliers")})),
@@ -1624,15 +1671,12 @@ function home(m){
     el("div",null, el("b",{text: hasSales ? "Your sales numbers are over a month old." : "Add your sales to rank suggestions by dollars."}), " Export the item sales report from Clover (or any register) and upload it; plates sold fill in automatically."),
     el("div",{class:"row", style:"gap:6px"}, el("button",{class:"btn primary", text:"Import sales", onclick:() => openSalesImport()}),
       el("button",{class:"ix", "aria-label":"Dismiss", title:"Dismiss", text:"\u00d7", onclick:() => { r.hidden.sales = today(); save(); render(); }}))));
-  const map0 = menuMap(r); if (map0) m.append(map0);
   requestAnimationFrame(() => countUp(m));
   const top = ins.filter(i => i.sev !== "good").slice(0, 4);
-  m.append(el("div",{class:"sect-h"}, el("h2",{text:"Top things to do"}), ins.length ? el("button",{class:"linkbtn", type:"button", text:"See all " + ins.length, onclick:() => go("coach")}) : null));
+  m.append(el("div",{class:"sect-h"}, el("h2",{text:"Fix these first"}), ins.length ? el("button",{class:"linkbtn", type:"button", text:"See all " + ins.length, onclick:() => go("coach")}) : null));
   if (top.length) m.append(ticketRail(top));
   else m.append(el("div",{class:"card empty", text:"Nothing needs attention right now."}));
-  const conns = SUPPLIERS.filter(s => r.conn[s.id] && r.conn[s.id].status === "active").map(s => s.name);
-  m.append(el("h2",{text:"Feeds"}), el("div",{class:"card"}, el("p",{style:"margin:0"}, (r.vendors || []).length ? "Your suppliers: " + r.vendors.map(v => v.name).join(", ") + ". " : "No suppliers added yet. ", "Snap or upload each invoice from Invoices & orders and prices update across your menu."),
-    el("div",{class:"row", style:"margin-top:10px"}, el("button",{class:"btn primary", text:"Upload an invoice", onclick:() => openUpload()}), el("button",{class:"btn quiet", text:"Your suppliers", onclick:() => go("suppliers")}))));
+  const map0 = menuMap(r); if (map0) m.append(map0);
 }
 function coach(m){
   const r = R(), ins = visibleInsights(r), eng = engineering(), hiddenN = Object.keys(r.dismissed || {}).length;
@@ -1804,7 +1848,28 @@ function fcCell(fc, tgt, status){
 }
 
 
-/* ================= Big button sections (Home) ================= */
+/* ================= Quick actions (Home) =================
+   Only things you DO, not places you go: the sidebar and tab bar already cover pages. */
+function quickActions(r){
+  const cook = ACCT && ACCT.role === "member";
+  const toReview = r.inbox.filter(d => d.status === "new").length;
+  const btn = (icon, label, run, opts = {}) => el("button",{class:"qa-btn" + (opts.primary ? " primary" : ""), type:"button", onclick: run, "aria-label": label + (opts.badge ? ", " + opts.badge + " waiting" : "")},
+    el("span",{class:"qa-ic"}, navIcon(icon)), el("span",{class:"qa-l", text:label}), opts.badge ? el("span",{class:"qa-badge", text:opts.badge}) : null);
+  const snap = () => { openUpload(); setTimeout(() => { const f = document.querySelector('#dlg-b input[type=file]'); if (f && isPhone()){ f.setAttribute("capture", "environment"); f.setAttribute("accept", "image/*"); } }, 50); };
+  const list = cook ? [
+      btn("book", "Kitchen book", () => go("book"), { primary:true }),
+      btn("camera", "Snap an invoice", snap),
+      btn("print", "Print cards", () => { go("book"); openPrintCards(); }),
+      btn("search", "Search", () => cmdkOpen())
+    ] : [
+      btn("camera", isPhone() ? "Snap an invoice" : "Upload an invoice", snap, { primary:true, badge: toReview || 0 }),
+      btn("sales", "Import sales", () => openSalesImport()),
+      btn("print", "Print cards", () => { go("book"); openPrintCards(); }),
+      btn("search", "Search", () => cmdkOpen())
+    ];
+  return el("div",{class:"qa", role:"group", "aria-label":"Quick actions"}, list);
+}
+/* ================= Big button sections (no longer on Home; kept for reference) ================= */
 function bigButtons(r, ins){
   const cook = ACCT && ACCT.role === "member";
   const toReview = r.inbox.filter(d => d.status === "new").length, fixes = ins.filter(i => i.sev === "bad").length;
