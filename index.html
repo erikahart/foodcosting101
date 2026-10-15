@@ -973,6 +973,14 @@ aside .brandbox b{font-size:1.3rem}
   h1{font-size:2rem}
   .kstrip > div b,.kstrip .n{font-size:1.9rem}
 }
+
+.pk-list{display:grid;gap:6px;margin:10px 0}
+.pk-row{display:grid;grid-template-columns:auto 56px 1fr auto;gap:12px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;cursor:pointer;background:var(--panel)}
+.pk-row img,.pk-noimg{width:56px;height:56px;border-radius:8px;object-fit:cover;background:var(--field);display:block}
+.pk-t{display:flex;flex-direction:column;min-width:0}
+.pk-n{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
+.pk-ings summary{cursor:pointer;font-weight:600;padding:6px 0}
+.kb-hero{object-fit:contain;max-height:440px;background:var(--field)}
 </style>
 </head>
 <body>
@@ -1640,7 +1648,8 @@ function menu(m){
         el("button",{class:"more-row", type:"button", onclick:() => openSalesImport()}, el("b",{text:"Sales"}), el("span",{text:"Item sales report from Clover, Toast or Square"})),
         r.salesLast ? el("button",{class:"more-row", type:"button", onclick:() => openRegisterMatches()}, el("b",{text:"Register matches"}), el("span",{text:"Fix which register items count toward each menu item"})) : null,
         el("button",{class:"more-row", type:"button", onclick:() => openSheetImport()}, el("b",{text:"Costing spreadsheet"}), el("span",{text:"Your Excel or CSV costing sheet"})),
-        el("button",{class:"more-row", type:"button", onclick:() => openMenuImport()}, el("b",{text:"Menu"}), el("span",{text:"Photo, PDF or text of your menu"})))], [])}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)})) :
+        el("button",{class:"more-row", type:"button", onclick:() => openMenuImport()}, el("b",{text:"Menu"}), el("span",{text:"Photo, PDF or text of your menu"})),
+        el("button",{class:"more-row", type:"button", onclick:() => pickRecipePack()}, el("b",{text:"Recipe pack"}), el("span",{text:"Ready-made recipes with photos and steps (.json)"})))], [])}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)})) :
     el("div",{class:"row"}, r.salesLast ? el("button",{class:"btn quiet", text:"Register matches", title:"Fix which register items count toward which menu items", onclick:() => openRegisterMatches()}) : null, el("button",{class:"btn quiet", text:"Import sales", onclick:() => openSalesImport()}), el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn quiet", text:"Import menu", onclick:() => openMenuImport()}), el("button",{class:"btn primary", text:"+ New recipe", onclick:() => openRecipe(null)}))));
   const all = Object.values(r.items);
   const setup = costSetupCard(r); if (setup) m.append(setup);
@@ -1864,7 +1873,7 @@ const BKV = { q:"", cat:"all" };
 function book(m){
   const r = R(); loadPhotos();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Kitchen book"}), el("p",{class:"lead", text:"Recipe cards for the line: what it looks like, what goes on it, and how to make it."})),
-    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Photos from website", onclick:() => openSitePhotos()}), el("button",{class:"btn quiet", text:"Create AI images", onclick:() => openAIImages()}), el("button",{class:"btn primary", text:"Print cards", onclick:() => openPrintCards()}))));
+    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import recipes", title:"Add drinks or dishes from a recipe pack file", onclick:() => pickRecipePack()}), el("button",{class:"btn quiet", text:"Photos from website", onclick:() => openSitePhotos()}), el("button",{class:"btn quiet", text:"Create AI images", onclick:() => openAIImages()}), el("button",{class:"btn primary", text:"Print cards", onclick:() => openPrintCards()}))));
   if (!PHOTOS_READY) m.append(el("div",{class:"card banner"}, el("div",null, el("b",{text:"Photos need a one-time setup."}), " Whoever manages the app runs supabase/002_recipe_photos.sql in Supabase (SQL Editor). Recipe cards work without it; only photos wait."),
     el("button",{class:"btn quiet", text:"Check again", onclick:() => { PHOTOS_READY = true; loadPhotos(true); }})));
   const all = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
@@ -1900,7 +1909,7 @@ function openCard(id){
   openDlg(it.name, [
     ph ? el("img",{class:"kb-hero", src:ph, alt:"How " + it.name + " should look"}) : el("div",{class:"kb-hero kb-hero-empty"}, plateArt(it), el("button",{class:"btn quiet", type:"button", text:"Add a photo", onclick:() => openCardEdit(id, true)})),
     ph && c.photoSrc === "ai" ? el("p",{class:"kb-aicap"}, el("b",{text:"AI image."}), " Shows a typical version of the dish, not your plating. Replace it with a photo of your plate when you can.") : null,
-    el("div",{class:"kb-facts"}, fact("Prep", mins(c.prepMin)), fact("Cook", mins(c.cookMin)), fact("Total", total ? total + " min" : ""), fact("Station", c.station), fact("Makes", n(it.portions) > 1 ? it.portions + " portions" : c.yieldText || "")),
+    el("div",{class:"kb-facts"}, fact("Prep", mins(c.prepMin)), fact(isDrink(it) ? "Build" : "Cook", mins(c.cookMin)), fact("Total", total ? total + " min" : ""), fact("Station", c.station), fact("Makes", n(it.portions) > 1 ? it.portions + " portions" : c.yieldText || "")),
     (c.allergens || []).length ? el("div",{class:"kb-allergens", role:"note"}, el("b",{text:"Contains: "}), c.allergens.join(", ")) : null,
     el("div",{class:"kb-cols"},
       el("section",null, el("h3",{text:"Ingredients"}), ings.length ? el("ul",{class:"kb-ings"}, ings.map(x => el("li",null, el("b",{text:x.qty}), " ", x.name))) : el("p",{class:"mini", text:"No ingredients listed yet."})),
@@ -1958,7 +1967,7 @@ function openCardEdit(id, focusPhoto){
   const prepIn = num("prepMin", "min"), cookIn = num("cookMin", "min");
   openDlg("Edit card: " + it.name, [
     photoBox,
-    el("div",{class:"g3 nums3"}, fld("Prep (min)", prepIn), fld("Cook (min)", cookIn), fld("Station", station)), el("datalist",{id:"kb-stations"}, STATIONS.map(x => el("option",{value:x}))),
+    el("div",{class:"g3 nums3"}, fld("Prep (min)", prepIn), fld(isDrink(it) ? "Build (min)" : "Cook (min)", cookIn), fld("Station", station)), el("datalist",{id:"kb-stations"}, STATIONS.map(x => el("option",{value:x}))),
     fld("Makes", yieldIn, n(it.portions) > 1 ? "This recipe is set to " + it.portions + " portions" : null),
     el("div",{class:"row", style:"justify-content:space-between;align-items:center;margin-top:6px"}, el("b",{text:"Steps"}), aiBtn), steps,
     fld("Plating", plating), el("div",{class:"field"}, el("span",{class:"q", text:"Allergens"}), al),
@@ -1995,7 +2004,7 @@ async function draftCards(list){
 function printCardEl(it, r, o = {}){
   const c = cardOf(it), ph = o.photos !== false ? PHOTOS.get(it.id) : null, ings = ingredientRows(it, r);
   const total = n(c.prepMin) + n(c.cookMin);
-  const facts = [c.station, c.prepMin ? "Prep " + mins(c.prepMin) : "", c.cookMin ? "Cook " + mins(c.cookMin) : "", total ? "Total " + total + " min" : "", n(it.portions) > 1 ? "Makes " + it.portions : c.yieldText || ""].filter(Boolean);
+  const facts = [c.station, c.prepMin ? "Prep " + mins(c.prepMin) : "", c.cookMin ? (isDrink(it) ? "Build " : "Cook ") + mins(c.cookMin) : "", total ? "Total " + total + " min" : "", n(it.portions) > 1 ? "Makes " + it.portions : c.yieldText || ""].filter(Boolean);
   return el("article",{class:"pc"},
     el("header",{class:"pc-head"}, el("div",null, el("h1",{text:it.name}), el("p",{class:"pc-sec", text:it.section || ""})), ph ? el("figure",{class:"pc-fig"}, el("img",{src:ph, alt:""}), c.photoSrc === "ai" ? el("figcaption",{text:"AI image, not our plating"}) : null) : null),
     facts.length ? el("p",{class:"pc-meta", text:facts.join("   |   ")}) : null,
@@ -2346,6 +2355,94 @@ function gfsFeedPanel(){
   return box;
 }
 
+
+/* ================= Recipe packs: ready-made recipes with cards and photos ================= */
+function pickRecipePack(){
+  const f = el("input",{type:"file", style:"position:fixed;left:-9999px;top:0;opacity:0"}); document.body.append(f);
+  f.onchange = async () => { const file = f.files && f.files[0]; f.remove(); if (!file) return;
+    let pk = null; try { pk = JSON.parse(await file.text()); } catch(e){}
+    if (!pk || pk.kind !== "recipe-pack" || !Array.isArray(pk.items) || !pk.items.length) return toast("That isn't a recipe pack file.");
+    reviewRecipePack(pk);
+  };
+  f.click();
+}
+function reviewRecipePack(pk){
+  const r = R(), sups = Object.values(r.supplies);
+  const base = nm => String(nm || "").replace(/,.*$/, "").replace(/\([^)]*\)/g, " ").trim();
+  // Each ingredient: use a matching supply you already have, or add it with an estimated price.
+  const plan = {};
+  (pk.supplies || []).forEach(ps => {
+    let best = null, bs = 0;
+    sups.forEach(su => { const ua = UNITS[ps.unit], ub = UNITS[su.unit]; if (ua && ub && ua[0] !== ub[0]) return;
+      const sc = Math.max(simScore(base(ps.name), supName(su)), simScore(base(ps.name), su.name || "")); if (sc > bs){ bs = sc; best = su; } });
+    plan[ps.key] = { ps, use: best && bs >= 0.8 ? best.id : "" };
+  });
+  const unitCost = key => { const p = plan[key]; if (!p) return 0; const su = p.use && r.supplies[p.use];
+    if (su && n(su.price) > 0 && n(su.caseQty) > 0) return su.price / su.caseQty / (n(su.yield) || 1) * (UNITS[p.ps.unit] && UNITS[su.unit] ? UNITS[p.ps.unit][1] / UNITS[su.unit][1] : 1);
+    return p.ps.price / p.ps.caseQty; };
+  const costOf = it => (it.lines || []).reduce((t, l) => t + unitCost(l.s) * n(l.qty), 0);
+  const section = el("input",{class:"inp"}); section.value = pk.section || "Recipes";
+  const take = new Set(pk.items.map((x, i) => i));
+  const existing = nm => Object.values(r.items).find(it => it.name.trim().toLowerCase() === nm.trim().toLowerCase());
+  const drinks = el("div",{class:"pk-list"}), go2 = el("button",{class:"btn primary"});
+  const paint = () => { go2.textContent = "Add " + take.size + (take.size === 1 ? " recipe" : " recipes"); go2.disabled = !take.size; };
+  const drawDrinks = () => drinks.replaceChildren(...pk.items.map((it, i) => {
+    const cb = el("input",{type:"checkbox", "aria-label":"Include " + it.name}); cb.checked = take.has(i); cb.onchange = () => { cb.checked ? take.add(i) : take.delete(i); paint(); };
+    const c = costOf(it), ex = existing(it.name);
+    return el("label",{class:"pk-row"}, cb, it.photo ? el("img",{src:it.photo, alt:""}) : el("span",{class:"pk-noimg"}),
+      el("span",{class:"pk-t"}, el("b",{text:it.name}), el("span",{class:"mini", text: ex ? "Updates the card and photo on your existing " + ex.name : (it.desc || "")})),
+      el("span",{class:"pk-n"}, el("b",{text:$$(c)}), el("span",{class:"mini", text: n(it.price) ? pc(c / it.price) + " of " + $$(it.price) : ""})));
+  }));
+  const ingRows = el("tbody");
+  const drawIngs = () => ingRows.replaceChildren(...Object.values(plan).map(p => {
+    const sel = el("select",{class:"inp", style:"min-height:36px", "aria-label":"Supply for " + p.ps.name},
+      el("option",{value:"", text:"Add it: " + $$(p.ps.price) + " per " + (p.ps.pack || "case") + " (AI estimate)"}),
+      sups.filter(su => { const ua = UNITS[p.ps.unit], ub = UNITS[su.unit]; return !(ua && ub && ua[0] !== ub[0]); }).sort((a, b) => supName(a).localeCompare(supName(b))).map(su => el("option",{value:su.id, text:"Use your " + supName(su)})));
+    sel.value = p.use; sel.onchange = () => { p.use = sel.value; drawDrinks(); };
+    return el("tr",{style:"cursor:default"}, el("td",{style:"white-space:normal"}, el("b",{text:p.ps.name})), el("td",null, sel));
+  }));
+  go2.onclick = async () => {
+    const sec = section.value.trim() || pk.section || "Recipes", ids = {};
+    Object.values(plan).forEach(p => {
+      if (p.use){ ids[p.ps.key] = p.use; return; }
+      const id = uid("s"); ids[p.ps.key] = id;
+      const short = p.ps.name.replace(/,\s*[^,]*\d[^,]*$/, "").trim();
+      r.supplies[id] = { id, name: p.ps.name, title: short !== p.ps.name ? short : undefined, cat: p.ps.cat || guessCat(p.ps.name), supplier:"", code:"", caseQty: p.ps.caseQty, unit: p.ps.unit, yield: 1, price: p.ps.price, estimated: true, history:[{ date: today(), price: p.ps.price, src:"estimate" }] };
+    });
+    const used = new Set(); pk.items.forEach((it, i) => { if (take.has(i)) it.lines.forEach(l => used.add(l.s)); });
+    Object.entries(ids).forEach(([k, id]) => { const su = r.supplies[id]; if (su && su.estimated && !used.has(k) && !Object.values(r.items).some(it => (it.lines || []).some(l => l.s === id))) delete r.supplies[id]; });
+    let order = Math.max(0, ...Object.values(r.items).map(i => i.order || 0));
+    const photos = [];
+    pk.items.forEach((it, i) => {
+      if (!take.has(i)) return;
+      const lines = it.lines.map(l => ({ s: ids[l.s], label: (plan[l.s] ? plan[l.s].ps.name : l.s).replace(/,.*$/, ""), qty: l.qty, unit: l.unit }));
+      const card = Object.assign({}, it.card, it.photo ? { photoSrc:"upload" } : {});
+      let tgt = existing(it.name);
+      if (tgt){ tgt.card = Object.assign({}, tgt.card || {}, card); if (!(tgt.lines || []).length) tgt.lines = lines; if (!tgt.desc && it.desc) tgt.desc = it.desc; }
+      else { tgt = { id: uid("m"), name: it.name, section: sec, price: n(it.price) || 0, sold: 0, portions: 1, lines, order: ++order, desc: it.desc || "", card }; if (/cocktail|drink|bar/i.test(sec)) tgt.drinkType = "liquor"; r.items[tgt.id] = tgt; }
+      if (it.photo) photos.push([tgt, it.photo]);
+    });
+    if (!r.sectionOrder) r.sectionOrder = []; if (!r.sectionOrder.includes(sec)) r.sectionOrder.push(sec);
+    save();
+    let saved = 0;
+    if (photos.length){
+      const lab = el("p",{style:"text-align:center", text:"Saving photos\u2026"}); openDlg("Adding recipes", [el("div",{class:"spin"}), lab], []);
+      for (const [tgt, url] of photos){ try { const m2 = url.match(/^data:([^;]+);base64,(.*)$/); await storePhoto(tgt, b64ToBlob(m2[2], m2[1]), "upload"); saved++; lab.textContent = "Saved " + saved + " of " + photos.length + " photos\u2026"; } catch(e){} }
+      save();
+    }
+    dlg.close(); go("book");
+    toast("Added " + take.size + (take.size === 1 ? " recipe" : " recipes") + (saved ? " with " + saved + " photos" : "") + ". Estimated prices are tagged \u201cAI estimate\u201d until your invoices replace them.");
+  };
+  drawDrinks(); drawIngs(); paint();
+  openDlg("Import: " + (pk.name || "recipe pack"), [
+    el("p",{class:"lead", text: pk.items.length + " recipes with ingredients, steps, cards" + (pk.items.some(x => x.photo) ? " and photos" : "") + ". Check them, then add."}),
+    fld("Menu section", section),
+    drinks,
+    el("details",{class:"pk-ings"}, el("summary",{text:"Ingredients (" + Object.keys(plan).length + "): " + Object.values(plan).filter(p => p.use).length + " match supplies you have, the rest are added with estimated prices"}),
+      el("div",{class:"tw", style:"margin-top:8px"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Ingredient"}), el("th",{text:"Use"}))), ingRows))),
+    pk.note ? el("p",{class:"mini", text:pk.note}) : null
+  ], [el("span"), go2]);
+}
 /* ================= Backup & restore ================= */
 async function downloadBackup(){
   toast("Preparing your backup\u2026");
