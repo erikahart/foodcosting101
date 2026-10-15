@@ -2,5 +2,8 @@
   "name": "foodcosting101",
   "version": "2.0.0",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "ssh2-sftp-client": "11.0.0"
+  }
 }

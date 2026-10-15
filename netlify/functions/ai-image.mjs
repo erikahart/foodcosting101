@@ -14,7 +14,10 @@ async function memberOfAKitchen(token) {
 
 export default async (req) => {
   if (req.method !== "POST") return json(405, { error: "Method not allowed" });
-  if (!process.env.OPENAI_API_KEY) return json(501, { error: "AI images aren't set up", reason: "noimagekey" });
+  // Forgive common paste mistakes: spaces, line breaks, quotes, or a leading "Bearer".
+  const key = String(process.env.OPENAI_API_KEY || "").trim().replace(/^["']|["']$/g, "").replace(/^Bearer\s+/i, "").trim();
+  if (!key) return json(501, { error: "AI images aren't set up", reason: "noimagekey" });
+  if (!/^sk-[A-Za-z0-9_-]{20,}$/.test(key)) return json(502, { error: "That doesn't look like an OpenAI API key", reason: "imagekeyformat" });
   const token = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "");
   if (!(await memberOfAKitchen(token))) return json(401, { error: "Sign in first" });
   let body; try { body = await req.json(); } catch { return json(400, { error: "Not valid JSON" }); }
@@ -26,13 +29,15 @@ export default async (req) => {
     "on a wooden or laminate table. No text, no logos, no hands, no people.";
   const res = await fetch("https://api.openai.com/v1/images/generations", {
     method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
     body: JSON.stringify({ model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1", prompt, size: "1024x1024", quality: "low", n: 1 }),
   });
   if (!res.ok) {
     const detail = (await res.text().catch(() => "")).slice(0, 600);
     console.error("OpenAI image error", res.status, detail);
-    const reason = /billing|quota|insufficient|credit/i.test(detail) ? "imagecredit" : res.status === 401 ? "imagekey" : /safety|content_policy|moderation/i.test(detail) ? "imagesafety" : res.status === 429 ? "busy" : "other";
+    const reason = /billing|quota|insufficient|credit/i.test(detail) ? "imagecredit" : res.status === 401 ? "imagekey"
+      : /verif/i.test(detail) && res.status === 403 ? "imageverify" : /safety|content_policy|moderation/i.test(detail) ? "imagesafety"
+      : /model/i.test(detail) && (res.status === 404 || res.status === 400 || res.status === 403) ? "imagemodel" : res.status === 429 ? "busy" : "other";
     return json(502, { error: "Image service error", reason, status: res.status });
   }
   const out = await res.json();

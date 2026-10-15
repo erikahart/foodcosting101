@@ -38,7 +38,7 @@ export default async (req) => {
   content.push({ type: "text", text: prompt });
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+    headers: { "content-type": "application/json", "x-api-key": String(process.env.ANTHROPIC_API_KEY).trim().replace(/^["']|["']$/g, ""), "anthropic-version": "2023-06-01" },
     // A fast model by default: Netlify stops a function after 30 seconds.
     body: JSON.stringify({ model: process.env.ANTHROPIC_MODEL || "claude-haiku-5-5", max_tokens: body?.file ? 8000 : 4000, messages: [{ role: "user", content }] }),
   });

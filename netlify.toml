@@ -15,3 +15,8 @@
   for = "/config.js"
   [headers.values]
     Cache-Control = "no-cache"
+
+# The SFTP library (GFS feed) ships parts that shouldn't be bundled; Netlify installs it as is.
+[functions]
+  node_bundler = "esbuild"
+  external_node_modules = ["ssh2-sftp-client", "ssh2", "cpu-features"]

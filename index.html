@@ -757,6 +757,64 @@ details.ai-fold[open] summary{padding:12px 0}
 .sp-thumb{width:64px;height:48px;border-radius:6px;overflow:hidden;background:var(--field);display:grid;place-items:center}
 .sp-thumb img{width:100%;height:100%;object-fit:cover}
 @media print{ .pc-fig{margin:0;display:flex;flex-direction:column;align-items:flex-end} .pc-fig figcaption{font-size:6.5pt;color:#555;margin-top:2pt} }
+
+/* ---------- Big button sections ---------- */
+.bb-wrap{display:grid;gap:18px;margin:4px 0 26px}
+.bb-sec h2{font-size:.82rem;font-weight:700;color:var(--muted);margin:0 0 8px;letter-spacing:.02em;font-family:var(--font)}
+.bb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.bb{position:relative;display:flex;align-items:center;gap:14px;min-height:84px;padding:16px 18px;border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--ink);font:inherit;text-align:left;cursor:pointer;transition:border-color .12s,transform .08s,box-shadow .12s}
+.bb:hover{border-color:var(--ink-2);box-shadow:0 6px 18px rgba(16,22,19,.06)}
+.bb:active{transform:scale(.985)}
+.bb:focus-visible{outline:3px solid color-mix(in srgb,var(--brand) 45%,transparent);outline-offset:2px}
+.bb-ic{flex:none;width:48px;height:48px;border-radius:13px;display:grid;place-items:center;background:color-mix(in srgb,var(--brand) 12%,var(--panel));color:var(--brand)}
+.bb-ic .ic,.bb-ic svg{width:26px!important;height:26px!important}
+.bb-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.bb-t b{font-size:1.05rem;font-weight:700;font-family:var(--brand-font);letter-spacing:-.01em}
+.bb-t span{font-size:.84rem;color:var(--muted);line-height:1.3}
+.bb.primary{background:var(--brand);border-color:var(--brand);color:var(--on-brand)}
+.bb.primary .bb-ic{background:rgba(255,255,255,.18);color:var(--on-brand)}
+.bb.primary .bb-t span{color:color-mix(in srgb,var(--on-brand) 80%,transparent)}
+.bb-badge{position:absolute;top:10px;right:12px;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--bad);color:#fff;font-size:.78rem;font-weight:700;display:grid;place-items:center}
+
+/* ---------- Phones: big, thumb-friendly controls everywhere ---------- */
+@media (max-width:700px){
+  .bb-grid{grid-template-columns:1fr 1fr;gap:10px}
+  .bb{flex-direction:column;align-items:flex-start;gap:10px;min-height:128px;padding:14px}
+  .bb-ic{width:44px;height:44px}
+  .bb-t b{font-size:1rem}
+  .bb-t span{font-size:.78rem}
+  .bb-badge{top:10px;right:10px}
+  /* An odd tile at the end of a section stretches into a wide button */
+  .bb-grid > .bb:last-child:nth-child(odd){grid-column:1/-1;flex-direction:row;align-items:center;min-height:84px}
+  .phead .row > :last-child:nth-child(odd),.spread > .row > :last-child:nth-child(odd){grid-column:1/-1}
+  .btn{min-height:48px;font-size:.95rem;padding:10px 14px}
+  .inp,.search,select.inp,textarea.inp{min-height:48px;font-size:16px}
+  .chip{min-height:40px;padding:8px 14px;font-size:.9rem}
+  .linkbtn{min-height:40px;display:inline-flex;align-items:center}
+  .phead .row,.spread > .row{display:grid!important;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+  .phead .row .btn,.spread > .row .btn{min-height:52px;width:100%;white-space:normal;line-height:1.2}
+  .phead .row > :only-child{grid-column:1/-1}
+  .sheet-f .btn{min-height:52px;flex:1}
+  .sheet-f{gap:10px}
+  .sheet-f > .row{flex:1}
+  .ix,.x,.close{width:44px;height:44px}
+  .kb-grid{gap:12px}
+  .kb-body b{font-size:1.02rem}
+  .kb-steps li{padding:2px 0}
+  .tw tbody tr{padding:14px}
+  .more-row{min-height:60px;padding:14px 16px}
+  .kstrip .n{font-size:1.6rem}
+  .insight .acts .btn{min-height:46px;padding:10px 14px;font-size:.92rem}
+  .insight .dismiss{min-height:44px}
+  .setup li .btn,.banner .btn{min-height:48px}
+}
+@media (max-width:900px){
+  .tabbar{padding-top:6px}
+  .tabbar button{min-height:58px;font-size:.72rem}
+}
+.feed-card{margin-bottom:18px;border-left:4px solid var(--brand)}
+.feed-h{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.feed-h h3{margin:0}
 </style>
 </head>
 <body>
@@ -1180,7 +1238,10 @@ const AI_REASONS = {
   noimagekey: "AI images aren't switched on yet. Create an API key at platform.openai.com (API keys), add it in Netlify as OPENAI_API_KEY, and redeploy.",
   imagekey: "The OpenAI key in Netlify isn't valid. Create a new one at platform.openai.com, update OPENAI_API_KEY in Netlify, and redeploy.",
   imagecredit: "Your OpenAI account needs credit for images. Add some at platform.openai.com (Billing), then try again.",
-  imagesafety: "The image service declined this dish's description. Try again, or add a real photo instead."
+  imagesafety: "The image service declined this dish's description. Try again, or add a real photo instead.",
+  imagekeyformat: "The OPENAI_API_KEY in Netlify isn't an OpenAI API key. It should start with sk- and come from platform.openai.com > API keys (a ChatGPT subscription doesn't include one).",
+  imageverify: "OpenAI needs your organization verified before it will make images. Do it at platform.openai.com > Settings > Organization > General (Verify), then try again.",
+  imagemodel: "Your OpenAI account can't use the image model yet. Check platform.openai.com > Settings > Limits, or set OPENAI_IMAGE_MODEL in Netlify to a model your account can use."
 };
 const aiProblem = e => e && e.reason && AI_REASONS[e.reason] ? AI_REASONS[e.reason] : e && e.code === "unavailable" ? "AI isn't switched on for this site yet. Whoever runs it needs to add an ANTHROPIC_API_KEY in Netlify."
   : e && e.code === "signin" ? "Please sign out and back in, then try again." : e && e.code === "not_granted" ? "This needs your OK to use Claude. Try again and allow it." : null;
@@ -1221,6 +1282,13 @@ const NAV_ICONS = {
   suppliers:'<path d="M2 6h11v10H2zM13 9h4l3 3.5V16h-7"/><circle cx="6" cy="18" r="2"/><circle cx="17" cy="18" r="2"/>',
   brand:'<path d="M12 3a9 9 0 1 0 0 18c1 0 1.5-.8 1.5-1.6 0-1.2-1-1.4-1-2.4 0-.9.7-1.5 1.6-1.5H17a4 4 0 0 0 4-4C21 6.5 17 3 12 3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="10.5" cy="7.5" r="1"/><circle cx="15" cy="7.5" r="1"/>'
 };
+Object.assign(NAV_ICONS, {
+  camera:'<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+  print:'<path d="M7 9V3h10v6M7 17H4v-7h16v7h-3"/><path d="M7 14h10v7H7z"/>',
+  search:'<circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/>',
+  tag:'<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.3"/>',
+  sales:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'
+});
 const navIcon = id => { const sp = document.createElement("span"); sp.className = "ic"; sp.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + NAV_ICONS[id] + '</svg>'; return sp; };
 function renderNav(){
   const nav = $("nav"); nav.replaceChildren();
@@ -1324,7 +1392,8 @@ function home(m){
   const costedAll = all.filter(x => x.s.status !== "norecipe");
   const sales = costedAll.reduce((a, x) => a + x.s.price * (n(x.i.sold) || 0), 0), cost = costedAll.reduce((a, x) => a + x.s.plate * (n(x.i.sold) || 0), 0);
   const ins = visibleInsights(r);
-  m.append(el("h1",{text:r.name}), el("p",{class:"lead", text:"Here's where your menu stands this " + r.period + "."}));
+  m.append(el("h1",{text:r.name}), el("p",{class:"lead", text: ACCT && ACCT.role === "member" ? "What do you need?" : "Here's where your menu stands this " + r.period + "."}));
+  m.append(bigButtons(r, ins));
   if (!items.length && !Object.keys(r.supplies).length){
     m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fill,minmax(240px,1fr))"},
       el("div",{class:"card"}, el("h3",{text:"1. Connect your suppliers"}), el("p",{text:"Sysco, US Foods, Gordon and PFG send invoices straight in. Everyone else: email or snap a photo."}), el("button",{class:"btn primary", text:"Connect suppliers", onclick:() => go("suppliers")})),
@@ -1523,6 +1592,37 @@ function fcCell(fc, tgt, status){
     el("span",{class:"fcbar " + (status === "bad" ? "bad" : status === "warn" ? "warn" : "")}, el("i",{style:"width:" + w + "%"}), el("b")));
 }
 
+
+/* ================= Big button sections (Home) ================= */
+function bigButtons(r, ins){
+  const cook = ACCT && ACCT.role === "member";
+  const toReview = r.inbox.filter(d => d.status === "new").length, fixes = ins.filter(i => i.sev === "bad").length;
+  const noCard = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || "") && !(cardOf(it).steps || []).length).length;
+  const tile = (icon, label, sub, run, opts = {}) => el("button",{class:"bb" + (opts.primary ? " primary" : ""), type:"button", onclick: run, "aria-label": label + (opts.badge ? ", " + opts.badge + " to look at" : "")},
+    el("span",{class:"bb-ic"}, navIcon(icon)), el("span",{class:"bb-t"}, el("b",{text:label}), el("span",{text:sub})), opts.badge ? el("span",{class:"bb-badge", text:opts.badge}) : null);
+  const snapInvoice = () => { openUpload(); setTimeout(() => { const f = document.querySelector('#dlg-b input[type=file]'); if (f && isPhone()){ f.setAttribute("capture", "environment"); f.setAttribute("accept", "image/*"); } }, 50); };
+  const priceSheet = () => { openUpload(); setTimeout(() => { const t = [...document.querySelectorAll('#dlg-b [role=tab]')].find(b => /price sheet/i.test(b.textContent)); if (t) t.click(); }, 50); };
+  const section = (title, tiles) => el("section",{class:"bb-sec", "aria-label":title}, el("h2",{text:title}), el("div",{class:"bb-grid"}, tiles.filter(Boolean)));
+  const out = el("div",{class:"bb-wrap"},
+    section("Kitchen", [
+      tile("book", "Kitchen book", "Recipe cards, photos and steps", () => go("book"), { primary: cook }),
+      tile("print", "Print cards", noCard ? noCard + " dishes still need steps" : "Binder, station or 4\u00d76 cards", () => { go("book"); openPrintCards(); }),
+      tile("search", "Search", "Any dish, supply or supplier", () => cmdkOpen())
+    ]),
+    section("Deliveries & prices", [
+      tile("camera", isPhone() ? "Snap an invoice" : "Upload an invoice", "Photo, PDF, Excel or EDI", snapInvoice, { primary: !cook, badge: toReview || 0 }),
+      cook ? null : tile("tag", "Price sheet", "A distributor's order guide", priceSheet),
+      tile("supplies", "Supplies", "Everything you buy", () => go("supplies")),
+      cook ? null : tile("suppliers", "Suppliers", "Reps, accounts and notes", () => go("suppliers")),
+      cook ? tile("inbox", "Invoices", toReview ? toReview + " waiting for review" : "Deliveries and orders", () => go("inbox"), { badge: toReview || 0 }) : null
+    ]),
+    cook ? null : section("Menu & profit", [
+      tile("coach", "Profit coach", fixes ? fixes + " prices to fix" : "What to fix first", () => go("coach"), { badge: fixes || 0 }),
+      tile("menu", "Menu & recipes", "Prices, costs and recipes", () => go("menu")),
+      tile("sales", "Import sales", r.salesImported ? "Last: " + nice(r.salesImported.to) : "From Clover, Toast or Square", () => openSalesImport())
+    ]));
+  return out;
+}
 /* ================= Kitchen book: recipe cards for the line ================= */
 const ALLERGENS = ["Milk","Eggs","Fish","Shellfish","Tree nuts","Peanuts","Wheat","Soy","Sesame"];
 const STATIONS = ["Grill","Flat top","Fryer","Sauté","Oven","Prep","Cold / salad","Breakfast","Bar","Expo"];
@@ -1879,6 +1979,58 @@ async function runAIImages(list){
   if (!ok && problem) openDlg("Create AI images", [el("div",{class:"msg bad", text: aiProblem(problem) || problem.message || "Couldn't create images right now."})], []);
   else toast("Created " + ok + (ok === 1 ? " picture" : " pictures") + (problem && done < list.length ? ". Stopped early: " + (aiProblem(problem) || "an error") : "") + ".");
 }
+/* ================= GFS automatic EDI feed ================= */
+const FEED_REASONS = {
+  nosftp: "The GFS login isn't set up on the server yet. In Netlify, add GFS_SFTP_USER and GFS_SFTP_PASSWORD, then redeploy.",
+  sftpauth: "GFS refused the login. Check GFS_SFTP_USER and GFS_SFTP_PASSWORD in Netlify (no extra spaces), then redeploy. If they're right, ask your GFS EDI contact to confirm the account is active.",
+  sftpconnect: "Couldn't reach GFS's server. It may be down briefly, or GFS may need to allow your connection. Try again later, or ask your GFS EDI contact.",
+  nosecret: "The server needs your Supabase secret key. In Netlify, add SUPABASE_SECRET_KEY (Supabase > Project Settings > API Keys > Secret key), then redeploy.",
+  nosql: "The feed's database setup hasn't been run. Run supabase/003_gfs_feed.sql in Supabase's SQL Editor."
+};
+function gfsFeedPanel(){
+  const box = el("div",{class:"card feed-card"}, el("div",{class:"spin"}));
+  const canManage = ACCT && ["owner","manager"].includes(ACCT.role);
+  (async () => {
+    const { data, error } = await sb.rpc("feed_status", { p_account: ACCT.id, p_source: "gfs" });
+    if (error){
+      const missing = /function|PGRST202|42883|schema cache/i.test((error.code || "") + (error.message || ""));
+      box.replaceChildren(el("div",{class:"feed-h"}, el("h3",{text:"Gordon Food Service: automatic invoices"}), el("span",{class:"pill", text:"Not set up"})),
+        el("p",{text: missing ? "One-time setup: run supabase/003_gfs_feed.sql in Supabase's SQL Editor, then reload this page." : plainErr(error)}));
+      return;
+    }
+    const on = !!data.enabled, files = data.files || [];
+    const last = files[0];
+    const statusText = s => ({ added:"Added", duplicate:"Already had it", skipped:"Skipped", error:"Problem" })[s] || s;
+    const fileRows = files.length ? el("div",{class:"tw", style:"margin-top:10px"}, el("table",null,
+      el("thead",null, el("tr",null, el("th",{text:"File"}), el("th",{text:"Collected"}), el("th",{text:"Result"}))),
+      el("tbody",null, files.slice(0, 8).map(f => el("tr",{style:"cursor:default"}, el("td",{style:"white-space:normal;word-break:break-all"}, f.filename),
+        el("td",{text: new Date(f.received_at).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })}),
+        el("td",{style:"white-space:normal"}, el("span",{class:"pill " + (f.status === "added" ? "good" : f.status === "error" ? "bad" : ""), text: statusText(f.status) + (f.docs ? " (" + f.docs + ")" : "")}), f.message ? el("div",{class:"mini", text:f.message}) : null)))))) : el("p",{class:"mini", text: on ? "Nothing collected yet. GFS usually sends invoices the day after delivery." : ""});
+    const msg = el("div");
+    const checkBtn = el("button",{class:"btn quiet", text:"Check now", onclick: async () => {
+      checkBtn.disabled = true; checkBtn.textContent = "Checking GFS\u2026"; msg.replaceChildren();
+      try {
+        const out = await apiPost("/api/feed-check", { account: ACCT.id });
+        const added = (out.files || []).reduce((t, f) => t + (f.documents || 0), 0);
+        toast(added ? "Collected " + added + (added === 1 ? " new document" : " new documents") + " from GFS. They're in Invoices & orders." : "Checked GFS: nothing new.");
+        render();
+      } catch(e){ msg.replaceChildren(el("div",{class:"msg bad", text: FEED_REASONS[e.reason] || e.message || "Couldn't check GFS right now."})); checkBtn.disabled = false; checkBtn.textContent = "Check now"; }
+    }});
+    const toggle = el("button",{class:"btn " + (on ? "quiet" : "primary"), text: on ? "Turn off" : "Turn on for this kitchen", onclick: async () => {
+      const { error: e2 } = await sb.rpc("feed_enable", { p_account: ACCT.id, p_source: "gfs", p_on: !on });
+      if (e2) return toast(plainErr(e2)); toast(on ? "GFS feed turned off" : "GFS feed is on. New invoices arrive every 15 minutes."); render();
+    }});
+    box.replaceChildren(
+      el("div",{class:"feed-h"}, el("div",null, el("h3",{text:"Gordon Food Service: automatic invoices"}),
+        el("p",{class:"mini", style:"margin:2px 0 0", text:"EDI files from GFS's server (sftp-gordon.gfs.com, outbox folder), checked every 15 minutes."})),
+        el("span",{class:"pill " + (on ? "good" : ""), text: on ? "On" : "Off"})),
+      el("p",{style:"margin:10px 0 0", text: on ? (last ? "Last collected " + new Date(last.received_at).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) + ". New invoices land in Invoices & orders as \u201cNeeds review\u201d; nothing changes your prices until you approve." : "Waiting for GFS's first file. New invoices land in Invoices & orders as \u201cNeeds review\u201d.") : "Turn this on and GFS invoices and price catalogs arrive by themselves, ready for you to review."}),
+      canManage ? el("div",{class:"row", style:"margin-top:12px"}, toggle, on ? checkBtn : null) : el("p",{class:"mini", text:"Owners and managers can turn this on or off."}),
+      msg, fileRows);
+  })();
+  return box;
+}
+
 /* ================= Backup & restore ================= */
 async function downloadBackup(){
   toast("Preparing your backup\u2026");
@@ -2220,6 +2372,7 @@ function suppliers(m){
       el("div",{class:"row"}, el("button",{class:"btn primary", text:"Upload invoice", onclick:() => openUpload(v.name)}), el("button",{class:"btn quiet", text:"Edit", onclick:() => openVendor(v.id)}), el("button",{class:"btn quiet", text:"Note for rep", onclick:() => repNote(v)}))));
   });
   m.append(g);
+  m.append(gfsFeedPanel());
   m.append(el("h2",{text:"Big distributors with automatic feeds"}), el("p",{class:"lead", text:"Sysco, US Foods, Gordon and PFG can send invoices automatically once we're set up with them. Until then, upload their invoices like any other supplier."}));
   const g2 = el("div",{class:"grid sup-grid"});
   SUPPLIERS.forEach(s => {
