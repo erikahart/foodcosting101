@@ -20,3 +20,9 @@
 [functions]
   node_bundler = "esbuild"
   external_node_modules = ["ssh2-sftp-client", "ssh2", "cpu-features"]
+
+# The no-login tablet Kitchen book: /tablet/<link code> opens tablet.html
+[[redirects]]
+  from = "/tablet/*"
+  to = "/tablet.html"
+  status = 200

@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#24221F">
+<title>Kitchen book</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --jade:#1F6F5C; --jade-pale:#D3E9DF; --mustard:#D99A1E; --ketchup:#B8352A; --char:#24221F;
+  --bg:#F3F7F2; --panel:#FFFFFF; --ink:#24221F; --ink-2:#4A4741; --muted:#66655D; --line:#DCE4DA; --field:#F8FAF7; --warn-soft:#F6E6C0;
+  --head:"Big Shoulders Display","Arial Narrow",system-ui,sans-serif;
+  --font:"Atkinson Hyperlegible Next","Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+  box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){ :root{ --bg:#18201C; --panel:#202924; --ink:#ECEFE9; --ink-2:#C9CFC8; --muted:#A3ACA4; --line:#2F3A33; --field:#1C241F; --jade-pale:#1F3A30; --warn-soft:#3A3120; color-scheme:dark } }
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:18px;line-height:1.45;-webkit-text-size-adjust:100%}
+button{font:inherit;color:inherit}
+.top{position:sticky;top:0;z-index:5;background:var(--char);color:#fff;display:flex;align-items:center;gap:14px;padding:12px 18px;padding-top:calc(12px + env(safe-area-inset-top,0px));flex-wrap:wrap}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--char);z-index:6}
+.top h1{margin:0;font-family:var(--head);font-weight:800;font-size:1.9rem;line-height:1;letter-spacing:.01em}
+.top .sub{font-size:.8rem;color:#C8D0CB}
+.top .grow{flex:1}
+.search{min-width:220px;flex:0 1 340px;font:inherit;font-size:1rem;padding:11px 14px;border-radius:12px;border:0;background:#3A3733;color:#fff;min-height:48px}
+.search::placeholder{color:#B9B5AE}
+.tbtn{min-height:48px;padding:0 16px;border-radius:12px;border:1px solid #4A4640;background:transparent;color:#fff;font-weight:600;cursor:pointer}
+.tbtn[aria-pressed="true"]{background:var(--jade);border-color:var(--jade)}
+main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
+.crumbs{display:flex;align-items:center;gap:10px;margin:0 0 16px}
+.back{min-height:52px;padding:0 18px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font-weight:700;cursor:pointer}
+.crumbs h2{margin:0;font-family:var(--head);font-weight:800;font-size:2.2rem;line-height:1}
+.side{margin:0 0 26px}
+.side h2{font-family:var(--head);font-weight:800;font-size:2rem;margin:0 0 12px}
+.cats{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+.cat{display:flex;flex-direction:column;align-items:flex-start;justify-content:flex-end;gap:4px;min-height:130px;padding:18px;border-radius:16px;border:1px solid var(--line);background:var(--panel);cursor:pointer;text-align:left;position:relative;overflow:hidden}
+.cat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:6px;background:var(--jade)}
+.cat.bar::before{background:var(--mustard)}
+.cat b{font-family:var(--head);font-weight:800;font-size:1.9rem;line-height:1}
+.cat span{color:var(--muted);font-weight:600}
+.cat:active,.card:active{transform:scale(.985)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
+.card{display:flex;flex-direction:column;padding:0;border-radius:14px;border:1px solid var(--line);background:var(--panel);overflow:hidden;cursor:pointer;text-align:left}
+.ph{position:relative;aspect-ratio:1/1;overflow:hidden;background:var(--field);isolation:isolate;display:grid;place-items:center}
+.ph::before{content:"";position:absolute;inset:-24px;background:var(--bg-img,none) center/cover no-repeat;filter:blur(20px) brightness(.88);z-index:-1}
+.ph img{width:100%;height:100%;object-fit:contain;display:block}
+.ph .init{font-family:var(--head);font-weight:800;font-size:2.6rem;color:var(--muted);opacity:.6}
+.ai{position:absolute;left:8px;top:8px;background:rgba(36,34,31,.82);color:#fff;font-size:.7rem;font-weight:700;border-radius:999px;padding:2px 8px}
+.card .nm{padding:12px 14px;border-top:2px solid color-mix(in srgb,var(--ketchup) 55%,transparent)}
+.card .nm b{display:block;font-size:1.08rem;line-height:1.25}
+.card .nm span{font-size:.85rem;color:var(--muted)}
+.spec{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:24px;align-items:start}
+.spec .ph{border-radius:16px}
+.facts{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.facts span{background:var(--panel);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-weight:600;font-size:.95rem}
+.allergy{background:var(--warn-soft);border-radius:12px;padding:12px 14px;margin:0 0 16px;font-size:1.05rem}
+.spec h3{font-family:var(--head);font-weight:800;font-size:1.5rem;margin:18px 0 8px}
+.ings{list-style:none;margin:0;padding:0;display:grid;gap:2px}
+.ings li{padding:9px 0;border-bottom:1px solid var(--line);font-size:1.12rem}
+.ings b{display:inline-block;min-width:96px}
+.steps{margin:0;padding-left:28px;display:grid;gap:12px;font-size:1.18rem}
+.steps li::marker{font-weight:800;color:var(--jade)}
+.note{white-space:pre-line;font-size:1.05rem}
+.desc{color:var(--ink-2);font-size:1.05rem;margin:0 0 12px}
+.empty,.msg{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;font-size:1.05rem}
+.status{font-size:.8rem;color:var(--muted);text-align:center;margin-top:30px}
+@media (max-width:820px){ .spec{grid-template-columns:1fr} .search{flex:1 1 100%} .cats,.grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+</style>
+</head>
+<body>
+<header class="top">
+  <div><h1 id="kname">Kitchen book</h1><div class="sub">Recipe cards</div></div>
+  <div class="grow"></div>
+  <input id="q" class="search" type="search" placeholder="Search drinks and dishes" aria-label="Search" autocomplete="off">
+  <button id="wake" class="tbtn" type="button" aria-pressed="false">Keep screen on</button>
+</header>
+<main id="main"><div class="msg">Loading the Kitchen book…</div></main>
+<script src="/config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
+<script>
+(function(){
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const h = (tag, attrs, ...kids) => { const e = document.createElement(tag); if (attrs) for (const [k, v] of Object.entries(attrs)) { if (v == null) continue; if (k === "text") e.textContent = v; else if (k.startsWith("on")) e[k] = v; else e.setAttribute(k, v); } kids.flat().forEach(c => { if (c == null) return; e.append(c.nodeType ? c : document.createTextNode(c)); }); return e; };
+  const token = (location.pathname.match(/\/tablet\/([A-Za-z0-9]{40,})/) || [])[1] || new URLSearchParams(location.search).get("k") || "";
+  const CACHE = "kb-tablet-" + token.slice(0, 12);
+  const cfg = window.APP_CONFIG || {};
+  const sb = window.supabase && cfg.supabaseUrl ? window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, { auth: { persistSession: false } }) : null;
+  let BOOK = null, UPDATED = null, Q = "";
+  const PH = new Map();
+  const mins = v => v > 0 ? Math.round(v) + " min" : "";
+
+  function view(){ const p = new URLSearchParams(location.hash.slice(1)); return { cat: p.get("cat"), card: p.get("card") }; }
+  function go(v){ const p = new URLSearchParams(); if (v.cat) p.set("cat", v.cat); if (v.card) p.set("card", v.card); location.hash = p.toString(); }
+  window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
+
+  function photoEl(it, big){
+    const url = PH.get(it.id);
+    const box = h("div", { class:"ph" });
+    if (url){ box.style.setProperty("--bg-img", 'url("' + url + '")'); box.append(h("img", { src:url, alt: big ? it.name : "" })); }
+    else box.append(h("span", { class:"init", text: (it.name || "?").split(/\s+/).slice(0, 2).map(w => w[0] || "").join("").toUpperCase() }));
+    if (url && it.ai) box.append(h("span", { class:"ai", text:"AI image" }));
+    return box;
+  }
+  const sideOf = it => it.bar ? "Bar" : "Kitchen";
+  function sections(){
+    const order = BOOK.sections || [], g = {};
+    BOOK.items.forEach(it => { (g[it.section] = g[it.section] || []).push(it); });
+    return Object.keys(g).sort((a, b) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999)).map(k => ({ name: k, items: g[k].sort((a, b) => a.order - b.order), bar: g[k].filter(x => x.bar).length * 2 > g[k].length }));
+  }
+  function cardGrid(list){
+    return h("div", { class:"grid" }, list.map(it => h("button", { class:"card", type:"button", onclick: () => go({ cat: view().cat, card: it.id }) },
+      photoEl(it), h("div", { class:"nm" }, h("b", { text: it.name }), h("span", { text: [it.section, mins((it.card.prepMin || 0) + (it.card.cookMin || 0))].filter(Boolean).join("  ·  ") })))));
+  }
+  function spec(it){
+    const c = it.card, total = (c.prepMin || 0) + (c.cookMin || 0);
+    const facts = [c.station, c.prepMin ? "Prep " + mins(c.prepMin) : "", c.cookMin ? (it.bar ? "Build " : "Cook ") + mins(c.cookMin) : "", total ? "Total " + mins(total) : "", c.yieldText ? "Makes " + c.yieldText : ""].filter(Boolean);
+    return h("div", { class:"spec" },
+      photoEl(it, true),
+      h("div", null,
+        it.desc ? h("p", { class:"desc", text: it.desc }) : null,
+        facts.length ? h("div", { class:"facts" }, facts.map(f => h("span", { text: f }))) : null,
+        (c.allergens || []).length ? h("div", { class:"allergy" }, h("b", { text:"Contains: " }), c.allergens.join(", ")) : null,
+        h("h3", { text:"Ingredients" }),
+        it.ings.length ? h("ul", { class:"ings" }, it.ings.map(x => h("li", null, h("b", { text: x.qty }), " " + x.name))) : h("p", { text:"Not listed yet." }),
+        h("h3", { text: it.bar ? "Build" : "Steps" }),
+        (c.steps || []).length ? h("ol", { class:"steps" }, c.steps.map(t => h("li", { text: t }))) : h("p", { text:"No steps written yet." }),
+        c.plating ? h("div", null, h("h3", { text: it.bar ? "Glass and garnish" : "Plating" }), h("p", { class:"note", text: c.plating })) : null,
+        c.notes ? h("div", null, h("h3", { text:"Notes" }), h("p", { class:"note", text: c.notes })) : null));
+  }
+  function render(){
+    const m = $("main"); if (!BOOK) return;
+    $("kname").textContent = BOOK.name || "Kitchen book"; document.title = (BOOK.name || "Kitchen") + " book";
+    const v = view(), secs = sections();
+    if (v.card){
+      const it = BOOK.items.find(x => x.id === v.card);
+      if (!it){ go({ cat: v.cat }); return; }
+      m.replaceChildren(h("div", { class:"crumbs" }, h("button", { class:"back", type:"button", text:"\u2190 " + (v.cat || "Back"), onclick: () => history.back() }), h("h2", { text: it.name })), spec(it), status());
+      needPhotos([it]); return;
+    }
+    if (Q){
+      const q = Q.toLowerCase(), hits = BOOK.items.filter(it => (it.name + " " + it.section + " " + it.ings.map(x => x.name).join(" ")).toLowerCase().includes(q));
+      m.replaceChildren(h("div", { class:"crumbs" }, h("h2", { text: hits.length + (hits.length === 1 ? " match" : " matches") })), hits.length ? cardGrid(hits) : h("div", { class:"empty", text:"Nothing matches \u201c" + Q + "\u201d." }), status());
+      needPhotos(hits); return;
+    }
+    if (v.cat){
+      const sec = secs.find(x => x.name === v.cat);
+      if (!sec){ go({}); return; }
+      m.replaceChildren(h("div", { class:"crumbs" }, h("button", { class:"back", type:"button", text:"\u2190 All", onclick: () => go({}) }), h("h2", { text: sec.name })), cardGrid(sec.items), status());
+      needPhotos(sec.items); return;
+    }
+    const side = (title, list) => list.length ? h("section", { class:"side" }, h("h2", { text: title }),
+      h("div", { class:"cats" }, list.map(sec => h("button", { class:"cat" + (sec.bar ? " bar" : ""), type:"button", onclick: () => go({ cat: sec.name }) }, h("b", { text: sec.name }), h("span", { text: sec.items.length + (sec.bar ? (sec.items.length === 1 ? " drink" : " drinks") : (sec.items.length === 1 ? " item" : " items")) }))))) : null;
+    m.replaceChildren(...[side("Bar", secs.filter(x => x.bar)), side("Kitchen", secs.filter(x => !x.bar)), BOOK.items.length ? null : h("div", { class:"empty", text:"No recipe cards yet." }), status()].filter(Boolean));
+  }
+  function status(){ return h("p", { class:"status", text: UPDATED ? "Updated " + new Date(UPDATED).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) + (navigator.onLine ? "" : "  ·  offline, showing the last copy") : "" }); }
+
+  // Photos load as cards come into view, and are kept for offline use.
+  let photoQueue = new Set(), photoTimer = null;
+  function needPhotos(list){ list.filter(it => it.photo && !PH.has(it.id)).forEach(it => photoQueue.add(it.id)); if (photoQueue.size && !photoTimer) photoTimer = setTimeout(fetchPhotos, 30); }
+  async function fetchPhotos(){
+    photoTimer = null; if (!sb) return;
+    const ids = [...photoQueue].slice(0, 24); ids.forEach(i => photoQueue.delete(i));
+    const { data, error } = await sb.rpc("book_public_photos", { p_token: token, p_items: ids });
+    if (!error && data){ data.forEach(p => PH.set(p.item_id, p.data)); savePhotos(); render(); }
+    if (photoQueue.size) photoTimer = setTimeout(fetchPhotos, 30);
+  }
+  function savePhotos(){ try { localStorage.setItem(CACHE + "-ph", JSON.stringify([...PH.entries()].slice(-80))); } catch(e){} }
+
+  async function load(first){
+    if (!token){ $("main").replaceChildren(h("div", { class:"msg", text:"This tablet link is missing its code. Open the full link from the app (Kitchen book \u2192 Tablet link)." })); return; }
+    try {
+      if (!sb) throw new Error("offline");
+      const { data, error } = await sb.rpc("book_public", { p_token: token });
+      if (error) throw error;
+      if (!data){ localStorage.removeItem(CACHE); $("main").replaceChildren(h("div", { class:"msg", text:"This tablet link isn't active anymore. Ask a manager for the new link (Kitchen book \u2192 Tablet link in the app)." })); return; }
+      if (first || data.updated_at !== UPDATED){ BOOK = data.book; UPDATED = data.updated_at; try { localStorage.setItem(CACHE, JSON.stringify({ book: BOOK, updated_at: UPDATED })); } catch(e){} render(); }
+    } catch(e){
+      if (first){ try { const c = JSON.parse(localStorage.getItem(CACHE) || "null"); if (c){ BOOK = c.book; UPDATED = c.updated_at; render(); return; } } catch(x){}
+        $("main").replaceChildren(h("div", { class:"msg", text:"Couldn't reach the Kitchen book. Check the Wi-Fi; it will try again automatically." })); }
+    }
+  }
+  try { JSON.parse(localStorage.getItem(CACHE + "-ph") || "[]").forEach(([k, v]) => PH.set(k, v)); } catch(e){}
+  $("q").addEventListener("input", e => { Q = e.target.value.trim(); render(); });
+
+  // Keep the screen awake during service (where the tablet supports it).
+  let lock = null, wantWake = false;
+  async function wake(on){ wantWake = on; $("wake").setAttribute("aria-pressed", String(on));
+    try { if (on && "wakeLock" in navigator){ lock = await navigator.wakeLock.request("screen"); } else if (lock){ await lock.release(); lock = null; } } catch(e){} }
+  $("wake").onclick = () => wake(!wantWake);
+  document.addEventListener("visibilitychange", () => { if (wantWake && document.visibilityState === "visible") wake(true); if (document.visibilityState === "visible") load(false); });
+  if (!("wakeLock" in navigator)) $("wake").hidden = true;
+
+  load(true);
+  setInterval(() => load(false), 3 * 60 * 1000);
+})();
+</script>
+</body>
+</html>

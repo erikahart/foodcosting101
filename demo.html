@@ -1097,6 +1097,11 @@ aside .brandbox b{font-size:1.3rem}
 .lab-echoice .inp{min-height:38px}
 @media (max-width:700px){.line-choice{grid-template-columns:1fr;margin-left:0}.lab-echoice{grid-template-columns:1fr 1fr}}
 .lab-from{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.tl-list{margin:6px 0 14px;padding-left:18px;display:grid;gap:6px}
+.tl-link{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0 12px}
+.tl-link code{flex:1 1 280px;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:.82rem;word-break:break-all}
+.tl-qr{width:200px;max-width:60%;margin:4px 0 10px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px}
+.tl-qr svg{width:100%;height:auto;display:block}
 
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
@@ -1193,6 +1198,8 @@ window.APP_CONFIG = { supabaseUrl: "https://demo.local", supabaseAnonKey: "demo"
       remove_member(){ throw ["demo","You can't remove people in the demo."]; },
       set_member_role(){ throw ["demo","Roles can't be changed in the demo."]; },
       feed_status(){ return { enabled:false, files:[] }; },
+      book_share_status(){ return { on:false }; },
+      book_share_enable(){ throw ["demo","Tablet links work on your own site. They're switched off in the demo."]; },
       inbound_recent(){ return []; },
       inbound_waiting(){ return []; },
       feed_enable(){ throw ["demo","Automatic GFS invoices work on your own site. They're switched off in the demo."]; },
@@ -1312,7 +1319,7 @@ async function pushState(){
   Sync.saving = true;
   const page = ST.page; const { data, error } = await sb.rpc("save_state", { p_account: ACCT.id, p_state: Object.assign({}, ST, { page: "home" }), p_base_version: VERSION });
   ST.page = page; Sync.saving = false;
-  if (!error){ VERSION = data; if (Sync.again){ Sync.again = false; pushState(); } else Sync.dirty = false; return; }
+  if (!error){ VERSION = data; if (Sync.again){ Sync.again = false; pushState(); } else Sync.dirty = false; bookSyncSoon(); return; }
   if (error.code === "40001"){ await reloadState("Someone else on your team just saved. Showing their latest; redo your last change."); return; }
   if (error.code === "42501" || error.code === "28000"){ toast("You no longer have access to this kitchen."); await afterLogin(); return; }
   toast("Not saved yet. Retrying…"); Sync.timer = setTimeout(pushState, 5000);
@@ -2130,7 +2137,7 @@ const BKV = { q:"", cat:"all" };
 function book(m){
   const r = R(); loadPhotos();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Kitchen book"}), el("p",{class:"lead", text:"Recipe cards for the line: what it looks like, what goes on it, and how to make it."})),
-    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import recipes", title:"Add drinks or dishes from a recipe pack file", onclick:() => pickRecipePack()}), el("button",{class:"btn quiet", text:"Photos from website", onclick:() => openSitePhotos()}), el("button",{class:"btn quiet", text:"Create AI images", onclick:() => openAIImages()}), el("button",{class:"btn primary", text:"Print cards", onclick:() => openPrintCards()}))));
+    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Tablet link", title:"A no-login Kitchen book for a tablet at the bar or on the line", onclick:() => openTabletLink()}), el("button",{class:"btn quiet", text:"Import recipes", title:"Add drinks or dishes from a recipe pack file", onclick:() => pickRecipePack()}), el("button",{class:"btn quiet", text:"Photos from website", onclick:() => openSitePhotos()}), el("button",{class:"btn quiet", text:"Create AI images", onclick:() => openAIImages()}), el("button",{class:"btn primary", text:"Print cards", onclick:() => openPrintCards()}))));
   if (!PHOTOS_READY) m.append(el("div",{class:"card banner"}, el("div",null, el("b",{text:"Photos need a one-time setup."}), " Whoever manages the app runs supabase/002_recipe_photos.sql in Supabase (SQL Editor). Recipe cards work without it; only photos wait."),
     el("button",{class:"btn quiet", text:"Check again", onclick:() => { PHOTOS_READY = true; loadPhotos(true); }})));
   const all = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
@@ -3016,6 +3023,72 @@ function reviewRecipePack(pk){
       el("div",{class:"tw", style:"margin-top:8px"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Ingredient"}), el("th",{text:"Use"}))), ingRows))),
     pk.note ? el("p",{class:"mini", text:pk.note}) : null
   ], [el("span"), go2]);
+}
+
+/* ================= Tablet link: the Kitchen book without logging in (cards only, no costs) ================= */
+// What the tablet gets: names, photos, ingredients and amounts, steps, plating, notes, allergens. Never prices, costs or suppliers.
+const loadScript = src => new Promise((res, rej) => { if (document.querySelector('script[src="' + src + '"]')) return res(); const sc = document.createElement("script"); sc.src = src; sc.onload = res; sc.onerror = rej; document.head.append(sc); });
+function bookSnapshot(r){
+  const order = sectionOrder(r);
+  const items = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || "")).map(it => {
+    const c = cardOf(it);
+    return { id: it.id, name: it.name, section: it.section || "Menu", desc: it.desc || "", bar: isDrink(it),
+      ings: ingredientRows(it, r).map(x => ({ qty: x.qty, name: x.name })),
+      card: { prepMin: n(c.prepMin) || 0, cookMin: n(c.cookMin) || 0, station: c.station || "", yieldText: n(it.portions) > 1 ? it.portions + " portions" : c.yieldText || "",
+        steps: c.steps || [], plating: c.plating || "", notes: c.notes || "", allergens: c.allergens || [] },
+      photo: PHOTOS.has(it.id), ai: c.photoSrc === "ai", order: it.order || 0 };
+  });
+  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, made: new Date().toISOString(),
+    brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Kitchen book" } };
+}
+let BOOK_T = null;
+function bookSyncSoon(){ const r = R(); if (!r || !r.tabletLink) return; clearTimeout(BOOK_T); BOOK_T = setTimeout(bookSync, 4000); }
+async function bookSync(){
+  const r = R(); if (!r || !r.tabletLink || !ACCT) return;
+  if (PHOTOS_FOR !== ACCT.id) await loadPhotos();
+  const { data, error } = await sb.rpc("book_share_update", { p_account: ACCT.id, p_restaurant: ST.current, p_data: bookSnapshot(r) });
+  if (!error && data === false){ r.tabletLink = false; save(); }   // someone turned it off
+}
+async function openTabletLink(){
+  const r = R(), can = ACCT && ["owner","manager"].includes(ACCT.role);
+  const body = el("div",null, el("div",{class:"spin"}));
+  openDlg("Tablet link", [body], []);
+  const { data, error } = await sb.rpc("book_share_status", { p_account: ACCT.id });
+  if (error){ body.replaceChildren(el("div",{class:"msg bad", text: /function|PGRST202|42883|schema cache/i.test((error.code || "") + (error.message || "")) ? "One-time setup: run supabase/005_tablet_book.sql in Supabase's SQL Editor, then try again." : plainErr(error)})); return; }
+  const link = t => location.origin + "/tablet/" + t;
+  const enable = async () => { body.replaceChildren(el("div",{class:"spin"}));
+    if (PHOTOS_FOR !== ACCT.id) await loadPhotos();
+    const { data: tok, error: e2 } = await sb.rpc("book_share_enable", { p_account: ACCT.id, p_restaurant: ST.current, p_data: bookSnapshot(r) });
+    if (e2){ body.replaceChildren(el("div",{class:"msg bad", text:plainErr(e2)})); return; }
+    r.tabletLink = true; save(); openTabletLink(); };
+  if (!data.on){
+    body.replaceChildren(
+      el("p",{class:"lead", text:"A private web address that opens your Kitchen book on a tablet at the bar or on the line, with no login."}),
+      el("ul",{class:"tl-list"},
+        el("li",null, el("b",{text:"Cards only: "}), "photos, ingredients and amounts, steps, plating, allergens and notes. No prices, costs or suppliers, and nothing can be changed from the tablet."),
+        el("li",null, el("b",{text:"Always current: "}), "edits you make here show up on the tablet within a few minutes."),
+        el("li",null, el("b",{text:"Yours to control: "}), "the link is long and random. Turn it off or replace it any time and the old one stops working.")),
+      can ? el("button",{class:"btn primary", type:"button", text:"Create tablet link", onclick: enable}) : el("p",{class:"mini", text:"Ask an owner or manager to create the tablet link."}));
+    return;
+  }
+  if (!r.tabletLink && data.restaurant === ST.current){ r.tabletLink = true; save(); }
+  const url = link(data.token);
+  const qr = el("div",{class:"tl-qr", "aria-label":"QR code for the tablet link"});
+  body.replaceChildren(
+    el("p",{class:"lead", text:"Open this on the tablet, or scan the code with the tablet's camera. Then add it to the home screen so it opens like an app."}),
+    el("div",{class:"tl-link"}, el("code",{text:url}), el("button",{class:"btn quiet", type:"button", text:"Copy", onclick:() => { navigator.clipboard && navigator.clipboard.writeText(url); toast("Link copied"); }}),
+      el("a",{class:"btn quiet", href:url, target:"_blank", rel:"noopener", text:"Open"})),
+    qr,
+    el("p",{class:"mini", text:"Last updated " + new Date(data.updated_at).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) + ". Changes reach the tablet within a few minutes." + (data.restaurant && data.restaurant !== ST.current ? " This link shows another location's book; create it from that location to switch." : "")}),
+    can ? el("div",{class:"row", style:"margin-top:8px"},
+      el("button",{class:"btn quiet", type:"button", text:"Update now", onclick: async () => { r.tabletLink = true; await bookSync(); toast("Tablet book updated"); openTabletLink(); }}),
+      el("button",{class:"btn quiet", type:"button", text:"Make a new link", title:"The old link stops working", onclick: async () => { if (!confirm("Make a new link? The current one stops working on every tablet using it.")) return; await sb.rpc("book_share_new_link", { p_account: ACCT.id }); openTabletLink(); }}),
+      el("button",{class:"btn danger", type:"button", text:"Turn off", onclick: async () => { if (!confirm("Turn off the tablet link? Tablets using it will stop showing the book.")) return; await sb.rpc("book_share_off", { p_account: ACCT.id }); r.tabletLink = false; save(); openTabletLink(); }})) : null);
+  // QR code (drawn in the browser)
+  try {
+    await loadScript("https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js");
+    const q = window.qrcode(0, "M"); q.addData(url); q.make(); qr.innerHTML = q.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
+  } catch(e){ qr.remove(); }
 }
 /* ================= Backup & restore ================= */
 async function downloadBackup(){
