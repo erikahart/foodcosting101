@@ -3538,7 +3538,8 @@ function schedChecklists(m, r, today){
   const dn = new Date(day + "T12:00:00");
   m.append(el("div",{class:"sch-bar"},
     el("div",{class:"row"}, el("b",{class:"sch-range", text: (day === today ? "Today, " : "") + DOW[dn.getDay()] + " " + nice(day)}), pick, day !== today ? el("button",{class:"linkbtn", type:"button", text:"Today", onclick:() => { SCV.logDay = today; render(); }}) : null),
-    el("button",{class:"btn quiet", type:"button", text:"Print checklists", onclick:() => printChecklists(r, day, lists, box._done || new Map())})), box);
+    el("div",{class:"row"}, canEditSchedule() ? el("button",{class:"btn quiet", type:"button", text:"Import checklists", onclick:() => openChecklistImport(r)}) : null,
+      el("button",{class:"btn quiet", type:"button", text:"Print checklists", onclick:() => printChecklists(r, day, lists, box._done || new Map())}))), box);
   if (!canCheck) m.append(el("p",{class:"mini", text:"Past days are a record: duties can only be checked off today or yesterday (for late closes)."}));
   (async () => {
     const { data, error } = await sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: day, p_to: day });
@@ -3661,6 +3662,9 @@ function reviewChecklists(r, pk){
     }})]);
 }
 function schedDuties(m, r, edit){
+  if (edit) m.append(el("div",{class:"row", style:"margin-bottom:12px"},
+    el("button",{class:"btn primary", type:"button", text:"Import checklists", onclick:() => openChecklistImport(r)}),
+    el("button",{class:"btn quiet", type:"button", text:"+ New checklist", onclick:() => { const l = { id: uid("dl").slice(0, 12), name:"New checklist", area:"Kitchen", when:"open", days:null, items:[] }; editDutyList(r, l, true); }})));
   m.append(dutyAlertsCard(r));
   m.append(el("p",{class:"mini", style:"margin:14px 0 12px", text:"Set up the checklist for each shift here. They're checked off under Checklists (here or on the tablet). Lists set to certain days only appear on those days."}));
   m.append(el("div",{class:"duty-grid"}, r.duties.map(l => el("div",{class:"card duty-card"},
