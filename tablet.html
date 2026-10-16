@@ -72,6 +72,43 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
 .desc{color:var(--ink-2);font-size:1.05rem;margin:0 0 12px}
 .empty,.msg{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;font-size:1.05rem}
 .status{font-size:.8rem;color:var(--muted);text-align:center;margin-top:30px}
+.tabs{display:flex;gap:6px}
+.tabs button{min-height:48px;padding:0 16px;border-radius:12px;border:1px solid #4A4640;background:transparent;color:#fff;font-weight:700;cursor:pointer}
+.tabs button[aria-current="page"]{background:#fff;color:var(--char);border-color:#fff}
+.day-h{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin:0 0 12px}
+.day-h h2{margin:0;font-family:var(--head);font-weight:800;font-size:2.2rem;line-height:1}
+.daynote{background:var(--warn-soft);border-radius:10px;padding:6px 12px;font-weight:700}
+.who{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;margin-bottom:22px}
+.who > div{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.who b{font-size:1.12rem}
+.who .t{font-weight:600;color:var(--ink-2)}
+.who .st{font-size:.78rem;font-weight:700;border-radius:999px;padding:2px 9px;background:var(--field);color:var(--muted);white-space:nowrap}
+.who .st.on{background:var(--jade);color:#fff}
+.role{font-size:.75rem;font-weight:700;border-radius:999px;padding:1px 8px;background:var(--jade-pale);color:var(--jade);margin-left:6px}
+.wk{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden;font-size:.95rem}
+.wk th,.wk td{border-bottom:1px solid var(--line);padding:9px 8px;text-align:left;vertical-align:top}
+.wk th.today,.wk td.today{background:color-mix(in srgb,var(--jade) 9%,transparent)}
+.wk td{font-weight:600;white-space:nowrap}
+.wk .off{color:#9A6A0B}
+.wkwrap{overflow-x:auto;margin-bottom:12px}
+.mine{display:grid;gap:8px;margin-bottom:22px}
+.mine div{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:1.08rem;display:flex;justify-content:space-between}
+.duty{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:14px}
+.duty-h{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.duty-h h3{margin:0;font-family:var(--head);font-weight:800;font-size:1.6rem}
+.prog{font-weight:700;border-radius:999px;padding:3px 12px;background:var(--field)}
+.prog.all{background:var(--jade);color:#fff}
+.chk{display:flex;align-items:center;gap:14px;width:100%;min-height:62px;padding:10px 14px;margin-bottom:8px;border-radius:12px;border:1px solid var(--line);background:var(--field);text-align:left;cursor:pointer;font-size:1.1rem}
+.chk .box{flex:none;width:30px;height:30px;border-radius:8px;border:2px solid var(--muted);display:grid;place-items:center;font-weight:900;color:#fff}
+.chk.done{background:var(--jade-pale);border-color:transparent}
+.chk.done .box{background:var(--jade);border-color:var(--jade)}
+.chk.done .tx{text-decoration:line-through;color:var(--ink-2)}
+.chk .by{margin-left:auto;font-size:.85rem;color:var(--muted);font-weight:600;white-space:nowrap}
+.pick{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:end center;z-index:20}
+.pick > div{background:var(--panel);color:var(--ink);width:min(720px,100%);border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px))}
+.pick h3{margin:0 0 4px;font-family:var(--head);font-weight:800;font-size:1.6rem}
+.pick .names{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:14px 0}
+.pick .names button{min-height:58px;border-radius:12px;border:1px solid var(--line);background:var(--field);font-weight:700;font-size:1.05rem;cursor:pointer}
 .tbtn.custom{background:var(--mustard);border-color:var(--mustard);color:#24221F}
 .ask{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;display:grid;gap:12px;margin-bottom:18px}
 .ask input{font:inherit;font-size:1.2rem;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--ink);min-height:58px}
@@ -85,12 +122,14 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
 .sub-note{font-size:.95rem;color:var(--muted)}
 .miss{color:#9A6A0B;font-weight:600}
 .saved{background:var(--jade-pale);border-radius:12px;padding:12px 14px;font-weight:600}
-@media (max-width:820px){ .spec{grid-template-columns:1fr} .search{flex:1 1 100%} .cats,.grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
+@media (max-width:1100px){ .search{flex:1 1 220px} }
+@media (max-width:820px){ .tabs{flex:1 1 100%} .tabs button{flex:1}  .spec{grid-template-columns:1fr} .search{flex:1 1 100%} .cats,.grid{grid-template-columns:repeat(2,minmax(0,1fr))} }
 </style>
 </head>
 <body>
 <header class="top">
-  <div><h1 id="kname">Kitchen book</h1><div class="sub">Recipe cards</div></div>
+  <div><h1 id="kname">Kitchen book</h1><div class="sub">Kitchen tablet</div></div>
+  <nav class="tabs" aria-label="Sections"><button id="nav-rec" type="button">Recipes</button><button id="nav-sched" type="button">Schedule</button><button id="nav-duty" type="button">Duties</button></nav>
   <div class="grow"></div>
   <input id="q" class="search" type="search" placeholder="Search drinks and dishes" aria-label="Search" autocomplete="off">
   <button id="custom" class="tbtn custom" type="button">Not on the menu?</button>
@@ -203,8 +242,86 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
     m.replaceChildren(...parts, status());
     if (!b && !CB.busy) setTimeout(() => input.focus(), 50);
   }
+  // ---------- Schedule and duties ----------
+  const localDay = (d = new Date()) => { const z = new Date(d); z.setMinutes(z.getMinutes() - z.getTimezoneOffset()); return z.toISOString().slice(0, 10); };
+  const addDays = (iso, k) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + k); return localDay(d); };
+  const mondayOf = iso => addDays(iso, -((new Date(iso + "T12:00:00").getDay() + 6) % 7));
+  const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"], DOWL = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+  const t12 = (v, short) => { if (!v) return "close"; const [hh, mm] = v.split(":").map(Number), ap = hh >= 12 ? (short ? "p" : " PM") : (short ? "a" : " AM"), h12 = hh % 12 || 12; return short ? h12 + (mm ? ":" + String(mm).padStart(2, "0") : "") + ap : h12 + ":" + String(mm).padStart(2, "0") + ap; };
+  const S = () => BOOK.schedule || { people: [], shifts: [], notes: {}, codes: {} };
+  const pname = id => (S().people.find(p => p.id === id) || {}).name || "";
+  const roleLabel = r => r ? ((S().codes || {})[r] || r) : "";
+  const shiftTxt = (x, short) => x.off ? (x.n || "Off") : t12(x.s, short) + (short ? "\u2013" : " \u2013 ") + t12(x.e, short);
+  let SCH_WEEK = 0, SCH_ME = "";
+  function schedView(m){
+    const sc = S(), today = localDay(), dt = new Date(today + "T12:00:00");
+    const now = new Date(), mins = now.getHours() * 60 + now.getMinutes(), toMin = v => v ? +v.slice(0, 2) * 60 + +v.slice(3) : 24 * 60;
+    const todays = sc.shifts.filter(x => x.d === today && !x.off).sort((a, b) => (a.s || "").localeCompare(b.s || ""));
+    const parts = [h("div", { class:"day-h" }, h("h2", { text:"Today, " + DOWL[dt.getDay()] + " " + dt.toLocaleDateString(undefined, { month:"short", day:"numeric" }) }), sc.notes[today] ? h("span", { class:"daynote", text: sc.notes[today] }) : null)];
+    parts.push(todays.length ? h("div", { class:"who" }, todays.map(x => { const on = mins >= toMin(x.s) && mins < toMin(x.e), done = mins >= toMin(x.e);
+      return h("div", null, h("div", null, h("b", { text: pname(x.p) }), x.r ? h("span", { class:"role", text: roleLabel(x.r) }) : null, h("div", { class:"t", text: shiftTxt(x) })), h("span", { class:"st" + (on ? " on" : ""), text: on ? "On now" : done ? "Done" : "Later" })); }))
+      : h("div", { class:"empty", text:"No one is scheduled today." }));
+    // A person's own shifts
+    const sel = h("select", { class:"back", "aria-label":"Show one person's shifts", style:"min-height:52px" }, h("option", { value:"", text:"Show my shifts\u2026" }), sc.people.map(p => h("option", { value:p.id, text:p.name })));
+    sel.value = SCH_ME; sel.onchange = () => { SCH_ME = sel.value; render(); };
+    parts.push(h("div", { class:"row", style:"margin-bottom:12px" }, sel));
+    if (SCH_ME){ const mine = sc.shifts.filter(x => x.p === SCH_ME && x.d >= today).sort((a, b) => a.d.localeCompare(b.d) || (a.s || "").localeCompare(b.s || ""));
+      parts.push(h("div", { class:"mine" }, mine.length ? mine.map(x => { const d2 = new Date(x.d + "T12:00:00"); return h("div", null, h("span", { text: (x.d === today ? "Today" : DOWL[d2.getDay()]) + " " + d2.toLocaleDateString(undefined, { month:"short", day:"numeric" }) }), h("b", { class: x.off ? "off" : "", text: shiftTxt(x) + (x.r ? "  (" + roleLabel(x.r) + ")" : "") })); }) : h("div", { text:"No upcoming shifts posted." }))); }
+    // The week grid
+    const wk = addDays(mondayOf(today), SCH_WEEK * 7), days = [...Array(7)].map((_, i) => addDays(wk, i)).filter((d, i) => i > 0 || sc.shifts.some(x => x.d === d));
+    const people = sc.people.filter(p => sc.shifts.some(x => x.p === p.id && x.d >= wk && x.d < addDays(wk, 7)));
+    parts.push(h("div", { class:"row", style:"margin:4px 0 10px" }, h("h3", { style:"margin:0;font-family:var(--head);font-weight:800;font-size:1.6rem", text: SCH_WEEK === 0 ? "This week" : "Next week" }),
+      h("div", { class:"seg" }, h("button", { type:"button", "aria-pressed": String(SCH_WEEK === 0), text:"This week", onclick: () => { SCH_WEEK = 0; render(); } }), h("button", { type:"button", "aria-pressed": String(SCH_WEEK === 1), text:"Next week", onclick: () => { SCH_WEEK = 1; render(); } }))));
+    parts.push(people.length ? h("div", { class:"wkwrap" }, h("table", { class:"wk" },
+      h("thead", null, h("tr", null, h("th", { text:"" }), days.map(d => { const d2 = new Date(d + "T12:00:00"); return h("th", { class: d === today ? "today" : "" }, DOW[d2.getDay()] + " " + d2.getDate(), sc.notes[d] ? h("div", { class:"daynote", style:"font-size:.72rem;padding:1px 6px;margin-top:3px", text: sc.notes[d] }) : null); }))),
+      h("tbody", null, people.map(p => h("tr", null, h("th", { text: p.name }), days.map(d => h("td", { class: d === today ? "today" : "" },
+        sc.shifts.filter(x => x.p === p.id && x.d === d).map(x => h("div", { class: x.off ? "off" : "" }, shiftTxt(x, true), x.r ? h("span", { class:"role", text: roleLabel(x.r) }) : null))))))))) : h("div", { class:"empty", text:"No schedule posted for this week yet." }));
+    m.replaceChildren(...parts, status());
+  }
+  let CHECKS = new Map(), CHECKS_DAY = "", checkTimer = null;
+  async function loadChecks(){
+    const day = localDay(); if (!sb) return;
+    const { data, error } = await sb.rpc("book_duty_checks", { p_token: token, p_day: day });
+    if (!error){ CHECKS = new Map((data || []).map(c => [c.list_id + "|" + c.item_id, c])); CHECKS_DAY = day; if (location.hash === "#duties") render(); }
+  }
+  function namePicker(title, onPick){
+    const today = localDay(), sc = S();
+    const names = [...new Set(sc.shifts.filter(x => x.d === today && !x.off).map(x => pname(x.p)).filter(Boolean))];
+    const wrap = h("div", { class:"pick", onclick: e => { if (e.target === wrap) wrap.remove(); } },
+      h("div", null, h("h3", { text:"Who did it?" }), h("div", { class:"sub-note", text: title }),
+        h("div", { class:"names" }, names.map(nm => h("button", { type:"button", text: nm, onclick: () => { wrap.remove(); onPick(nm); } })),
+          h("button", { type:"button", text:"Someone else", onclick: () => { const v = prompt("Your name:"); if (v && v.trim()){ wrap.remove(); onPick(v.trim()); } } })),
+        h("button", { class:"back", type:"button", text:"Cancel", onclick: () => wrap.remove() })));
+    document.body.append(wrap);
+  }
+  async function setDuty(l, it, by, done){
+    const day = localDay(), key = l.id + "|" + it.id;
+    if (done) CHECKS.set(key, { list_id: l.id, item_id: it.id, done_by: by, done_at: new Date().toISOString() }); else CHECKS.delete(key);
+    render();
+    const { data, error } = await sb.rpc("book_duty_set", { p_token: token, p_day: day, p_list: l.id, p_item: it.id, p_by: by || null, p_done: done });
+    if (error || data !== true){ alert("That didn't save. Check the Wi-Fi and try again."); loadChecks(); }
+  }
+  function dutiesView(m){
+    const today = localDay(), dn = new Date(today + "T12:00:00").getDay();
+    if (CHECKS_DAY !== today) loadChecks();
+    const order = { open:0, mid:1, daily:2, close:3 };
+    const lists = (BOOK.duties || []).filter(l => !l.days || !l.days.length || l.days.includes(dn)).sort((a, b) => (order[a.when] - order[b.when]) || a.area.localeCompare(b.area));
+    const parts = [h("div", { class:"day-h" }, h("h2", { text:"Duties for " + DOWL[dn] }), h("span", { class:"sub-note", text:"Tap a duty when it's done, then tap your name." }))];
+    if (!lists.length) parts.push(h("div", { class:"empty", text:"No checklists set up for today. Managers add them in the app under Schedule \u2192 Duties." }));
+    lists.forEach(l => { const n = l.items.filter(x => CHECKS.has(l.id + "|" + x.id)).length;
+      parts.push(h("section", { class:"duty" }, h("div", { class:"duty-h" }, h("h3", { text: l.name }), h("span", { class:"prog" + (n === l.items.length && n ? " all" : ""), text: n + " of " + l.items.length })),
+        l.items.map(x => { const c = CHECKS.get(l.id + "|" + x.id);
+          return h("button", { class:"chk" + (c ? " done" : ""), type:"button", onclick: () => { if (c){ if (confirm("Mark \u201c" + x.text + "\u201d as not done?")) setDuty(l, x, null, false); } else namePicker(x.text, nm => setDuty(l, x, nm, true)); } },
+            h("span", { class:"box", text: c ? "\u2713" : "" }), h("span", { class:"tx", text: x.text }),
+            c ? h("span", { class:"by", text: (c.done_by || "") + " " + new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) }) : null); }))); });
+    m.replaceChildren(...parts, status());
+    clearInterval(checkTimer); checkTimer = setInterval(() => { if (location.hash === "#duties") loadChecks(); else clearInterval(checkTimer); }, 60000);
+  }
+  function markNav(){ const hsh = location.hash; $("nav-rec").setAttribute("aria-current", hsh === "#sched" || hsh === "#duties" ? "false" : "page"); $("nav-sched").setAttribute("aria-current", hsh === "#sched" ? "page" : "false"); $("nav-duty").setAttribute("aria-current", hsh === "#duties" ? "page" : "false"); }
   function render(){
-    const m = $("main"); if (!BOOK) return;
+    const m = $("main"); if (!BOOK) return; markNav();
+    if (location.hash === "#sched"){ $("kname").textContent = BOOK.name || "Kitchen book"; schedView(m); return; }
+    if (location.hash === "#duties"){ $("kname").textContent = BOOK.name || "Kitchen book"; dutiesView(m); return; }
     if (location.hash === "#build"){ $("kname").textContent = BOOK.name || "Kitchen book"; buildView(m); return; }
     $("kname").textContent = BOOK.name || "Kitchen book"; document.title = (BOOK.name || "Kitchen") + " book";
     const v = view(), secs = sections();
@@ -259,6 +376,9 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
   try { JSON.parse(localStorage.getItem(CACHE + "-ph") || "[]").forEach(([k, v]) => PH.set(k, v)); } catch(e){}
   $("q").addEventListener("input", e => { Q = e.target.value.trim(); if (location.hash === "#build") location.hash = ""; render(); });
   $("custom").onclick = () => { location.hash = "build"; };
+  $("nav-rec").onclick = () => { location.hash = ""; };
+  $("nav-sched").onclick = () => { location.hash = "sched"; };
+  $("nav-duty").onclick = () => { location.hash = "duties"; };
 
   // Keep the screen awake during service (where the tablet supports it).
   let lock = null, wantWake = false;

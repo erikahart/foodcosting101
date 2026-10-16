@@ -1103,6 +1103,32 @@ aside .brandbox b{font-size:1.3rem}
 .tl-link code{flex:1 1 280px;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font-size:.82rem;word-break:break-all}
 .tl-qr{width:200px;max-width:60%;margin:4px 0 10px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px}
 .tl-qr svg{width:100%;height:auto;display:block}
+
+/* ---------- Schedule ---------- */
+.sch-bar{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center;margin:4px 0 12px}
+.sch-range{font-size:1.05rem}
+.sch-tw{overflow-x:auto}
+.sch{min-width:760px;border-collapse:separate;border-spacing:0}
+.sch th,.sch td{border-bottom:1px solid var(--line);vertical-align:top}
+.sch thead th{font-weight:700;font-size:.85rem;padding:8px 6px;text-align:left}
+.sch th.today,.sch td.today{background:color-mix(in srgb,var(--jade) 7%,transparent)}
+.sch-dayb{border:0;background:transparent;font:inherit;font-weight:700;color:inherit;cursor:pointer;display:flex;flex-direction:column;align-items:flex-start;gap:2px;padding:0;text-align:left}
+.sch-note{font-size:.72rem;font-weight:600;color:var(--warn);background:var(--warn-soft);border-radius:6px;padding:1px 6px}
+.sch-name{white-space:nowrap;padding:8px 10px 8px 6px;font-weight:600;text-align:left;position:sticky;left:0;background:var(--panel);z-index:1}
+.sch-cell{padding:3px}
+.sch-cellb{width:100%;min-height:44px;border:1px solid transparent;border-radius:8px;background:transparent;font:inherit;cursor:pointer;display:flex;flex-direction:column;gap:3px;align-items:flex-start;padding:5px 6px;text-align:left;color:var(--ink)}
+.sch-cellb:hover{border-color:var(--line-2);background:var(--field)}
+.sch-shift{font-weight:600;font-size:.88rem;white-space:nowrap}
+.sch-shift i{font-style:normal;font-size:.72rem;font-weight:700;margin-left:5px;padding:1px 6px;border-radius:999px;background:var(--jade-pale);color:var(--jade)}
+.sch-shift.off{color:var(--warn)}
+.sch-empty{color:var(--line-2)}
+.sch-edit{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:10px;display:grid;gap:8px}
+.duty-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+.duty-card h3{font-size:1.05rem}
+.duty-items{margin:10px 0 0;padding-left:18px;display:grid;gap:5px;font-size:.93rem}
+.duty-items.log{list-style:none;padding:0}
+.duty-items.log li{display:flex;justify-content:space-between;gap:10px;padding:6px 8px;border-radius:8px}
+.duty-items.log li.done{background:var(--good-soft)} .duty-items.log li.miss{background:var(--bad-soft)}
 </style>
 </head>
 <body>
@@ -1565,10 +1591,11 @@ const isPhone = () => window.matchMedia("(max-width: 700px)").matches;
 const isNarrow = () => window.matchMedia("(max-width: 900px)").matches;
 // Redraw when crossing the phone/desktop line (rotation, resizing a window).
 ["(max-width: 700px)", "(max-width: 900px)"].forEach(q => { const mq = window.matchMedia(q); const fn = () => { if (typeof ST !== "undefined" && ST) render(); }; mq.addEventListener ? mq.addEventListener("change", fn) : mq.addListener(fn); });
-const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["book","Kitchen book"],["lab","Test kitchen"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Brand & accounts"]];
+const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["book","Kitchen book"],["lab","Test kitchen"],["sched","Schedule"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Brand & accounts"]];
 const NAV_ICONS = {
   home:'<path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
   coach:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
+  sched:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h3M8 17h6"/>',
   lab:'<path d="M9 3h6M10 3v5.5L4.8 18a2 2 0 0 0 1.8 3h10.8a2 2 0 0 0 1.8-3L14 8.5V3"/><path d="M7.5 14h9"/>',
   book:'<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20v-3M9 7h7M9 10.5h5"/>',
   menu:'<path d="M5 3v8a2 2 0 0 0 2 2v8M9 3v8a2 2 0 0 1-2 2M7 3v6M17 21V3c-2 1-3 3.5-3 7v3h3"/>',
@@ -1616,7 +1643,7 @@ function labelTables(root){
     }));
   });
 }
-function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, book, lab, supplies, inbox, suppliers, brand })[ST.page](m); pageHeader(m); labelTables(m); }
+function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, book, lab, sched, supplies, inbox, suppliers, brand })[ST.page](m); pageHeader(m); labelTables(m); }
 // Group each page's title, description and main actions into one header with a fine rule under it.
 function pageHeader(m){
   const first = m.firstElementChild; if (!first) return;
@@ -1664,6 +1691,7 @@ function openMore(){
     item("Search", "Dishes, supplies, suppliers and actions", () => cmdkOpen()),
     item("Kitchen book", "Recipe cards with photos and steps for the line", () => go("book")),
     item("Test kitchen", "Describe something new: recipe, ordering, cost and price", () => go("lab")),
+    item("Schedule", "Who's working, plus cleaning and prep duties", () => go("sched")),
     item("Profit coach", "What to fix first, in dollars per week", () => go("coach")),
     item("Suppliers", "Who you buy from, and notes for reps", () => go("suppliers")),
     item("Brand & accounts", "Logo, colors, cost targets and your team", () => go("brand")),
@@ -2979,7 +3007,13 @@ function bookSnapshot(r){
       photo: PHOTOS.has(it.id), ai: c.photoSrc === "ai", order: it.order || 0 };
   });
   const stock = [...new Set(Object.values(r.supplies).map(su => supName(su)).filter(Boolean))].slice(0, 400);   // names only, for custom builds
-  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, made: new Date().toISOString(),
+  const today = localDay(new Date()), from = addDays(mondayOf(today), -1), to = addDays(mondayOf(today), 21);
+  schedData(r);
+  const schedule = { people: r.staff.map(p => ({ id: p.id, name: p.name })), codes: r.roleCodes,
+    shifts: r.shifts.filter(x => x.date >= from && x.date <= to).map(x => ({ d: x.date, p: x.staff, s: x.start || null, e: x.end || null, r: x.role || "", off: !!x.off, n: x.off ? (x.note || "") : "" })),
+    notes: Object.fromEntries(Object.entries(r.dayNotes).filter(([d]) => d >= from && d <= to)) };
+  const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, items: l.items }));
+  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, made: new Date().toISOString(),
     brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Kitchen book" } };
 }
 let BOOK_T = null;
@@ -3030,6 +3064,198 @@ async function openTabletLink(){
     await loadScript("https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js");
     const q = window.qrcode(0, "M"); q.addData(url); q.make(); qr.innerHTML = q.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
   } catch(e){ qr.remove(); }
+}
+
+/* ================= Schedule and shift duties ================= */
+const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const localDay = d => { const z = new Date(d); z.setMinutes(z.getMinutes() - z.getTimezoneOffset()); return z.toISOString().slice(0, 10); };
+const addDays = (iso, k) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + k); return localDay(d); };
+const mondayOf = iso => { const d = new Date(iso + "T12:00:00"); const w = (d.getDay() + 6) % 7; return addDays(iso, -w); };
+const t12 = (hhmm, short) => { if (!hhmm) return "Close"; const [h, m] = hhmm.split(":").map(Number), ap = h >= 12 ? (short ? "p" : " PM") : (short ? "a" : " AM"), hh = h % 12 || 12;
+  return short ? hh + (m ? ":" + String(m).padStart(2, "0") : "") + ap : hh + ":" + String(m).padStart(2, "0") + ap; };
+const shiftText = (sh, short) => sh.off ? (sh.note || "Off") : t12(sh.start, short) + (short ? "\u2013" : " \u2013 ") + (sh.end ? t12(sh.end, short) : "close");
+const SCV = { tab:"week", week:null, logDay:null };
+function schedData(r){ r.staff = r.staff || []; r.shifts = r.shifts || []; r.dayNotes = r.dayNotes || {}; r.roleCodes = r.roleCodes || {}; if (!r.duties) r.duties = starterDuties(); return r; }
+function starterDuties(){
+  const L = (id, name, area, when, items, days) => ({ id, name, area, when, days: days || null, items: items.map((t, i) => ({ id: id + "-" + (i + 1), text: t })) });
+  return [
+    L("kopen","Kitchen open","Kitchen","open",["Turn on grill, flat top and fryers","Check walk-in and reach-in temps (41\u00b0F or below)","Check fryer oil; filter or change if dark","Set up the line with prepped items","Mix fresh sanitizer buckets and test strength","Label and date anything prepped this morning"]),
+    L("kclose","Kitchen close","Kitchen","close",["Filter fryer oil","Scrape and clean grill and flat top","Wrap, label and date all prep","Wipe down the line and reach-ins","Run the last dish load and put it away","Sweep and mop the kitchen","Take out trash","Turn off equipment and hoods"]),
+    L("bopen","Bar open","Bar","open",["Cut lemons, limes and oranges","Stock ice","Check beer cooler temps and keg levels","Restock wells, mixers and garnishes","Set out mats, napkins and straws"]),
+    L("bclose","Bar close","Bar","close",["Wrap, label and date cut fruit","Wipe down the bar top, taps and speed rails","Restock beer coolers","Run and put away glassware","Take out trash and recycling","Lock the liquor"]),
+    L("fopen","Front open","Front","open",["Fill salt, pepper, ketchup and sugar caddies","Wipe tables, chairs and menus","Roll silverware","Stock to-go containers, bags and lids","Clean the drive-thru window"]),
+    L("fclose","Front close","Front","close",["Wipe and reset all tables","Sweep and mop the dining room","Restock condiments and to-go supplies","Clean coffee pots and turn off brewers","Clean restrooms"]),
+    L("weekly","Weekly deep clean","Kitchen","daily",["Degrease hood filters","Deep clean the walk-in shelves and floor","Delime the coffee machine","Clean behind and under the line"],[2])
+  ];
+}
+const dutiesFor = (r, iso) => (r.duties || []).filter(l => !l.days || !l.days.length || l.days.includes(new Date(iso + "T12:00:00").getDay()));
+const staffName = (r, id) => (r.staff.find(p => p.id === id) || {}).name || "?";
+function sched(m){
+  const r = schedData(R()); const today = localDay(new Date());
+  SCV.week = SCV.week || mondayOf(today);
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Schedule"}), el("p",{class:"lead", text:"Who's working, and the cleaning and prep duties for each shift. Both show on the tablet."})),
+    el("div",{class:"seg", role:"tablist"}, [["week","Week"],["duties","Duties"],["log","Done log"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String(SCV.tab === k), text:t, onclick:() => { SCV.tab = k; render(); }})))));
+  if (SCV.tab === "duties") return schedDuties(m, r);
+  if (SCV.tab === "log") return schedLog(m, r, today);
+  const days = [...Array(7)].map((_, i) => addDays(SCV.week, i));
+  const shiftsOn = (pid, d) => r.shifts.filter(x => x.staff === pid && x.date === d);
+  const showDays = days.filter((d, i) => i > 0 || r.shifts.some(x => x.date === d));   // Mondays only when someone works
+  m.append(el("div",{class:"sch-bar"},
+    el("div",{class:"row"}, el("button",{class:"btn quiet", type:"button", text:"\u2039", "aria-label":"Previous week", onclick:() => { SCV.week = addDays(SCV.week, -7); render(); }}),
+      el("b",{class:"sch-range", text:"Week of " + nice(days[0]) + " to " + nice(days[6])}),
+      el("button",{class:"btn quiet", type:"button", text:"\u203a", "aria-label":"Next week", onclick:() => { SCV.week = addDays(SCV.week, 7); render(); }}),
+      SCV.week !== mondayOf(today) ? el("button",{class:"linkbtn", type:"button", text:"This week", onclick:() => { SCV.week = mondayOf(today); render(); }}) : null),
+    el("div",{class:"row"},
+      el("button",{class:"btn quiet", type:"button", text:"Copy last week", onclick:() => {
+        const prev = r.shifts.filter(x => x.date >= addDays(SCV.week, -7) && x.date < SCV.week && !x.off);
+        if (!prev.length) return toast("Last week has no shifts to copy.");
+        if (r.shifts.some(x => x.date >= SCV.week && x.date < addDays(SCV.week, 7)) && !confirm("This week already has shifts. Add last week's shifts too?")) return;
+        prev.forEach(x => r.shifts.push(Object.assign({}, x, { id: uid("sh"), date: addDays(x.date, 7) }))); save(); render(); toast("Copied " + prev.length + " shifts");
+      }}),
+      el("button",{class:"btn quiet", type:"button", text:"Import schedule", onclick:() => openSchedImport()}),
+      el("button",{class:"btn primary", type:"button", text:"+ Add person", onclick:() => { const nm = prompt("Name as it should show on the schedule (first name and last initial is plenty):"); if (!nm || !nm.trim()) return; r.staff.push({ id: uid("p"), name: nm.trim() }); save(); render(); }}))));
+  if (!r.staff.length){ m.append(el("div",{class:"card empty", text:"No one on the schedule yet. Add people, or use Import schedule to bring in a posted schedule."})); return; }
+  const head = el("tr",null, el("th",{text:"Name"}), showDays.map(d => { const dt = new Date(d + "T12:00:00"); const note = r.dayNotes[d];
+    return el("th",{class:"sch-day" + (d === today ? " today" : "")}, el("button",{class:"sch-dayb", type:"button", title:"Add a note for this day", onclick:() => { const v = prompt("Note for " + nice(d) + " (events, specials, closing early):", note || ""); if (v === null) return; if (v.trim()) r.dayNotes[d] = v.trim(); else delete r.dayNotes[d]; save(); render(); }},
+      el("span",{text: DOW[dt.getDay()] + " " + dt.getDate()}), note ? el("span",{class:"sch-note", text:note}) : null)); }));
+  const body = r.staff.map(p => el("tr",null,
+    el("th",{class:"sch-name"}, el("button",{class:"linkbtn", type:"button", text:p.name, title:"Rename or remove", onclick:() => { const v = prompt("Rename " + p.name + " (leave empty to remove them from the schedule):", p.name); if (v === null) return;
+      if (!v.trim()){ if (confirm("Remove " + p.name + " and their shifts?")){ r.staff = r.staff.filter(x => x !== p); r.shifts = r.shifts.filter(x => x.staff !== p.id); } } else p.name = v.trim(); save(); render(); }})),
+    showDays.map(d => { const list = shiftsOn(p.id, d);
+      return el("td",{class:"sch-cell" + (d === today ? " today" : "")}, el("button",{type:"button", class:"sch-cellb", "aria-label":"Edit " + p.name + " on " + nice(d), onclick:() => editShifts(r, p, d)},
+        list.length ? list.map(x => el("span",{class:"sch-shift" + (x.off ? " off" : "")}, shiftText(x, true), x.role ? el("i",{text:(r.roleCodes[x.role] || x.role)}) : null)) : el("span",{class:"sch-empty", text:"\u2013"}))); })));
+  m.append(el("div",{class:"tw sch-tw"}, el("table",{class:"sch"}, el("thead",null, head), el("tbody",null, body))));
+  const codes = [...new Set(r.shifts.map(x => x.role).filter(Boolean))];
+  if (codes.length) m.append(el("p",{class:"mini", style:"margin-top:8px"}, "Role labels: ", codes.map((c, i) => el("span",null, i ? ", " : "", el("button",{class:"linkbtn", type:"button", text: c + (r.roleCodes[c] && r.roleCodes[c] !== c ? " = " + r.roleCodes[c] : ""), onclick:() => { const v = prompt("What does \u201c" + c + "\u201d mean? (shown on the tablet)", r.roleCodes[c] || c); if (v === null) return; r.roleCodes[c] = v.trim() || c; save(); render(); }}))), ". Tap one to spell it out."));
+}
+function editShifts(r, p, d){
+  let list = r.shifts.filter(x => x.staff === p.id && x.date === d).map(x => Object.assign({}, x));
+  const box = el("div");
+  const draw = () => box.replaceChildren(...list.map((x, i) => {
+    const st = el("input",{class:"inp", type:"time", value: x.start || "", "aria-label":"Start"}); st.onchange = () => x.start = st.value;
+    const en = el("input",{class:"inp", type:"time", value: x.end || "", disabled: x.end === null && !x.off ? "" : null, "aria-label":"End"}); en.onchange = () => x.end = en.value;
+    const cl = el("input",{type:"checkbox"}); cl.checked = x.end === null && !x.off; cl.onchange = () => { x.end = cl.checked ? null : (x.end || "17:00"); draw(); };
+    const role = el("input",{class:"inp", list:"sch-roles", value: x.role || "", placeholder:"e.g. Bar, F, B"}); role.onchange = () => x.role = role.value.trim();
+    const off = el("input",{type:"checkbox"}); off.checked = !!x.off; off.onchange = () => { x.off = off.checked; draw(); };
+    return el("div",{class:"sch-edit"},
+      x.off ? el("p",{class:"mini", text:"Off this day"}) : el("div",{class:"g3"}, fld("Start", st), fld("End", en), fld("Role", role)),
+      el("div",{class:"row"}, x.off ? null : el("label",{class:"row", style:"gap:6px"}, cl, "Works until close"), el("label",{class:"row", style:"gap:6px"}, off, "Request off"),
+        el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { list.splice(i, 1); draw(); }})));
+  }), el("button",{class:"btn quiet", type:"button", text: list.length ? "+ Add another shift" : "+ Add a shift", onclick:() => { list.push({ id: uid("sh"), date: d, staff: p.id, start: "09:00", end: "14:00", role:"" }); draw(); }}),
+    el("datalist",{id:"sch-roles"}, [...new Set(r.shifts.map(x => x.role).filter(Boolean).concat(["Bar","Serve","Kitchen","Dish","Drive-thru"]))].map(v => el("option",{value:v}))));
+  draw();
+  openDlg(p.name + ", " + DOW[new Date(d + "T12:00:00").getDay()] + " " + nice(d), [box], [el("span"), el("button",{class:"btn primary", text:"Save", onclick:() => {
+    r.shifts = r.shifts.filter(x => !(x.staff === p.id && x.date === d)).concat(list.map(x => Object.assign(x, { id: x.id || uid("sh"), date: d, staff: p.id })));
+    r.shifts.sort((a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || "")); save(); dlg.close(); }})]);
+}
+// Import: a schedule file (like the posted weeks transcribed for you), or a photo of a paper schedule read by AI.
+function openSchedImport(){
+  const r = schedData(R());
+  const file = el("input",{type:"file", accept:"image/*,.json,application/json", hidden:""});
+  const msg = el("div");
+  file.onchange = async () => {
+    const f = file.files && file.files[0]; file.value = ""; if (!f) return;
+    msg.replaceChildren(el("div",{class:"spin"}));
+    try {
+      let pk;
+      if (/json/.test(f.type) || /\.json$/i.test(f.name)) pk = JSON.parse(await f.text());
+      else pk = await schedFromPhoto(f);
+      if (!pk || !Array.isArray(pk.shifts)) throw new Error("That file isn't a schedule.");
+      reviewSchedImport(pk);
+    } catch(e){ msg.replaceChildren(el("div",{class:"msg bad", text: aiProblem(e) || e.message || "Couldn't read that schedule."})); }
+  };
+  openDlg("Import schedule", [el("p",{class:"lead", text:"Bring in a posted schedule: a photo of the paper schedule (read with AI), or a schedule file. You check everything before it's saved."}),
+    el("label",{class:"btn primary"}, "Choose a photo or file", file), msg], []);
+}
+async function schedFromPhoto(f){
+  const d = await aiJSON("Read this restaurant staff schedule (handwritten times on a printed grid). For each week on the page, give its first date and, for each person, what is written in each day's box exactly as written (like \"6:00-2:00\", \"4:00-9:00 Bar\", \"6:30-1:00 F\", \"4:30-CL Bar\", \"RO\" or \"-\" for a dash/empty). Two shifts in one box are separated by \" | \". Also give any note written above the grid with its day. The current year is " + new Date().getFullYear() + ". Return ONLY JSON: {\"weeks\":[{\"firstDate\":\"YYYY-MM-DD\", \"days\":[\"Tue\",...in column order], \"people\":[{\"name\": string, \"cells\": [string per day]}], \"notes\":[{\"date\":\"YYYY-MM-DD\",\"text\":string}]}]}", f, { maxTokens: 8000 });
+  return schedFromCells(d);
+}
+// Paper schedules rarely say AM/PM: starts 6:00-11:59 are mornings, 12 is noon, 1:00-5:59 afternoons; the end is the first time after the start.
+function schedFromCells(d){
+  const to24 = (start, end) => { const [sh, sm] = start.split(":").map(Number); let s = sh * 60 + (sm || 0); if (sh < 6) s += 720;
+    if (/^cl/i.test(end)) return [hhmmOf(s), null]; const [eh, em] = end.split(":").map(Number); let e = (eh % 12) * 60 + (em || 0); while (e <= s) e += 720; return [hhmmOf(s), hhmmOf(e)]; };
+  const hhmmOf = mins => String(Math.floor(mins / 60) % 24).padStart(2, "0") + ":" + String(mins % 60).padStart(2, "0");
+  const staff = [], shifts = [], notes = {};
+  (d.weeks || []).forEach(w => (w.people || []).forEach(p => {
+    let pid = (staff.find(x => x.name.toLowerCase() === String(p.name).trim().toLowerCase()) || {}).id;
+    if (!pid){ pid = "p" + staff.length; staff.push({ id: pid, name: String(p.name).trim() }); }
+    (p.cells || []).forEach((cell, i) => { const day = addDays(w.firstDate, i), c = String(cell || "").trim().replace(/noon/ig, "12:00");
+      if (!c || /^[-\u2013\u2014]+$/.test(c)) return;
+      if (/^r\.?o\.?$/i.test(c)) { shifts.push({ date: day, staff: pid, off: true, note: "Request off" }); return; }
+      c.split("|").forEach(part => { const mm = part.trim().match(/(\d{1,2}(?::\d\d)?)\s*-\s*(\d{1,2}(?::\d\d)?|cl\w*)\s*(.*)/i); if (!mm) return;
+        const fix = t => /:/.test(t) ? t : t + ":00"; const [st, en] = to24(fix(mm[1]), /^cl/i.test(mm[2]) ? "CL" : fix(mm[2]));
+        shifts.push({ date: day, staff: pid, start: st, end: en, role: mm[3].trim() }); }); });
+  }));
+  (d.weeks || []).forEach(w => (w.notes || []).forEach(n => { if (n.date && n.text) notes[n.date] = n.text; }));
+  return { staff, shifts, notes };
+}
+function reviewSchedImport(pk){
+  const r = schedData(R());
+  const byName = new Map(r.staff.map(p => [p.name.toLowerCase(), p]));
+  const dates = [...new Set(pk.shifts.map(x => x.date))].sort();
+  const people = (pk.staff || []).map(p => ({ p, mine: byName.get(p.name.toLowerCase()) }));
+  const shiftsFor = (pid, d) => pk.shifts.filter(x => x.staff === pid && x.date === d);
+  const tb = el("tbody", null, people.map(({ p, mine }) => el("tr",null, el("th",{class:"sch-name"}, p.name, mine ? null : el("span",{class:"pill warn", style:"margin-left:6px", text:"new"})),
+    dates.map(d => el("td",{class:"sch-cell"}, shiftsFor(p.id, d).map(x => el("span",{class:"sch-shift" + (x.off ? " off" : "")}, shiftText(x, true), x.role ? el("i",{text:x.role}) : null)))))));
+  const replace = el("input",{type:"checkbox"}); replace.checked = true;
+  openDlg("Check the schedule", [
+    el("p",{class:"lead", text: pk.shifts.length + " shifts for " + people.length + " people, " + nice(dates[0]) + " to " + nice(dates[dates.length - 1]) + ". Times are read as AM for 6:00\u201311:59 starts and PM for 1:00\u20135:59 starts; fix any in the schedule after importing."}),
+    el("div",{class:"tw"}, el("table",{class:"sch"}, el("thead",null, el("tr",null, el("th",{text:"Name"}), dates.map(d => { const dt = new Date(d + "T12:00:00"); return el("th",null, DOW[dt.getDay()] + " " + dt.getDate(), (pk.notes || {})[d] ? el("span",{class:"sch-note", text:pk.notes[d]}) : null); }))), tb)),
+    el("label",{class:"row", style:"gap:8px;font-weight:600;margin-top:10px"}, replace, "Replace any shifts already in the app on these days")
+  ], [el("span"), el("button",{class:"btn primary", text:"Add to schedule", onclick:() => {
+    const idMap = {};
+    people.forEach(({ p, mine }) => { if (mine) idMap[p.id] = mine.id; else { const id = uid("p"); r.staff.push({ id, name: p.name }); idMap[p.id] = id; } });
+    if (replace.checked) r.shifts = r.shifts.filter(x => !dates.includes(x.date));
+    pk.shifts.forEach(x => r.shifts.push(Object.assign({}, x, { id: uid("sh"), staff: idMap[x.staff] })));
+    Object.assign(r.dayNotes, pk.notes || {}); Object.entries(pk.roleCodes || {}).forEach(([k, v]) => { if (!r.roleCodes[k]) r.roleCodes[k] = v; });
+    SCV.week = mondayOf(dates[0]); SCV.tab = "week"; save(); dlg.close(); toast("Added " + pk.shifts.length + " shifts"); go("sched");
+  }})]);
+}
+function schedDuties(m, r){
+  m.append(el("p",{class:"mini", style:"margin:0 0 12px", text:"Checklists for each shift. The tablet shows the lists for that day, and staff check items off with their name. Lists set to certain days only appear on those days."}));
+  m.append(el("div",{class:"duty-grid"}, r.duties.map(l => el("div",{class:"card duty-card"},
+    el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:l.name}), el("span",{class:"mini", text: l.area + ", " + ({ open:"opening", mid:"mid-shift", close:"closing", daily:"any time" })[l.when] + (l.days && l.days.length ? ", " + l.days.map(dn => DOW[dn]).join(" & ") + " only" : ", every day")})),
+      el("button",{class:"btn quiet", type:"button", text:"Edit", onclick:() => editDutyList(r, l)})),
+    el("ul",{class:"duty-items"}, l.items.map(x => el("li",{text:x.text})))))),
+    el("button",{class:"btn quiet", type:"button", style:"margin-top:12px", text:"+ New checklist", onclick:() => { const l = { id: uid("dl").slice(0, 12), name:"New checklist", area:"Kitchen", when:"open", days:null, items:[] }; editDutyList(r, l, true); }}));
+}
+function editDutyList(r, l, isNew){
+  const c = JSON.parse(JSON.stringify(l));
+  const name = el("input",{class:"inp", value:c.name});
+  const area = el("select",{class:"inp"}, ["Kitchen","Bar","Front","Drive-thru","Everyone"].map(a => el("option",{value:a, text:a}))); area.value = c.area;
+  const when = el("select",{class:"inp"}, [["open","Opening"],["mid","Mid-shift"],["close","Closing"],["daily","Any time"]].map(([v, t]) => el("option",{value:v, text:t}))); when.value = c.when;
+  const items = el("textarea",{class:"inp", rows:"9", placeholder:"One duty per line"}); items.value = c.items.map(x => x.text).join("\n");
+  const days = el("div",{class:"kb-al-pick"}, [2,3,4,5,6,0,1].map(dn => { const cb = el("input",{type:"checkbox"}); cb.checked = !!(c.days && c.days.includes(dn)); cb.dataset.d = dn; return el("label",null, cb, DOW[dn]); }));
+  openDlg(isNew ? "New checklist" : "Edit: " + l.name, [fld("Name", name), el("div",{class:"g2"}, fld("Area", area), fld("When", when)),
+    el("div",{class:"field"}, el("span",{class:"q", text:"Only on these days (leave all unticked for every day)"}), days),
+    fld("Duties", items, "One per line. Short and specific works best, like \u201cFilter fryer oil\u201d.")],
+    [isNew ? el("span") : el("button",{class:"btn danger", text:"Delete", onclick:() => { if (!confirm("Delete the " + l.name + " checklist?")) return; r.duties = r.duties.filter(x => x.id !== l.id); save(); dlg.close(); }}),
+     el("button",{class:"btn primary", text:"Save", onclick:() => {
+       const lines = items.value.split("\n").map(t => t.trim()).filter(Boolean);
+       const old = new Map(c.items.map(x => [x.text, x.id]));
+       const out = { id: c.id, name: name.value.trim() || "Checklist", area: area.value, when: when.value, days: [...days.querySelectorAll("input")].filter(cb => cb.checked).map(cb => +cb.dataset.d),
+         items: lines.map(t => ({ id: old.get(t) || (c.id + "-" + Math.random().toString(36).slice(2, 7)), text: t.slice(0, 120) })) };
+       if (!out.days.length) out.days = null;
+       const i = r.duties.findIndex(x => x.id === c.id); if (i >= 0) r.duties[i] = out; else r.duties.push(out);
+       save(); dlg.close(); }})]);
+}
+function schedLog(m, r, today){
+  SCV.logDay = SCV.logDay || today;
+  const day = SCV.logDay, lists = dutiesFor(r, day);
+  const pick = el("input",{class:"inp", type:"date", value:day, max:today, style:"max-width:200px"}); pick.onchange = () => { SCV.logDay = pick.value || today; render(); };
+  const box = el("div",null, el("div",{class:"spin"}));
+  m.append(el("div",{class:"row", style:"margin-bottom:12px"}, el("b",{text:"Day"}), pick), box);
+  (async () => {
+    const { data, error } = await sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: day, p_to: day });
+    if (error){ box.replaceChildren(el("div",{class:"msg bad", text: /function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "One-time setup: run supabase/007_duties.sql in Supabase's SQL Editor." : plainErr(error)})); return; }
+    const done = new Map((data || []).map(c => [c.list_id + "|" + c.item_id, c]));
+    if (!lists.length){ box.replaceChildren(el("div",{class:"card empty", text:"No checklists for this day."})); return; }
+    box.replaceChildren(el("div",{class:"duty-grid"}, lists.map(l => { const n2 = l.items.filter(x => done.has(l.id + "|" + x.id)).length;
+      return el("div",{class:"card duty-card"}, el("div",{class:"spread"}, el("h3",{style:"margin:0", text:l.name}), el("span",{class:"pill " + (n2 === l.items.length ? "good" : n2 ? "warn" : "bad"), text: n2 + " of " + l.items.length})),
+        el("ul",{class:"duty-items log"}, l.items.map(x => { const c = done.get(l.id + "|" + x.id);
+          return el("li",{class: c ? "done" : "miss"}, el("span",{text:x.text}), el("span",{class:"mini", text: c ? (c.done_by || "Someone") + ", " + new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) : "Not done"})); }))); })));
+  })();
 }
 /* ================= Backup & restore ================= */
 async function downloadBackup(){
