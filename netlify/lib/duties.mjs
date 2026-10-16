@@ -3,7 +3,9 @@
 const toMin = v => v ? +v.slice(0, 2) * 60 + +v.slice(3) : 24 * 60 + 1;   // no end = until close
 export function listsFor(place, day) {
   const dow = new Date(day + "T12:00:00Z").getUTCDay();
-  return (place.duties || []).filter(l => !l.days || !l.days.length || l.days.includes(dow));
+  const dnum = Math.round(Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10)) / 864e5);
+  return (place.duties || []).filter(l => !l.days || !l.days.length || l.days.includes(dow))
+    .map(l => Object.assign({}, l, { items: l.items.filter(x => !/every other (day|night)/i.test(x.text || "") || dnum % 2 === 0) }));
 }
 export function responsibleFor(place, list, day) {
   const staff = new Map((place.staff || []).map(p => [p.id, p.name]));
@@ -14,7 +16,8 @@ export function responsibleFor(place, list, day) {
   else if (list.area === "Bar") { const b = pool.filter(s => /bar/i.test(s.role || "")); if (b.length) pool = b; }
   else { const nb = pool.filter(s => !/bar/i.test(s.role || "")); if (nb.length) pool = nb; }   // bar shifts don't close the kitchen
   if (!pool.length) return [];
-  if (list.when === "open") { const first = Math.min(...pool.map(s => toMin(s.start))); pool = pool.filter(s => toMin(s.start) <= first + 60); }
+  if (list.startAt) { const t0 = toMin(list.startAt); pool = pool.filter(s => Math.abs(toMin(s.start) - t0) <= 45); }
+  else if (list.when === "open") { const first = Math.min(...pool.map(s => toMin(s.start))); pool = pool.filter(s => toMin(s.start) <= first + 60); }
   else if (list.when === "close") { const last = Math.max(...pool.map(s => toMin(s.end))); pool = pool.filter(s => toMin(s.end) >= last - 60); }
   return [...new Set(pool.map(s => staff.get(s.staff)).filter(Boolean))].slice(0, 5);
 }

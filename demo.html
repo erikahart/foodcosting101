@@ -1239,6 +1239,7 @@ aside .brandbox b{font-size:1.3rem}
   :root:not([data-theme="light"]) .chip2.pm,:root:not([data-theme="light"]) .tl2-bar.pm{background:#2A2238;color:#D9CCF0} :root:not([data-theme="light"]) .chip2.bar,:root:not([data-theme="light"]) .tl2-bar.bar{background:#3A2F14;color:#F2DDA8} }
 :root[data-theme="dark"] .chip2.am,:root[data-theme="dark"] .tl2-bar.am{background:#173A30;color:#BFE6D7} :root[data-theme="dark"] .chip2.mid,:root[data-theme="dark"] .tl2-bar.mid{background:#1B2C3D;color:#C6D9EE}
 :root[data-theme="dark"] .chip2.pm,:root[data-theme="dark"] .tl2-bar.pm{background:#2A2238;color:#D9CCF0} :root[data-theme="dark"] .chip2.bar,:root[data-theme="dark"] .tl2-bar.bar{background:#3A2F14;color:#F2DDA8}
+.ck-import{margin-bottom:10px}
 
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
@@ -3222,7 +3223,7 @@ function bookSnapshot(r){
   const schedule = { people: r.staff.map(p => ({ id: p.id, name: p.name })), codes: r.roleCodes,
     shifts: r.shifts.filter(x => x.date >= from && x.date <= to).map(x => ({ d: x.date, p: x.staff, s: x.start || null, e: x.end || null, r: x.role || "", off: !!x.off, n: x.off ? (x.note || "") : "" })),
     notes: Object.fromEntries(Object.entries(r.dayNotes).filter(([d]) => d >= from && d <= to)) };
-  const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, items: l.items }));
+  const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, startAt: l.startAt || null, items: l.items }));
   return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, made: new Date().toISOString(),
     brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Kitchen book" } };
 }
@@ -3310,12 +3311,17 @@ function responsibleFor(r, l, day){
   else if (l.area === "Bar"){ const b = pool.filter(x => /bar/i.test(x.role || "")); if (b.length) pool = b; }
   else { const nb = pool.filter(x => !/bar/i.test(x.role || "")); if (nb.length) pool = nb; }
   if (!pool.length) return [];
-  if (l.when === "open"){ const first = Math.min(...pool.map(x => toMin(x.start))); pool = pool.filter(x => toMin(x.start) <= first + 60); }
+  if (l.startAt){ const t0 = toMin(l.startAt); pool = pool.filter(x => Math.abs(toMin(x.start) - t0) <= 45); }
+  else if (l.when === "open"){ const first = Math.min(...pool.map(x => toMin(x.start))); pool = pool.filter(x => toMin(x.start) <= first + 60); }
   else if (l.when === "close"){ const last = Math.max(...pool.map(x => toMin(x.end))); pool = pool.filter(x => toMin(x.end) >= last - 60); }
   return [...new Set(pool.map(x => staffName(r, x.staff)))].filter(x => x && x !== "?").slice(0, 5);
 }
 const CANT_REASONS = ["Ran out of supplies", "Equipment broken", "Short-staffed / too busy", "Ran out of time"];
-const dutiesFor = (r, iso) => (r.duties || []).filter(l => !l.days || !l.days.length || l.days.includes(new Date(iso + "T12:00:00").getDay()));
+// Duties that say "every other night/day" show on alternate calendar days (the same days on the app, tablet and alerts).
+const everyOther = t => /every other (day|night)/i.test(t || "");
+const dayNum = iso => Math.round(Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10)) / 864e5);
+const dutiesFor = (r, iso) => (r.duties || []).filter(l => !l.days || !l.days.length || l.days.includes(new Date(iso + "T12:00:00").getDay()))
+  .map(l => Object.assign({}, l, { items: l.items.filter(x => !everyOther(x.text) || dayNum(iso) % 2 === 0) }));
 const staffName = (r, id) => (r.staff.find(p => p.id === id) || {}).name || "?";
 function sched(m){
   const r = schedData(R()); const today = localDay(new Date());
@@ -3578,7 +3584,7 @@ function schedChecklists(m, r, today){
     box.replaceChildren(el("div",{class:"duty-grid"}, lists.map(l => { const n2 = l.items.filter(x => { const c = done.get(l.id + "|" + x.id); return c && c.status !== "skipped"; }).length;
       const resp = responsibleFor(r, l, day);
       return el("div",{class:"card duty-card"},
-        el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:l.name}), el("span",{class:"mini", text: l.area + ", " + ({ open:"opening", mid:"mid-shift", close:"closing", daily:"any time" })[l.when] + (resp.length ? ". Responsible: " + resp.join(", ") : "")})),
+        el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:l.name}), el("span",{class:"mini", text: l.area + ", " + (l.startAt ? "starts around " + t12(l.startAt) : ({ open:"opening", mid:"mid-shift", close:"closing", daily:"any time" })[l.when]) + (resp.length ? ". Responsible: " + resp.join(", ") : l.startAt ? ". No one starts near then today" : "")})),
           el("span",{class:"pill " + (n2 === l.items.length ? "good" : n2 ? "warn" : day < today ? "bad" : ""), text: n2 + " of " + l.items.length})),
         el("div",{class:"ck-list"}, l.items.map(x => { const c = done.get(l.id + "|" + x.id), sk = c && c.status === "skipped";
           const sub = sk ? "Couldn't: " + (c.note || "no reason") + " (" + (c.done_by || "?") + ")" : c ? (c.done_by || "Someone") + ", " + new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) : day < today ? "Missed" + (resp.length ? ": " + resp.join(", ") : "") : "";
@@ -3644,13 +3650,56 @@ function dutyAlertsCard(r){
       catch(e){ msg.replaceChildren(el("div",{class:"msg bad", text: e.reason === "nomail" ? "Add POSTMARK_SERVER_TOKEN in Netlify (Postmark > your server > API Tokens), then redeploy." : (e.message || "Couldn't send it right now.")})); } }}) : el("p",{class:"mini", text:"Owners and managers can change alerts."}),
     msg);
 }
+// Import checklists: a photo of a posted sheet (read with AI) or a checklist file. You check them before they're added.
+function openChecklistImport(r){
+  const file = el("input",{type:"file", accept:"image/*,.json,application/json", hidden:""}), msg = el("div");
+  file.onchange = async () => { const f = file.files && file.files[0]; file.value = ""; if (!f) return; msg.replaceChildren(el("div",{class:"spin"}));
+    try {
+      let pk;
+      if (/json/.test(f.type) || /\.json$/i.test(f.name)) pk = JSON.parse(await f.text());
+      else { const d = await aiJSON("Read this posted restaurant duty checklist (cleaning, side work, prep). It may have several sections with headings like \u201c6 AM OUT\u201d or \u201cClosing\u201d, plus handwritten additions. Drop any words that are crossed out. Turn each handwritten note into its own duty. Keep the wording short and practical. Return ONLY JSON: {\"lists\":[{\"name\": heading as written, \"items\":[string]}]}", f, { maxTokens: 4000 });
+        pk = { lists: (d.lists || []).map(l => { const nm = String(l.name || "Checklist").trim(), t = nm.match(/(\d{1,2})(?::(\d\d))?\s*(am|pm)/i);
+          const hh = t ? ((+t[1] % 12) + (/pm/i.test(t[3]) ? 12 : 0)) : null;
+          return { name: nm.replace(/\b(\w)(\w*)/g, (a0, x, y) => x.toUpperCase() + y.toLowerCase()).replace(/\b(Am|Pm)\b/g, m0 => m0.toUpperCase()), area:"Front", when: /clos/i.test(nm) ? "close" : "open", startAt: hh != null ? String(hh).padStart(2, "0") + ":" + (t[2] || "00") : null, items: (l.items || []).map(String).filter(Boolean).map(text => ({ text })) }; }) }; }
+      if (!pk || !Array.isArray(pk.lists) || !pk.lists.length) throw new Error("No checklists found.");
+      reviewChecklists(r, pk);
+    } catch(e){ msg.replaceChildren(el("div",{class:"msg bad", text: aiProblem(e) || e.message || "Couldn't read that."})); }
+  };
+  openDlg("Import checklists", [el("p",{class:"lead", text:"Snap a photo of a posted checklist (handwritten notes are fine), or choose a checklist file. You'll check every list before it's added."}), el("label",{class:"btn primary"}, "Choose a photo or file", file), msg], []);
+}
+function reviewChecklists(r, pk){
+  const forms = pk.lists.map(l => {
+    const name = el("input",{class:"inp", value:l.name || "Checklist"});
+    const area = el("select",{class:"inp"}, ["Front","Kitchen","Bar","Drive-thru","Everyone"].map(a => el("option",{value:a, text:a}))); area.value = l.area || "Front";
+    const when = el("select",{class:"inp"}, [["open","Opening"],["mid","Mid-shift"],["close","Closing"],["daily","Any time"]].map(([v, t]) => el("option",{value:v, text:t}))); when.value = l.when || "open";
+    const startAt = el("input",{class:"inp", type:"time", value: l.startAt || ""});
+    const items = el("textarea",{class:"inp", rows: String(Math.min(14, Math.max(4, (l.items || []).length + 1)))}); items.value = (l.items || []).map(x => x.text || x).join("\n");
+    const keep = el("input",{type:"checkbox"}); keep.checked = true;
+    return { l, name, area, when, startAt, items, keep, box: el("div",{class:"card ck-import"}, el("label",{class:"row", style:"gap:8px;font-weight:700"}, keep, "Add this list"),
+      el("div",{class:"g2"}, fld("Name", name), fld("Area", area)), el("div",{class:"g2"}, fld("When", when), fld("Whoever starts around (optional)", startAt)), fld("Duties, one per line", items)) };
+  });
+  const sameNames = r.duties.filter(d => forms.some(f => f.l.name && d.name.toLowerCase() === f.l.name.toLowerCase()) || (pk.replace || []).includes(d.id));
+  const replace = el("input",{type:"checkbox"}); replace.checked = true;
+  openDlg("Check the checklists", [el("p",{class:"lead", text: forms.length + (forms.length === 1 ? " list" : " lists") + " found. Fix anything, then add. Duties that say \u201cevery other night\u201d show up every other night."}),
+    ...forms.map(f => f.box),
+    sameNames.length ? el("label",{class:"row", style:"gap:8px;font-weight:600;margin-top:8px"}, replace, "Replace these existing lists: " + sameNames.map(d => d.name).join(", ")) : null],
+    [el("span"), el("button",{class:"btn primary", text:"Add checklists", onclick:() => {
+      if (sameNames.length && replace.checked) r.duties = r.duties.filter(d => !sameNames.includes(d));
+      let n2 = 0;
+      forms.filter(f => f.keep.checked).forEach(f => { const id = (f.l.id && !r.duties.some(d => d.id === f.l.id)) ? f.l.id : uid("dl").slice(0, 12);
+        const lines = f.items.value.split("\n").map(t => t.trim()).filter(Boolean); if (!lines.length) return;
+        r.duties.push({ id, name: f.name.value.trim() || "Checklist", area: f.area.value, when: f.when.value, days: null, startAt: f.startAt.value || null, roles: [], people: [], items: lines.map((t, i) => ({ id: id + "-" + (i + 1), text: t.slice(0, 120) })) }); n2++; });
+      save(); dlg.close(); toast("Added " + n2 + (n2 === 1 ? " checklist" : " checklists")); render();
+    }})]);
+}
 function schedDuties(m, r, edit){
   m.append(dutyAlertsCard(r));
   m.append(el("p",{class:"mini", style:"margin:14px 0 12px", text:"Set up the checklist for each shift here. They're checked off under Checklists (here or on the tablet). Lists set to certain days only appear on those days."}));
   m.append(el("div",{class:"duty-grid"}, r.duties.map(l => el("div",{class:"card duty-card"},
-    el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:l.name}), el("span",{class:"mini", text: l.area + ", " + ({ open:"opening", mid:"mid-shift", close:"closing", daily:"any time" })[l.when] + (l.days && l.days.length ? ", " + l.days.map(dn => DOW[dn]).join(" & ") + " only" : ", every day")})),
+    el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:l.name}), el("span",{class:"mini", text: l.area + ", " + (l.startAt ? "whoever starts around " + t12(l.startAt) : ({ open:"opening", mid:"mid-shift", close:"closing", daily:"any time" })[l.when]) + (l.days && l.days.length ? ", " + l.days.map(dn => DOW[dn]).join(" & ") + " only" : ", every day")})),
       edit ? el("button",{class:"btn quiet", type:"button", text:"Edit", onclick:() => editDutyList(r, l)}) : null),
     el("ul",{class:"duty-items"}, l.items.map(x => el("li",{text:x.text})))))),
+    !edit ? null : el("button",{class:"btn quiet", type:"button", style:"margin-top:12px;margin-right:8px", text:"Import checklists", onclick:() => openChecklistImport(r)}),
     !edit ? null : el("button",{class:"btn quiet", type:"button", style:"margin-top:12px", text:"+ New checklist", onclick:() => { const l = { id: uid("dl").slice(0, 12), name:"New checklist", area:"Kitchen", when:"open", days:null, items:[] }; editDutyList(r, l, true); }}));
 }
 function editDutyList(r, l, isNew){
@@ -3661,19 +3710,20 @@ function editDutyList(r, l, isNew){
   const items = el("textarea",{class:"inp", rows:"9", placeholder:"One duty per line"}); items.value = c.items.map(x => x.text).join("\n");
   const days = el("div",{class:"kb-al-pick"}, [2,3,4,5,6,0,1].map(dn => { const cb = el("input",{type:"checkbox"}); cb.checked = !!(c.days && c.days.includes(dn)); cb.dataset.d = dn; return el("label",null, cb, DOW[dn]); }));
   const roles = el("input",{class:"inp", placeholder:"e.g. Bar, B (leave empty for automatic)", value:(c.roles || []).join(", ")});
+  const startAt = el("input",{class:"inp", type:"time", value: c.startAt || "", style:"max-width:160px"});
   const ppl = el("div",{class:"kb-al-pick"}, (r.staff || []).map(p => { const cb = el("input",{type:"checkbox"}); cb.checked = !!(c.people && c.people.includes(p.id)); cb.dataset.p = p.id; return el("label",null, cb, p.name); }));
   openDlg(isNew ? "New checklist" : "Edit: " + l.name, [fld("Name", name), el("div",{class:"g2"}, fld("Area", area), fld("When", when)),
     el("div",{class:"field"}, el("span",{class:"q", text:"Only on these days (leave all unticked for every day)"}), days),
-    fld("Duties", items, "One per line. Short and specific works best, like \u201cFilter fryer oil\u201d."),
+    fld("Duties", items, "One per line. Short and specific works best, like \u201cFilter fryer oil\u201d. Add \u201c(every other night)\u201d to a duty that's only done every other night."),
     el("details",{class:"resp-box", open: (c.roles && c.roles.length) || (c.people && c.people.length) ? "" : null}, el("summary",{text:"Who's responsible (for missed-duty alerts)"}),
       el("p",{class:"mini", text:"Automatic: opening lists go to whoever starts first that day, closing lists to whoever works last, and bar lists to bar shifts. Narrow it by role, or pick specific people."}),
-      fld("Only these roles", roles), el("div",{class:"field"}, el("span",{class:"q", text:"Or always these people"}), ppl))],
+      fld("Whoever starts around (within 45 minutes)", startAt, "For lists like \u201c6 AM Out\u201d. Leave empty for openers or closers."), fld("Only these roles", roles), el("div",{class:"field"}, el("span",{class:"q", text:"Or always these people"}), ppl))],
     [isNew ? el("span") : el("button",{class:"btn danger", text:"Delete", onclick:() => { if (!confirm("Delete the " + l.name + " checklist?")) return; r.duties = r.duties.filter(x => x.id !== l.id); save(); dlg.close(); }}),
      el("button",{class:"btn primary", text:"Save", onclick:() => {
        const lines = items.value.split("\n").map(t => t.trim()).filter(Boolean);
        const old = new Map(c.items.map(x => [x.text, x.id]));
        const out = { id: c.id, name: name.value.trim() || "Checklist", area: area.value, when: when.value, days: [...days.querySelectorAll("input")].filter(cb => cb.checked).map(cb => +cb.dataset.d),
-         roles: roles.value.split(",").map(x => x.trim()).filter(Boolean), people: [...ppl.querySelectorAll("input")].filter(cb => cb.checked).map(cb => cb.dataset.p),
+         startAt: startAt.value || null, roles: roles.value.split(",").map(x => x.trim()).filter(Boolean), people: [...ppl.querySelectorAll("input")].filter(cb => cb.checked).map(cb => cb.dataset.p),
          items: lines.map(t => ({ id: old.get(t) || (c.id + "-" + Math.random().toString(36).slice(2, 7)), text: t.slice(0, 120) })) };
        if (!out.days.length) out.days = null;
        const i = r.duties.findIndex(x => x.id === c.id); if (i >= 0) r.duties[i] = out; else r.duties.push(out);
