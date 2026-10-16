@@ -984,6 +984,12 @@ aside .brandbox b{font-size:1.3rem}
 /* Tickets hang straight */
 .tk,.tk:nth-child(odd){transform:none}
 @keyframes tkDrop{from{transform:translateY(-26px);opacity:0}to{transform:none;opacity:1}}
+/* Kitchen book photos: show the whole picture in a square, with a soft blurred fill behind tall or wide shots */
+.kb-imgwrap{position:relative;aspect-ratio:1/1;overflow:hidden;background:var(--field);isolation:isolate}
+.kb-imgwrap::before{content:"";position:absolute;inset:-24px;background:var(--bg) center/cover no-repeat;filter:blur(20px) saturate(1.1) brightness(.88);z-index:-1}
+.kb-card .kb-imgwrap img{width:100%;height:100%;aspect-ratio:auto;object-fit:contain;display:block;background:transparent}
+.kb-card .kb-ph{aspect-ratio:1/1}
+.kb-aitag{z-index:1}
 </style>
 </head>
 <body>
@@ -1898,7 +1904,7 @@ function book(m){
   m.append(el("div",{class:"kb-grid"}, shown.map(it => {
     const c = cardOf(it), ph = PHOTOS.get(it.id), total = n(c.prepMin) + n(c.cookMin);
     return el("button",{class:"kb-card", type:"button", onclick:() => openCard(it.id), "aria-label":"Open the card for " + it.name},
-      ph ? el("div",{class:"kb-imgwrap"}, el("img",{src:ph, alt:"", loading:"lazy"}), c.photoSrc === "ai" ? el("span",{class:"kb-aitag", text:"AI image"}) : null) : plateArt(it),
+      ph ? el("div",{class:"kb-imgwrap", style:'--bg:url("' + ph + '")'}, el("img",{src:ph, alt:"", loading:"lazy"}), c.photoSrc === "ai" ? el("span",{class:"kb-aitag", text:"AI image"}) : null) : plateArt(it),
       el("div",{class:"kb-body"}, el("b",{text:it.name}),
         el("div",{class:"kb-meta"}, el("span",{text:it.section || ""}), total ? el("span",{class:"kb-time", text: total + " min"}) : null, c.station ? el("span",{text:c.station}) : null),
         !(c.steps || []).length ? el("span",{class:"kb-todo", text:"No steps yet"}) : null));
