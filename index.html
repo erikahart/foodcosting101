@@ -1240,6 +1240,16 @@ aside .brandbox b{font-size:1.3rem}
 :root[data-theme="dark"] .chip2.am,:root[data-theme="dark"] .tl2-bar.am{background:#173A30;color:#BFE6D7} :root[data-theme="dark"] .chip2.mid,:root[data-theme="dark"] .tl2-bar.mid{background:#1B2C3D;color:#C6D9EE}
 :root[data-theme="dark"] .chip2.pm,:root[data-theme="dark"] .tl2-bar.pm{background:#2A2238;color:#D9CCF0} :root[data-theme="dark"] .chip2.bar,:root[data-theme="dark"] .tl2-bar.bar{background:#3A2F14;color:#F2DDA8}
 .ck-import{margin-bottom:10px}
+
+.pos-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
+.pos-row{display:grid;grid-template-columns:110px 1fr;gap:8px;align-items:center}
+.pos-row .inp{min-height:40px}
+.tl2-sec{display:flex;align-items:baseline;gap:10px;margin:12px 0 4px;padding:4px 0 4px 10px;border-left:5px solid var(--pc)}
+.tl2-sec b{font-family:var(--brand-font);font-weight:800;font-size:1.25rem;color:var(--ink)}
+.tl2-sec span{font-size:.8rem;font-weight:700;color:var(--muted)}
+.tl2-bar.pos{background:color-mix(in srgb,var(--pc) 16%,var(--panel));border-color:var(--pc);color:var(--ink)}
+.sch2-sec th{text-align:left;padding:8px 12px;background:color-mix(in srgb,var(--pc) 10%,var(--panel));border-left:5px solid var(--pc);position:sticky;left:0}
+.sch2-sec b{font-family:var(--brand-font);font-weight:800;font-size:1.05rem;letter-spacing:.02em}
 </style>
 </head>
 <body>
@@ -3132,7 +3142,7 @@ function bookSnapshot(r){
   const stock = [...new Set(Object.values(r.supplies).map(su => supName(su)).filter(Boolean))].slice(0, 400);   // names only, for custom builds
   const today = localDay(new Date()), from = addDays(mondayOf(today), -1), to = addDays(mondayOf(today), 21);
   schedData(r);
-  const schedule = { people: r.staff.map(p => ({ id: p.id, name: p.name })), codes: r.roleCodes,
+  const schedule = { people: r.staff.map(p => ({ id: p.id, name: p.name, pos: p.pos || guessPos(r, p.id) || null })), codes: r.roleCodes, rolePos: r.rolePos || {},
     shifts: r.shifts.filter(x => x.date >= from && x.date <= to).map(x => ({ d: x.date, p: x.staff, s: x.start || null, e: x.end || null, r: x.role || "", off: !!x.off, n: x.off ? (x.note || "") : "" })),
     notes: Object.fromEntries(Object.entries(r.dayNotes).filter(([d]) => d >= from && d <= to)) };
   const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, startAt: l.startAt || null, items: l.items }));
@@ -3191,6 +3201,42 @@ async function openTabletLink(){
 
 /* ================= Schedule and shift duties ================= */
 const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const POSITIONS = ["Kitchen","Serving","Bar","Drive-thru","Dish"];
+const POS_COLOR = { Kitchen:"#1F6F5C", Serving:"#3D6E9E", Bar:"#D99A1E", "Drive-thru":"#6B4E9B", Dish:"#6F7579", Team:"#8A8577" };
+// Where a shift is worked: its label ("Bar", "Serve", or a code you've mapped like F or B), else the person's usual position.
+function posOfShift(r, x){
+  const code = String(x.role || "").trim(), map = r.rolePos || {};
+  if (code && map[code]) return map[code];
+  if (/bar/i.test(code)) return "Bar";
+  if (/serv|front|wait/i.test(code)) return "Serving";
+  if (/kitch|cook|line|grill|back|prep/i.test(code)) return "Kitchen";
+  if (/dish/i.test(code)) return "Dish";
+  if (/drive/i.test(code)) return "Drive-thru";
+  const p = (r.staff || []).find(q => q.id === x.staff);
+  return (p && p.pos) || guessPos(r, x.staff) || "Team";
+}
+// A person's usual position, guessed from their labeled shifts when it hasn't been set.
+function guessPos(r, pid){
+  const tally = {}; (r.shifts || []).filter(x => x.staff === pid && x.role).forEach(x => { const map = r.rolePos || {}; const c = x.role;
+    const p = map[c] || (/bar/i.test(c) ? "Bar" : /serv/i.test(c) ? "Serving" : null); if (p) tally[p] = (tally[p] || 0) + 1; });
+  const best = Object.entries(tally).sort((a, b) => b[1] - a[1])[0]; return best ? best[0] : null;
+}
+function openPositions(r){
+  r.rolePos = r.rolePos || {};
+  const codes = [...new Set(r.shifts.map(x => x.role).filter(Boolean))].filter(c => !/^(bar|serve|server)$/i.test(c));
+  const sel = (val, guess) => { const s2 = el("select",{class:"inp"}, el("option",{value:"", text: guess ? "Not set (guess: " + guess + ")" : "Not set"}), POSITIONS.map(p => el("option",{value:p, text:p}))); s2.value = val || ""; return s2; };
+  const staffRows = r.staff.map(p => ({ p, s: sel(p.pos, guessPos(r, p.id)) }));
+  const codeRows = codes.map(c => ({ c, s: sel(r.rolePos[c], c === "F" ? "Serving" : c === "B" ? "Kitchen" : null) }));
+  openDlg("Positions", [
+    el("p",{class:"lead", text:"Where each person usually works. The tablet and Day view group the schedule by these, so everyone can see who's in the kitchen, serving and on the bar."}),
+    el("div",{class:"pos-grid"}, staffRows.map(({ p, s: s2 }) => el("label",{class:"pos-row"}, el("b",{text:p.name}), s2))),
+    codeRows.length ? el("div",null, el("h3",{style:"margin:16px 0 4px", text:"Shift labels"}), el("p",{class:"mini", text:"A label on a shift moves that person for the day (\u201cBar\u201d and \u201cServe\u201d already do). What do these mean?"}),
+      el("div",{class:"pos-grid"}, codeRows.map(({ c, s: s2 }) => el("label",{class:"pos-row"}, el("b",{text:"\u201c" + c + "\u201d"}), s2)))) : null
+  ], [el("span"), el("button",{class:"btn primary", text:"Save positions", onclick:() => {
+    staffRows.forEach(({ p, s: s2 }) => { if (s2.value) p.pos = s2.value; else delete p.pos; });
+    codeRows.forEach(({ c, s: s2 }) => { if (s2.value){ r.rolePos[c] = s2.value; if (!r.roleCodes[c] || r.roleCodes[c] === c) r.roleCodes[c] = s2.value; } else delete r.rolePos[c]; });
+    save(); dlg.close(); toast("Positions saved"); }})]);
+}
 const canEditSchedule = () => !!ACCT && (ACCT.role === "owner" || ACCT.role === "manager" || !!(ST && ST.perms && USER && ST.perms[USER.id] && ST.perms[USER.id].schedule));
 const localDay = d => { const z = new Date(d); z.setMinutes(z.getMinutes() - z.getTimezoneOffset()); return z.toISOString().slice(0, 10); };
 const addDays = (iso, k) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + k); return localDay(d); };
@@ -3264,6 +3310,7 @@ function sched(m){
         if (r.shifts.some(x => x.date >= SCV.week && x.date < addDays(SCV.week, 7)) && !confirm("This week already has shifts. Add last week's shifts too?")) return;
         prev.forEach(x => r.shifts.push(Object.assign({}, x, { id: uid("sh"), date: addDays(x.date, 7) }))); save(); render(); toast("Copied " + prev.length + " shifts");
       }}),
+      el("button",{class:"btn quiet", type:"button", text:"Positions", onclick:() => openPositions(r)}),
       el("button",{class:"btn quiet", type:"button", text:"Import schedule", onclick:() => openSchedImport()}),
       el("button",{class:"btn primary", type:"button", text:"+ Add person", onclick:() => { const nm = prompt("Name as it should show on the schedule (first name and last initial is plenty):"); if (!nm || !nm.trim()) return; r.staff.push({ id: uid("p"), name: nm.trim() }); save(); render(); }}))));
   if (!r.staff.length){ m.append(el("div",{class:"card empty", text:"No one on the schedule yet. Add people, or use Import schedule to bring in a posted schedule."})); return; }
@@ -3289,11 +3336,15 @@ function sched(m){
       const lo = Math.floor(Math.min(...list.map(x => toMin(x.start))) / 60) * 60, hi = Math.max(Math.ceil((Math.max(...list.map(x => x.end ? toMin(x.end) : closeMin)) + 30) / 60) * 60, lo + 8 * 60);
       const pct = v => (Math.min(Math.max(v, lo), hi) - lo) / (hi - lo) * 100;
       const hours = []; for (let v = lo; v <= hi; v += 60) hours.push(v);
+      const groups = {}; list.forEach(x => { const g = posOfShift(r, x); (groups[g] = groups[g] || []).push(x); });
+      const gorder = Object.keys(groups).sort((a, b) => (POSITIONS.indexOf(a) + 1 || 99) - (POSITIONS.indexOf(b) + 1 || 99));
       m.append(el("div",{class:"card tl2"},
         el("div",{class:"tl2-row tl2-head"}, el("span"), el("div",{class:"tl2-axis"}, hours.map(v => el("span",{style:"left:" + pct(v) + "%", text: ((v / 60) % 12 || 12) + ((v / 60) >= 12 && v / 60 < 24 ? "p" : "a")})))),
-        list.map(x => { const p = r.staff.find(q => q.id === x.staff) || { name:"?" }, e = x.end ? toMin(x.end) : hi;
+        gorder.flatMap(g => [el("div",{class:"tl2-sec", style:"--pc:" + (POS_COLOR[g] || POS_COLOR.Team)}, el("b",{text:g}), el("span",{text: new Set(groups[g].map(x => x.staff)).size + " on"})),
+        ...groups[g].map(x => { const p = r.staff.find(q => q.id === x.staff) || { name:"?" }, e = x.end ? toMin(x.end) : hi;
           return el("div",{class:"tl2-row"}, el("div",{class:"tl2-name"}, avatar(p.name), el("b",{text:p.name}), x.role ? el("i",{class:"rl", text:(r.roleCodes[x.role] || x.role)}) : null),
-            el("div",{class:"tl2-track", style:"--n:" + (hours.length - 1)}, el("button",{type:"button", class:"tl2-bar " + bucket(x) + (x.end ? "" : " toclose"), style:"left:" + pct(toMin(x.start)) + "%;width:" + Math.max(pct(e) - pct(toMin(x.start)), 7) + "%", disabled: edit ? null : "", onclick:() => { if (edit) editShifts(r, p, d); }}, shiftText(x, true)))); })));
+            el("div",{class:"tl2-track", style:"--n:" + (hours.length - 1)}, el("button",{type:"button", class:"tl2-bar pos", style:"--pc:" + (POS_COLOR[g] || POS_COLOR.Team) + ";left:" + pct(toMin(x.start)) + "%;width:" + Math.max(pct(e) - pct(toMin(x.start)), 7) + "%" + (x.end ? "" : ";border-top-right-radius:0;border-bottom-right-radius:0"), disabled: edit ? null : "", onclick:() => { if (edit) editShifts(r, p, d); }}, shiftText(x, true)))); })])));
+      if (gorder.includes("Team") && edit) m.append(el("p",{class:"mini", style:"margin-top:6px"}, "Some people don't have a position yet. ", el("button",{class:"linkbtn", type:"button", text:"Set positions", onclick:() => openPositions(r)})));
       const free = r.staff.filter(p => !r.shifts.some(x => x.staff === p.id && x.date === d));
       m.append(el("p",{class:"mini", style:"margin-top:8px"}, el("b",{text:"Not working: "}), free.map(p => p.name).join(", ") || "everyone is on"));
     }
@@ -3303,15 +3354,20 @@ function sched(m){
       const on = r.shifts.filter(x => x.date === d && !x.off), hrs = on.reduce((t, x) => t + hoursOf(x), 0);
       return el("th",{class:"sch2-day" + (d === today ? " today" : "")}, el("button",{class:"sch2-dayb", type:"button", disabled: edit ? null : "", title: edit ? "Add a note for this day" : null, onclick:() => editNote(d)},
         el("span",{class:"dn", text: DOW[dt.getDay()]}), el("span",{class:"dd", text: dt.getDate()}), el("span",{class:"dc", text: new Set(on.map(x => x.staff)).size + " on, " + fmtH(hrs)}), dayNoteBtn(d))); }));
-    const body = r.staff.map(p => { const wk = r.shifts.filter(x => x.staff === p.id && showDays.includes(x.date)), hrs = wk.reduce((t, x) => t + hoursOf(x), 0);
-      return el("tr",null,
+    const posOfP = p => p.pos || guessPos(r, p.id) || "Team";
+    const ordered = r.staff.slice().sort((a, b) => ((POSITIONS.indexOf(posOfP(a)) + 1 || 99) - (POSITIONS.indexOf(posOfP(b)) + 1 || 99)));
+    let lastPos = null;
+    const body = ordered.flatMap(p => { const wk = r.shifts.filter(x => x.staff === p.id && showDays.includes(x.date)), hrs = wk.reduce((t, x) => t + hoursOf(x), 0);
+      const pp = posOfP(p), sec = pp !== lastPos ? el("tr",{class:"sch2-sec"}, el("th",{colspan: String(showDays.length + 1), style:"--pc:" + (POS_COLOR[pp] || POS_COLOR.Team)}, el("b",{text: pp === "Team" ? "No position set" : pp}),
+        pp === "Team" && edit ? el("button",{class:"linkbtn", type:"button", style:"margin-left:10px", text:"Set positions", onclick:() => openPositions(r)}) : null)) : null; lastPos = pp;
+      return [sec, el("tr",null,
         el("th",{class:"sch2-name"}, el("div",{class:"row", style:"gap:10px;flex-wrap:nowrap"}, avatar(p.name),
           el("div",null, !edit ? el("b",{text:p.name}) : el("button",{class:"linkbtn sch2-nm", type:"button", text:p.name, title:"Rename or remove", onclick:() => { const v = prompt("Rename " + p.name + " (leave empty to remove them from the schedule):", p.name); if (v === null) return;
             if (!v.trim()){ if (confirm("Remove " + p.name + " and their shifts?")){ r.staff = r.staff.filter(x => x !== p); r.shifts = r.shifts.filter(x => x.staff !== p.id); } } else p.name = v.trim(); save(); render(); }}),
             el("div",{class:"mini", text: hrs ? fmtH(hrs) + ", " + new Set(wk.filter(x => !x.off).map(x => x.date)).size + " days" : "Not scheduled"})))),
         showDays.map(d => { const list = shiftsOn(p.id, d);
           return el("td",{class:"sch2-cell" + (d === today ? " today" : "")}, el("button",{type:"button", class:"sch2-cellb" + (list.length ? "" : " empty"), disabled: edit ? null : "", "aria-label":(edit ? "Edit " : "") + p.name + " on " + nice(d), onclick:() => { if (edit) editShifts(r, p, d); }},
-            list.length ? list.map(chip) : el("span",{class:"plus", text: edit ? "+" : ""}))); })); });
+            list.length ? list.map(chip) : el("span",{class:"plus", text: edit ? "+" : ""}))); }))].filter(Boolean); });
     m.append(el("div",{class:"sch2-wrap"}, el("table",{class:"sch2"}, el("thead",null, head), el("tbody",null, body))));
     m.append(el("div",{class:"sch2-legend"}, [["am","Morning"],["mid","Afternoon"],["pm","Evening"],["bar","Bar"],["off","Off"]].map(([k, t]) => el("span",null, el("i",{class:"chip2 " + k}), t)),
       el("span",{class:"mini", text:"Shifts \u201cuntil close\u201d count to " + t12(r.closeTime || "21:00") + " in hours."})));

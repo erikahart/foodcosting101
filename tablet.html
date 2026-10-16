@@ -132,6 +132,13 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
 .tl-axis{position:relative;height:100%}
 .tl-axis span{position:absolute;top:6px;transform:translateX(-50%);font-size:.78rem;font-weight:700;color:var(--muted)}
 .tl-axis span:first-child{transform:none} .tl-axis span:last-child{transform:translateX(-100%)}
+.tl-group.pos{display:flex;align-items:baseline;gap:10px;margin:14px 0 6px;padding:4px 0 4px 12px;border-left:6px solid var(--pc);color:var(--ink);font-size:1.4rem}
+.tl-group.pos i{font-style:normal;font-family:var(--font);font-size:.85rem;font-weight:700;color:var(--muted)}
+.nowstrip{display:flex;gap:10px;flex-wrap:wrap;align-items:stretch;margin:0 0 14px}
+.nowlbl{align-self:center;font-family:var(--head);font-weight:800;font-size:1.3rem;margin-right:4px}
+.nowpos{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--pc);border-radius:12px;padding:8px 14px;display:flex;flex-direction:column}
+.nowpos span{font-size:.78rem;font-weight:800;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.nowpos b{font-size:1.1rem}
 .tl-group{font-family:var(--head);font-weight:800;font-size:1.15rem;color:var(--muted);margin:12px 0 4px;letter-spacing:.02em}
 .tl-row{min-height:56px;border-radius:12px}
 .tl-row.now{background:color-mix(in srgb,var(--jade) 8%,transparent)}
@@ -305,6 +312,13 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
   const roleLabel = r => r ? ((S().codes || {})[r] || r) : "";
   const shiftTxt = (x, short) => x.off ? (x.n || "Off") : t12(x.s, short) + (short ? "\u2013" : " \u2013 ") + t12(x.e, short);
   let SCH_DAY = "", SCH_ME = "", SCH_WEEKGRID = false;
+  const POSITIONS = ["Kitchen","Serving","Bar","Drive-thru","Dish"];
+  const POS_COLOR = { Kitchen:"#1F6F5C", Serving:"#3D6E9E", Bar:"#D99A1E", "Drive-thru":"#6B4E9B", Dish:"#6F7579", Team:"#8A8577" };
+  function posOf(x){ const sc = S(), code = String(x.r || "").trim(), map = sc.rolePos || {};
+    if (code && map[code]) return map[code];
+    if (/bar/i.test(code)) return "Bar"; if (/serv|front|wait/i.test(code)) return "Serving"; if (/kitch|cook|line|grill|back|prep/i.test(code)) return "Kitchen";
+    if (/dish/i.test(code)) return "Dish"; if (/drive/i.test(code)) return "Drive-thru";
+    const p = sc.people.find(q => q.id === x.p); return (p && p.pos) || "Team"; }
   // One day at a time: big day buttons, then a timeline of who's working when.
   function schedView(m){
     const sc = S(), today = localDay();
@@ -330,18 +344,24 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
       const showNow = day === today && nowMin >= lo && nowMin <= hi;
       const axis = h("div", { class:"tl-axis" }, hours.map(v => h("span", { style:"left:" + pct(v) + "%", text: ((v / 60) % 12 || 12) + ((v / 60) >= 12 && (v / 60) < 24 ? "p" : "a") })),
         showNow ? h("b", { class:"tl-nowtag", style:"left:" + pct(nowMin) + "%", text:"Now" }) : null);
-      const group = x => { const v = toMin(x.s); return v < 11 * 60 ? "Morning" : v < 16 * 60 ? "Afternoon" : "Evening"; };
+      const order = g => POSITIONS.indexOf(g) + 1 || 99;
+      const sorted = list.slice().sort((a, b) => order(posOf(a)) - order(posOf(b)) || (a.s || "").localeCompare(b.s || ""));
       const rows = []; let last = "";
-      list.forEach(x => {
-        const g = group(x); if (g !== last){ rows.push(h("div", { class:"tl-group", text: g })); last = g; }
+      sorted.forEach(x => {
+        const g = posOf(x); if (g !== last){ const n = new Set(list.filter(y => posOf(y) === g).map(y => y.p)).size;
+          rows.push(h("div", { class:"tl-group pos", style:"--pc:" + (POS_COLOR[g] || POS_COLOR.Team) }, h("span", { text: g === "Team" ? "Team" : g }), h("i", { text: n + " on" }))); last = g; }
         const s0 = toMin(x.s), e0 = x.e ? toMin(x.e) : hi, onNow = day === today && nowMin >= s0 && nowMin < e0;
-        const bar = /bar/i.test(x.r) || /bar/i.test(roleLabel(x.r));
+        const pc = POS_COLOR[g] || POS_COLOR.Team, lbl = x.r && !/^(bar|serve|server)$/i.test(x.r) && !(S().rolePos || {})[x.r] ? roleLabel(x.r) : "";
         rows.push(h("div", { class:"tl-row" + (onNow ? " now" : "") },
-          h("div", { class:"tl-name" }, h("b", { text: pname(x.p) }), x.r ? h("span", { class:"role", text: roleLabel(x.r) }) : null),
-          h("div", { class:"tl-track", style:"--n:" + (hours.length - 1) }, showNow ? h("i", { class:"tl-nowline", style:"left:" + pct(nowMin) + "%" }) : null, h("div", { class:"tl-bar" + (bar ? " bar" : "") + (x.e ? "" : " toclose"), style:"left:" + pct(s0) + "%;width:" + Math.max(pct(e0) - pct(s0), 6) + "%" },
+          h("div", { class:"tl-name" }, h("b", { text: pname(x.p) }), lbl ? h("span", { class:"role", text: lbl }) : null),
+          h("div", { class:"tl-track", style:"--n:" + (hours.length - 1) }, showNow ? h("i", { class:"tl-nowline", style:"left:" + pct(nowMin) + "%" }) : null, h("div", { class:"tl-bar" + (x.e ? "" : " toclose"), style:"background:" + pc + ";color:" + (g === "Bar" ? "#24221F" : "#fff") + ";left:" + pct(s0) + "%;width:" + Math.max(pct(e0) - pct(s0), 6) + "%" },
             h("span", { text: t12(x.s) + " \u2013 " + (x.e ? t12(x.e) : "close") })))));
       });
       const tl = h("div", { class:"tl" }, h("div", { class:"tl-head" }, h("div", { class:"tl-name" }), axis), rows);
+      if (day === today){ const onNow = list.filter(x => nowMin >= toMin(x.s) && nowMin < (x.e ? toMin(x.e) : 24 * 60));
+        const byPos = {}; onNow.forEach(x => { const g = posOf(x); (byPos[g] = byPos[g] || new Set()).add(pname(x.p)); });
+        const gs = Object.keys(byPos).sort((a, b) => (POSITIONS.indexOf(a) + 1 || 99) - (POSITIONS.indexOf(b) + 1 || 99));
+        parts.push(h("div", { class:"nowstrip" }, h("b", { class:"nowlbl", text:"Right now" }), gs.length ? gs.map(g => h("div", { class:"nowpos", style:"--pc:" + (POS_COLOR[g] || POS_COLOR.Team) }, h("span", { text: g }), h("b", { text: [...byPos[g]].join(", ") }))) : h("span", { class:"sub-note", text:"No one is on right now." }))); }
       parts.push(tl);
     }
     if (offs.length) parts.push(h("p", { class:"offs" }, h("b", { text:"Off: " }), offs.map(x => pname(x.p) + (x.n ? " (" + x.n.toLowerCase() + ")" : "")).join(", ")));
