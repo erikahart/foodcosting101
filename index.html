@@ -1129,6 +1129,34 @@ aside .brandbox b{font-size:1.3rem}
 .duty-items.log{list-style:none;padding:0}
 .duty-items.log li{display:flex;justify-content:space-between;gap:10px;padding:6px 8px;border-radius:8px}
 .duty-items.log li.done{background:var(--good-soft)} .duty-items.log li.miss{background:var(--bad-soft)}
+
+/* ---------- Duty checklists ---------- */
+.ck-list{display:grid;gap:6px;margin-top:10px}
+.ck{display:flex;align-items:center;gap:12px;width:100%;min-height:52px;padding:8px 10px;border-radius:10px;border:1px solid var(--line);background:var(--field);color:var(--ink);font:inherit;text-align:left;cursor:pointer}
+.ck:hover:not([disabled]){border-color:var(--ink-2)}
+.ck[disabled]{cursor:default}
+.ck-box{flex:none;width:26px;height:26px;border-radius:7px;border:2px solid var(--muted);display:grid;place-items:center;color:#fff;font-weight:900}
+.ck.done{background:var(--good-soft);border-color:transparent}
+.ck.done .ck-box{background:var(--jade);border-color:var(--jade)}
+.ck.done .ck-tx{text-decoration:line-through;color:var(--ink-2)}
+.ck.missed{background:var(--bad-soft);border-color:transparent}
+.ck.missed .ck-box{border-color:var(--bad)}
+.ck-tx{flex:1;min-width:0}
+.ck-by{font-size:.8rem;font-weight:600;color:var(--muted);white-space:nowrap}
+.ck.missed .ck-by{color:var(--bad)}
+.who-pick{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.who-pick .btn{min-height:52px}
+@media print{
+  .pa-duty .pd{font-size:11pt}
+  .pa-duty h1{font-size:20pt;margin:0} .pa-duty .pd-day{margin:2pt 0 12pt;font-weight:700}
+  .pa-duty .pd-list{break-inside:avoid;page-break-inside:avoid;margin-bottom:14pt}
+  .pa-duty h2{font-size:13pt;margin:0 0 4pt}
+  .pa-duty table{width:100%;border-collapse:collapse}
+  .pa-duty th,.pa-duty td{border:0.75pt solid #999;padding:5pt 6pt;text-align:left}
+  .pa-duty th{font-size:9pt;background:#eee}
+  .pa-duty .pd-box{width:22pt;text-align:center;font-weight:900}
+  .pa-duty td:nth-child(3){width:1.6in} .pa-duty td:nth-child(4){width:0.8in}
+}
 </style>
 </head>
 <body>
@@ -3094,9 +3122,9 @@ function sched(m){
   const r = schedData(R()); const today = localDay(new Date());
   SCV.week = SCV.week || mondayOf(today);
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Schedule"}), el("p",{class:"lead", text:"Who's working, and the cleaning and prep duties for each shift. Both show on the tablet."})),
-    el("div",{class:"seg", role:"tablist"}, [["week","Week"],["duties","Duties"],["log","Done log"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String(SCV.tab === k), text:t, onclick:() => { SCV.tab = k; render(); }})))));
+    el("div",{class:"seg", role:"tablist"}, [["week","Week"],["lists","Checklists"],["duties","Set up lists"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String(SCV.tab === k), text:t, onclick:() => { SCV.tab = k; render(); }})))));
   if (SCV.tab === "duties") return schedDuties(m, r);
-  if (SCV.tab === "log") return schedLog(m, r, today);
+  if (SCV.tab === "lists" || SCV.tab === "log") return schedChecklists(m, r, today);
   const days = [...Array(7)].map((_, i) => addDays(SCV.week, i));
   const shiftsOn = (pid, d) => r.shifts.filter(x => x.staff === pid && x.date === d);
   const showDays = days.filter((d, i) => i > 0 || r.shifts.some(x => x.date === d));   // Mondays only when someone works
@@ -3212,8 +3240,65 @@ function reviewSchedImport(pk){
     SCV.week = mondayOf(dates[0]); SCV.tab = "week"; save(); dlg.close(); toast("Added " + pk.shifts.length + " shifts"); go("sched");
   }})]);
 }
+
+// Checklists: check duties off here or on the tablet (same record), see any day, print a paper copy.
+function schedChecklists(m, r, today){
+  SCV.logDay = SCV.logDay || today;
+  const day = SCV.logDay, lists = dutiesFor(r, day).slice().sort((a, b) => ({ open:0, mid:1, daily:2, close:3 })[a.when] - ({ open:0, mid:1, daily:2, close:3 })[b.when] || a.area.localeCompare(b.area));
+  const canCheck = day >= addDays(today, -1) && day <= today;
+  const pick = el("input",{class:"inp", type:"date", value:day, max:today, style:"max-width:190px"}); pick.onchange = () => { SCV.logDay = pick.value || today; render(); };
+  const box = el("div",null, el("div",{class:"spin"}));
+  const dn = new Date(day + "T12:00:00");
+  m.append(el("div",{class:"sch-bar"},
+    el("div",{class:"row"}, el("b",{class:"sch-range", text: (day === today ? "Today, " : "") + DOW[dn.getDay()] + " " + nice(day)}), pick, day !== today ? el("button",{class:"linkbtn", type:"button", text:"Today", onclick:() => { SCV.logDay = today; render(); }}) : null),
+    el("button",{class:"btn quiet", type:"button", text:"Print checklists", onclick:() => printChecklists(r, day, lists, box._done || new Map())})), box);
+  if (!canCheck) m.append(el("p",{class:"mini", text:"Past days are a record: duties can only be checked off today or yesterday (for late closes)."}));
+  (async () => {
+    const { data, error } = await sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: day, p_to: day });
+    if (error){ box.replaceChildren(el("div",{class:"msg bad", text: /function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "One-time setup: run supabase/007_duties.sql and 008_duties_app.sql in Supabase's SQL Editor." : plainErr(error)})); return; }
+    const done = new Map((data || []).map(c => [c.list_id + "|" + c.item_id, c])); box._done = done;
+    if (!lists.length){ box.replaceChildren(el("div",{class:"card empty", text:"No checklists for this day. Add them under Set up lists."})); return; }
+    const setDone = async (l, x, by, on) => {
+      const { data: ok, error: e2 } = await sb.rpc("duty_set", { p_account: ACCT.id, p_day: day, p_list: l.id, p_item: x.id, p_by: by, p_done: on });
+      if (e2 || ok !== true) toast(e2 && /function|PGRST202|schema cache/i.test((e2.code || "") + (e2.message || "")) ? "One-time setup: run supabase/008_duties_app.sql in Supabase." : "That didn't save. Try again."); render();
+    };
+    box.replaceChildren(el("div",{class:"duty-grid"}, lists.map(l => { const n2 = l.items.filter(x => done.has(l.id + "|" + x.id)).length;
+      return el("div",{class:"card duty-card"},
+        el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:l.name}), el("span",{class:"mini", text: l.area + ", " + ({ open:"opening", mid:"mid-shift", close:"closing", daily:"any time" })[l.when]})),
+          el("span",{class:"pill " + (n2 === l.items.length ? "good" : n2 ? "warn" : day < today ? "bad" : ""), text: n2 + " of " + l.items.length})),
+        el("div",{class:"ck-list"}, l.items.map(x => { const c = done.get(l.id + "|" + x.id);
+          return el("button",{class:"ck" + (c ? " done" : "") + (!c && day < today ? " missed" : ""), type:"button", disabled: canCheck ? null : "", "aria-pressed": String(!!c),
+            onclick:() => { if (c){ if (confirm("Mark \u201c" + x.text + "\u201d as not done?")) setDone(l, x, null, false); } else whoDidIt(r, day, x.text, nm => setDone(l, x, nm, true)); }},
+            el("span",{class:"ck-box", "aria-hidden":"true", text: c ? "\u2713" : ""}), el("span",{class:"ck-tx", text:x.text}),
+            el("span",{class:"ck-by", text: c ? (c.done_by || "Someone") + ", " + new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) : day < today ? "Missed" : ""})); })));
+    })));
+  })();
+}
+function whoDidIt(r, day, what, onPick){
+  const names = [...new Set(r.shifts.filter(x => x.date === day && !x.off).map(x => staffName(r, x.staff)))].filter(n2 => n2 && n2 !== "?");
+  const me = USER && USER.email ? USER.email.split("@")[0] : "Me";
+  openDlg("Who did it?", [el("p",{class:"lead", text:what}),
+    el("div",{class:"who-pick"}, names.map(nm => el("button",{class:"btn quiet", type:"button", text:nm, onclick:() => { dlg.close(); onPick(nm); }})),
+      el("button",{class:"btn quiet", type:"button", text:"Me (" + me + ")", onclick:() => { dlg.close(); onPick(me); }}),
+      el("button",{class:"btn quiet", type:"button", text:"Someone else", onclick:() => { const v = prompt("Name:"); if (v && v.trim()){ dlg.close(); onPick(v.trim()); } }}))], []);
+}
+function printChecklists(r, day, lists, done){
+  const area = $("printArea"), dn = new Date(day + "T12:00:00");
+  area.className = "pa-duty";
+  area.replaceChildren(el("div",{class:"pd"},
+    el("h1",{text:(ACCT ? ACCT.name : "Kitchen") + " duties"}), el("p",{class:"pd-day", text: DOW[dn.getDay()] + ", " + nice(day)}),
+    lists.map(l => el("section",{class:"pd-list"}, el("h2",{text:l.name}),
+      el("table",null, el("thead",null, el("tr",null, el("th",{text:""}), el("th",{text:"Duty"}), el("th",{text:"Done by"}), el("th",{text:"Time"}))),
+        el("tbody",null, l.items.map(x => { const c = done.get(l.id + "|" + x.id);
+          return el("tr",null, el("td",{class:"pd-box", text: c ? "\u2713" : ""}), el("td",{text:x.text}), el("td",{text: c ? (c.done_by || "") : ""}), el("td",{text: c ? new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) : ""})); })))))));
+  let ps = $("printPageStyle"); if (!ps){ ps = document.createElement("style"); ps.id = "printPageStyle"; document.head.append(ps); }
+  ps.textContent = "@media print{@page{size:letter;margin:0.5in}}";
+  document.body.classList.add("printing");
+  const fin = () => { document.body.classList.remove("printing"); window.removeEventListener("afterprint", fin); };
+  window.addEventListener("afterprint", fin); setTimeout(() => { window.print(); setTimeout(fin, 1500); }, 60);
+}
 function schedDuties(m, r){
-  m.append(el("p",{class:"mini", style:"margin:0 0 12px", text:"Checklists for each shift. The tablet shows the lists for that day, and staff check items off with their name. Lists set to certain days only appear on those days."}));
+  m.append(el("p",{class:"mini", style:"margin:0 0 12px", text:"Set up the checklist for each shift here. They're checked off under Checklists (here or on the tablet). Lists set to certain days only appear on those days."}));
   m.append(el("div",{class:"duty-grid"}, r.duties.map(l => el("div",{class:"card duty-card"},
     el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:l.name}), el("span",{class:"mini", text: l.area + ", " + ({ open:"opening", mid:"mid-shift", close:"closing", daily:"any time" })[l.when] + (l.days && l.days.length ? ", " + l.days.map(dn => DOW[dn]).join(" & ") + " only" : ", every day")})),
       el("button",{class:"btn quiet", type:"button", text:"Edit", onclick:() => editDutyList(r, l)})),
