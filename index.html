@@ -1024,6 +1024,38 @@ aside .brandbox b{font-size:1.3rem}
 .ny{align-items:center;text-align:left}
 .ny span{line-height:1.25}
 @media (max-width:700px){.ny{padding:10px 12px;gap:10px}.ny b{font-size:1.7rem}}
+
+/* ---------- Test kitchen ---------- */
+.lab-ask{display:grid;gap:12px}
+.lab-in{font-size:1.05rem;min-height:84px;resize:vertical}
+.lab-ideas{flex-wrap:wrap}
+.lab-opts{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto;gap:12px;align-items:end}
+.lab-go{min-height:46px;padding:0 26px}
+.lab-wait{display:flex;align-items:center;gap:14px} .lab-wait p{margin:0;color:var(--muted)}
+.lab-result{display:grid;gap:12px;margin-top:16px;border-left:4px solid var(--jade)}
+.lab-head{display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start}
+.lab-desc{margin:4px 0 0;color:var(--ink-2)}
+.lab-price{display:grid;grid-template-columns:repeat(4,minmax(96px,1fr));border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.lab-price > div{padding:10px 12px;border-left:1px solid var(--line);display:flex;flex-direction:column;gap:2px}
+.lab-price > div:first-child{border-left:0}
+.lab-price span{font-size:.78rem;color:var(--muted);font-weight:600}
+.lab-price b{font-family:var(--brand-font);font-weight:800;font-size:1.6rem;line-height:1.1}
+.lab-price .inp{min-height:38px;font-weight:700;font-size:1.05rem;padding:4px 8px;max-width:110px}
+.lab-cols{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:20px}
+.lab-actions{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:12px}
+.lab-sec{display:inline-flex;align-items:center;gap:8px;font-weight:600}
+.lab-sec .inp{min-height:40px;width:170px}
+.lab-saved{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px}
+.lab-idea{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:4px 12px 4px 4px}
+.lab-idea-main{flex:1;display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:0;background:transparent;font:inherit;color:var(--ink);text-align:left;padding:10px;cursor:pointer;border-radius:10px}
+.lab-idea-main:hover{background:var(--field)}
+@media (max-width:700px){
+  .lab-opts{grid-template-columns:1fr 1fr} .lab-go{grid-column:1/-1}
+  .lab-price{grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+  .lab-price > div:nth-child(3){border-left:0} .lab-price > div:nth-child(n+3){border-top:1px solid var(--line)}
+  .lab-cols{grid-template-columns:1fr}
+  .lab-actions .row{width:100%} .lab-sec{flex:1} .lab-sec .inp{width:100%}
+}
 </style>
 </head>
 <body>
@@ -1481,10 +1513,11 @@ const isPhone = () => window.matchMedia("(max-width: 700px)").matches;
 const isNarrow = () => window.matchMedia("(max-width: 900px)").matches;
 // Redraw when crossing the phone/desktop line (rotation, resizing a window).
 ["(max-width: 700px)", "(max-width: 900px)"].forEach(q => { const mq = window.matchMedia(q); const fn = () => { if (typeof ST !== "undefined" && ST) render(); }; mq.addEventListener ? mq.addEventListener("change", fn) : mq.addListener(fn); });
-const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["book","Kitchen book"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Brand & accounts"]];
+const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["book","Kitchen book"],["lab","Test kitchen"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Brand & accounts"]];
 const NAV_ICONS = {
   home:'<path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
   coach:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
+  lab:'<path d="M9 3h6M10 3v5.5L4.8 18a2 2 0 0 0 1.8 3h10.8a2 2 0 0 0 1.8-3L14 8.5V3"/><path d="M7.5 14h9"/>',
   book:'<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20v-3M9 7h7M9 10.5h5"/>',
   menu:'<path d="M5 3v8a2 2 0 0 0 2 2v8M9 3v8a2 2 0 0 1-2 2M7 3v6M17 21V3c-2 1-3 3.5-3 7v3h3"/>',
   supplies:'<path d="M3 7.5 12 3l9 4.5v9L12 21l-9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/>',
@@ -1531,7 +1564,7 @@ function labelTables(root){
     }));
   });
 }
-function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, book, supplies, inbox, suppliers, brand })[ST.page](m); pageHeader(m); labelTables(m); }
+function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, book, lab, supplies, inbox, suppliers, brand })[ST.page](m); pageHeader(m); labelTables(m); }
 // Group each page's title, description and main actions into one header with a fine rule under it.
 function pageHeader(m){
   const first = m.firstElementChild; if (!first) return;
@@ -1578,6 +1611,7 @@ function openMore(){
   openDlg("More", [el("div",{class:"more-list"},
     item("Search", "Dishes, supplies, suppliers and actions", () => cmdkOpen()),
     item("Kitchen book", "Recipe cards with photos and steps for the line", () => go("book")),
+    item("Test kitchen", "Describe something new: recipe, ordering, cost and price", () => go("lab")),
     item("Profit coach", "What to fix first, in dollars per week", () => go("coach")),
     item("Suppliers", "Who you buy from, and notes for reps", () => go("suppliers")),
     item("Brand & accounts", "Logo, colors, cost targets and your team", () => go("brand")),
@@ -2452,6 +2486,137 @@ function gfsFeedPanel(){
 }
 
 
+
+/* ================= Test kitchen: describe something new, get recipe, ordering, cost and price ================= */
+const LAB = { busy:false, draft:null, prompt:"", kind:"auto", price:"", err:null };
+const LAB_KINDS = [["auto","Let the app decide"],["food","Food"],["liquor","Cocktail or liquor drink"],["beer","Beer"],["wine","Wine"],["drink","Other drink"]];
+function labVendors(r){
+  const vs = (r.vendors || []).map(v => v.name + (v.kind === "bev" ? " (beer, wine and liquor)" : ""));
+  return vs.length ? vs : ["Gordon Food Service (food)", "Ohio Liquor agency store (spirits)", "Heidelberg Distributing (beer and wine)"];
+}
+async function labBuild(twist){
+  const r = R(); if (!LAB.prompt.trim()) return;
+  LAB.busy = true; LAB.err = null; render();
+  const sups = Object.values(r.supplies).filter(su => n(su.price) > 0 && n(su.caseQty) > 0).slice(0, 220);
+  const list = sups.map(su => su.id + " | " + supName(su) + " | " + su.unit + " | $" + (su.price / su.caseQty).toFixed(3) + " per " + su.unit + " | " + (su.supplier || "")).join("\n");
+  try {
+    const d = await aiJSON("You develop new menu items for a small-town American diner and bar (" + (r.name || "the kitchen") + "). The owner wants: \u201c" + LAB.prompt.trim() + "\u201d" +
+      (LAB.kind !== "auto" ? ". Type: " + LAB_KINDS.find(k => k[0] === LAB.kind)[1] : "") + (n(LAB.price) ? ". They'd like to charge about $" + n(LAB.price).toFixed(2) : "") + (twist ? ". " + twist : "") +
+      ".\nWrite ONE practical recipe for a single serving (or a batch, saying how many servings) that a busy line or bar can execute. Use ingredients they already stock when sensible. Leave out ice, water and anything with no real cost." +
+      "\nTheir supplies (id | name | unit | cost | supplier):\n" + (list || "(none yet)") +
+      "\nTheir suppliers: " + labVendors(r).join("; ") +
+      "\nFor each ingredient give the amount in one of these units: " + UNIT_NAMES.join(", ") + ". If it matches one of their supplies, give that supply's id. If not, give an estimate of a typical case or bottle: what to order, its size (caseQty in that unit), a typical US price, and which of their suppliers would most likely carry it (spirits in Ohio come from the state liquor agency store)." +
+      "\nReturn ONLY JSON: {\"name\": string, \"description\": one appetizing sentence for the menu, \"kind\": \"food\"|\"liquor\"|\"beer\"|\"wine\"|\"drink\", \"section\": a menu section like Specials or Cocktails, \"servings\": number, " +
+      "\"ingredients\": [{\"name\": string, \"qty\": number, \"unit\": string, \"supplyId\": string or null, \"estimate\": null or {\"order\": what to order, \"caseQty\": number, \"unit\": string, \"price\": number, \"from\": supplier name}}], " +
+      "\"steps\": [short imperative steps], \"plating\": string, \"prepMin\": number, \"cookMin\": number, \"station\": string, \"allergens\": [from: " + ALLERGENS.join(", ") + "]}");
+    LAB.draft = labPrepare(d, r);
+  } catch(e){ LAB.err = aiProblem(e) || "Couldn't build that right now. Try again in a moment."; }
+  LAB.busy = false; render();
+}
+// Turn the AI draft into lines the app can cost with its own math.
+function labPrepare(d, r){
+  const est = {}, lines = [];
+  (d.ingredients || []).forEach((g, i) => {
+    const qty = n(g.qty) || 0, unit = UNITS[g.unit] ? g.unit : null;
+    const su = g.supplyId && r.supplies[g.supplyId];
+    const ok = su && unit && UNITS[su.unit] && UNITS[su.unit][0] === UNITS[unit][0];
+    if (ok){ lines.push({ s: su.id, label: g.name, qty, unit, have: true }); return; }
+    const e = g.estimate || {};
+    if (n(e.price) > 0 && n(e.caseQty) > 0 && UNITS[e.unit] && unit && UNITS[e.unit][0] === UNITS[unit][0]){
+      const id = "est" + i; est[id] = { id, name: (e.order || g.name), cat: guessCat(e.order || g.name), supplier: e.from || "", caseQty: n(e.caseQty), unit: e.unit, yield: 1, price: Math.round(n(e.price) * 100) / 100, estimated: true };
+      lines.push({ s: id, label: g.name, qty, unit, from: e.from || "", order: e.order || g.name });
+    } else lines.push({ s: null, label: g.name, qty, unit: unit || g.unit || "each", missing: true });
+  });
+  const kind = ["food","liquor","beer","wine","drink"].includes(d.kind) ? d.kind : "food";
+  return { name: String(d.name || "New item").slice(0, 80), desc: String(d.description || ""), kind, section: String(d.section || (kind === "food" ? "Specials" : "Cocktails")).slice(0, 40),
+    servings: Math.max(1, Math.round(n(d.servings) || 1)), lines, est,
+    card: { prepMin: n(d.prepMin), cookMin: n(d.cookMin), station: String(d.station || (kind === "food" ? "" : "Bar")), steps: (d.steps || []).map(String).slice(0, 14), plating: String(d.plating || ""), allergens: ALLERGENS.filter(a => (d.allergens || []).includes(a)), yieldText: "" } };
+}
+function labStats(dr, r){
+  const sups = Object.assign({}, r.supplies, dr.est);
+  const it = { name: dr.name, section: dr.section, drinkType: dr.kind === "food" ? "food" : dr.kind, lines: dr.lines.filter(l => l.s), portions: dr.servings, price: 0 };
+  const st = stats(it, r, sups), target = targetFor(it, r);
+  const price = n(dr.price) || st.suggested;
+  return { it, sups, st, target, price, pct: price ? st.plate / price : null, profit: price - st.plate };
+}
+function lab(m){
+  const r = R(); r.ideas = r.ideas || [];
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Test kitchen"}), el("p",{class:"lead", text:"Describe something new. Get a recipe, where to order each ingredient, what it costs and what to charge."}))));
+  const box = el("textarea",{class:"inp lab-in", rows:"3", placeholder:"e.g. a fall apple cider mule for the bar, or a smash burger special with fries"}); box.value = LAB.prompt;
+  box.oninput = () => LAB.prompt = box.value;
+  box.onkeydown = e => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) labBuild(); };
+  const kind = el("select",{class:"inp", "aria-label":"Type"}, LAB_KINDS.map(([v, t]) => el("option",{value:v, text:t}))); kind.value = LAB.kind; kind.onchange = () => LAB.kind = kind.value;
+  const price = el("input",{class:"inp", type:"number", min:"0", step:"0.25", inputmode:"decimal", placeholder:"optional"}); price.value = LAB.price; price.oninput = () => LAB.price = price.value;
+  const ideas = ["Fall apple cider mule", "Smash burger special", "Loaded bar nachos to share", "Kids' grilled cheese and fries", "Pumpkin pie milkshake", "Friday fish sandwich"];
+  m.append(el("div",{class:"card lab-ask"},
+    box,
+    el("div",{class:"chips lab-ideas", role:"group", "aria-label":"Ideas"}, ideas.map(t => el("button",{class:"chip", type:"button", text:t, onclick:() => { LAB.prompt = t; render(); }}))),
+    el("div",{class:"lab-opts"}, fld("Type", kind), fld("Price you have in mind ($)", price),
+      el("button",{class:"btn primary lab-go", type:"button", disabled: LAB.busy ? "" : null, text: LAB.busy ? "Building\u2026" : "Build it", onclick:() => labBuild()}))));
+  if (LAB.busy) m.append(el("div",{class:"card lab-wait"}, el("div",{class:"spin"}), el("p",{text:"Writing the recipe, checking what you already stock and pricing it\u2026 (about 10 to 20 seconds)"})));
+  if (LAB.err) m.append(el("div",{class:"msg bad", text:LAB.err}));
+  if (LAB.draft && !LAB.busy) m.append(labResult(LAB.draft, r));
+  if (r.ideas.length){
+    m.append(el("div",{class:"sect-h"}, el("h2",{text:"Saved ideas"})));
+    m.append(el("div",{class:"lab-saved"}, r.ideas.slice().reverse().map(idea => { const x = labStats(idea.draft, r);
+      return el("div",{class:"lab-idea"}, el("button",{class:"lab-idea-main", type:"button", onclick:() => { LAB.draft = JSON.parse(JSON.stringify(idea.draft)); LAB.prompt = idea.prompt || ""; render(); window.scrollTo({ top: 0, behavior:"smooth" }); }},
+          el("b",{text:idea.draft.name}), el("span",{class:"mini", text: "Cost " + $$(x.st.plate) + ", charge " + $$(x.price) + ", saved " + nice(idea.saved)})),
+        el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { r.ideas = r.ideas.filter(i => i !== idea); save(); render(); }})); })));
+  }
+}
+function labResult(dr, r){
+  const x = labStats(dr, r), drink = dr.kind !== "food";
+  const sups = x.sups;
+  const rows = dr.lines.map(l => {
+    const su = l.s && sups[l.s], c = l.s ? lineCost(l, r, sups) : null;
+    const where = l.have ? el("span",null, el("span",{class:"pill good", text:"You stock it"}), " ", (su.supplier || "your supplies") + ": " + supName(su))
+      : l.from || l.order ? el("span",null, el("span",{class:"pill warn", text:"To order"}), " ", (l.from ? "from " + l.from + ": " : "") + (su ? su.name + ", about " + $$(su.price) + " per " + su.caseQty + " " + su.unit : l.order))
+      : el("span",{class:"pill bad", text:"No price yet"});
+    return el("tr",{style:"cursor:default"}, el("td",{style:"white-space:normal"}, el("b",{text:l.label})), el("td",{class:"num", text: (Math.round(n(l.qty) * 100) / 100) + " " + (l.unit || "")}),
+      el("td",{style:"white-space:normal"}, where), el("td",{class:"num", text: c != null ? (l.have ? "" : "\u2248") + $$(c / dr.servings) : "\u2014"}));
+  });
+  const priceIn = el("input",{class:"inp", type:"number", min:"0", step:"0.25", inputmode:"decimal", "aria-label":"Menu price"}); priceIn.value = x.price ? x.price.toFixed(2) : "";
+  priceIn.oninput = () => { dr.price = n(priceIn.value) || 0; const y = labStats(dr, r); pctEl.textContent = y.pct != null ? pc(y.pct) : "\u2014"; profitEl.textContent = $$(y.profit); };
+  const pctEl = el("b",{text: x.pct != null ? pc(x.pct) : "\u2014"}), profitEl = el("b",{text:$$(x.profit)});
+  const secIn = el("input",{class:"inp", list:"lab-secs"}); secIn.value = dr.section;
+  const nameIn = el("input",{class:"inp"}); nameIn.value = dr.name; nameIn.oninput = () => dr.name = nameIn.value;
+  const anyEst = dr.lines.some(l => !l.have && l.s), missing = dr.lines.filter(l => !l.s).length;
+  const addBtn = el("button",{class:"btn primary", type:"button", text:"Add to menu", onclick:() => {
+    dr.section = secIn.value.trim() || dr.section; const ids = {};
+    Object.values(dr.est).forEach(e => { if (!dr.lines.some(l => l.s === e.id)) return; const id = uid("s"); ids[e.id] = id;
+      r.supplies[id] = { id, name: e.name, cat: e.cat, supplier: e.supplier, code:"", caseQty: e.caseQty, unit: e.unit, yield: 1, price: e.price, estimated: true, history:[{ date: today(), price: e.price, src:"estimate" }] }; });
+    const order = Math.max(0, ...Object.values(r.items).map(i => i.order || 0)) + 1;
+    const it = { id: uid("m"), name: dr.name.trim() || "New item", section: dr.section, price: n(priceIn.value) || x.price, sold: 0, portions: dr.servings, order, desc: dr.desc,
+      lines: dr.lines.filter(l => l.s).map(l => ({ s: ids[l.s] || l.s, label: l.label, qty: l.qty, unit: l.unit })).concat(dr.lines.filter(l => !l.s).map(l => ({ s: null, label: l.label, qty: l.qty, unit: l.unit }))),
+      card: Object.assign({}, dr.card, { drafted: true }) };
+    if (dr.kind !== "food") it.drinkType = dr.kind;
+    r.items[it.id] = it; if (!r.sectionOrder) r.sectionOrder = []; if (!r.sectionOrder.includes(it.section)) r.sectionOrder.push(it.section);
+    save(); LAB.draft = null; toast(it.name + " is on your menu" + (anyEst ? ". New ingredients are tagged \u201cAI estimate\u201d until an invoice brings real prices." : "."));
+    openRecipe(it.id);
+  }});
+  return el("div",{class:"card lab-result"},
+    el("div",{class:"lab-head"}, el("div",{style:"flex:1;min-width:0"}, fld("Name", nameIn), el("p",{class:"lab-desc", text:dr.desc})),
+      el("div",{class:"lab-price"},
+        el("div",null, el("span",{text:(drink ? "Pour" : "Plate") + " cost"}), el("b",{text:$$(x.st.plate)})),
+        el("div",null, el("span",{text:"Charge"}), priceIn),
+        el("div",null, el("span",{text:(drink ? "Pour" : "Food") + " cost"}), pctEl),
+        el("div",null, el("span",{text:"Profit each"}), profitEl))),
+    el("p",{class:"mini", text:"Suggested price " + $$(x.st.suggested) + " hits your " + pc(x.target) + " " + (drink ? "pour" : "food") + "-cost target" + (dr.servings > 1 ? " (recipe makes " + dr.servings + ")" : "") + ". Change it to see the effect."}),
+    el("h3",{text:"Ingredients and where to order"}),
+    el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Ingredient"}), el("th",{class:"num", text:"Amount"}), el("th",{text:"Where it comes from"}), el("th",{class:"num", text:"Cost each"}))), el("tbody",null, rows))),
+    anyEst ? el("p",{class:"mini", text:"\u2248 marks AI-estimated prices for things you don't stock yet. Real prices replace them when an invoice arrives."}) : null,
+    missing ? el("p",{class:"mini", style:"color:var(--warn)", text: missing + (missing === 1 ? " ingredient has" : " ingredients have") + " no price yet, so the cost is a little low."}) : null,
+    el("div",{class:"lab-cols"},
+      el("div",null, el("h3",{text:"How to make it"}), el("ol",{class:"kb-steps"}, dr.card.steps.map(t => el("li",{text:t})))),
+      el("div",null, dr.card.plating ? el("div",null, el("h3",{text:"Plating"}), el("p",{text:dr.card.plating})) : null,
+        dr.card.allergens.length ? el("p",{class:"kb-allergens"}, el("b",{text:"Contains: "}), dr.card.allergens.join(", ")) : null,
+        el("p",{class:"mini", text:[dr.card.station, dr.card.prepMin ? "Prep " + mins(dr.card.prepMin) : "", dr.card.cookMin ? (drink ? "Build " : "Cook ") + mins(dr.card.cookMin) : ""].filter(Boolean).join("   |   ")}))),
+    el("div",{class:"lab-actions"},
+      el("div",{class:"row"}, el("button",{class:"btn quiet", type:"button", text:"Make it cheaper", onclick:() => labBuild("Make it cheaper to produce: lower-cost ingredients or smaller portions, same idea")}),
+        el("button",{class:"btn quiet", type:"button", text:"Make it fancier", onclick:() => labBuild("Make it a more premium version worth a higher price")}),
+        el("button",{class:"btn quiet", type:"button", text:"Save idea", onclick:() => { r.ideas = r.ideas || []; dr.price = n(priceIn.value) || x.price; r.ideas.push({ id: uid("i"), prompt: LAB.prompt, saved: today(), draft: JSON.parse(JSON.stringify(dr)) }); save(); toast("Saved to your ideas"); render(); }})),
+      el("div",{class:"row"}, el("label",{class:"lab-sec"}, "Section ", secIn), el("datalist",{id:"lab-secs"}, sectionOrder(r).map(sct => el("option",{value:sct}))), addBtn)));
+}
 /* ================= Recipe packs: ready-made recipes with cards and photos ================= */
 function pickRecipePack(){
   const f = el("input",{type:"file", style:"position:fixed;left:-9999px;top:0;opacity:0"}); document.body.append(f);
