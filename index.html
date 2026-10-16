@@ -1168,6 +1168,77 @@ aside .brandbox b{font-size:1.3rem}
 .resp-box{border-top:1px solid var(--line);padding-top:10px;margin-top:6px}
 .resp-box summary{cursor:pointer;font-weight:700}
 @media print{ .pa-duty .pd-why{font-size:9pt;color:#7a5200} }
+.sch-cellb[disabled],.sch-dayb[disabled]{cursor:default}
+.sch-cellb[disabled]:hover{border-color:transparent;background:transparent}
+
+/* ---------- Schedule, redesigned ---------- */
+.seg-badge{display:inline-grid;place-items:center;min-width:20px;height:20px;margin-left:6px;border-radius:999px;background:var(--ketchup);color:#fff;font-size:.72rem;font-weight:800;padding:0 5px}
+.sch2-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--panel)}
+.sch2{width:100%;min-width:820px;border-collapse:separate;border-spacing:0}
+.sch2 th,.sch2 td{border-bottom:1px solid var(--line);vertical-align:top}
+.sch2 tbody tr:last-child th,.sch2 tbody tr:last-child td{border-bottom:0}
+.sch2-corner{text-align:left;padding:12px;font-size:.8rem;color:var(--muted);font-weight:700;position:sticky;left:0;background:var(--panel);z-index:2}
+.sch2-day{padding:0;text-align:left;border-left:1px solid var(--line)}
+.sch2-day.today{background:color-mix(in srgb,var(--jade) 9%,var(--panel))}
+.sch2-dayb{width:100%;border:0;background:transparent;font:inherit;color:inherit;text-align:left;padding:10px 10px 8px;display:grid;grid-template-columns:auto 1fr;column-gap:6px;align-items:baseline;cursor:pointer}
+.sch2-dayb[disabled]{cursor:default}
+.sch2-dayb .dn{font-weight:700;font-size:.85rem;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.sch2-dayb .dd{font-family:var(--brand-font);font-weight:800;font-size:1.7rem;line-height:1}
+.sch2-day.today .dd{color:var(--jade)}
+.sch2-dayb .dc{grid-column:1/-1;font-size:.75rem;color:var(--muted);font-weight:600;margin-top:2px}
+.sch2-dayb .sch-note{grid-column:1/-1;margin-top:4px;justify-self:start}
+.sch2-name{text-align:left;padding:8px 12px;position:sticky;left:0;background:var(--panel);z-index:1;min-width:170px;border-right:1px solid var(--line)}
+.sch2-name b,.sch2-nm{font-weight:700;font-size:.98rem;color:var(--ink);text-decoration:none}
+.av{flex:none;width:34px;height:34px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:.8rem;color:#fff;background:hsl(var(--h),38%,42%)}
+.sch2-cell{padding:4px;border-left:1px solid var(--line)}
+.sch2-cell.today{background:color-mix(in srgb,var(--jade) 5%,transparent)}
+.sch2-cellb{width:100%;min-height:52px;border:1px dashed transparent;border-radius:10px;background:transparent;font:inherit;cursor:pointer;display:flex;flex-direction:column;gap:4px;padding:3px;align-items:stretch;color:var(--ink)}
+.sch2-cellb:not([disabled]):hover{border-color:var(--line-2);background:var(--field)}
+.sch2-cellb[disabled]{cursor:default}
+.sch2-cellb .plus{margin:auto;color:var(--line-2);font-size:1.3rem;opacity:0}
+.sch2-cellb:not([disabled]):hover .plus{opacity:1}
+.chip2{display:flex;flex-direction:column;align-items:flex-start;gap:1px;border-radius:8px;padding:5px 8px;border-left:4px solid;font-size:.86rem;line-height:1.2}
+.chip2 b{white-space:nowrap;font-weight:700}
+.chip2 i{font-style:normal;font-size:.72rem;font-weight:700;opacity:.85}
+.chip2.am{background:#E3F1EC;border-color:#2E8B70;color:#164B3D}
+.chip2.mid{background:#E6EEF6;border-color:#3D6E9E;color:#20405F}
+.chip2.pm{background:#ECE7F3;border-color:#6B4E9B;color:#3D2A5E}
+.chip2.bar{background:#FBF0D6;border-color:var(--mustard);color:#6B4A07}
+.chip2.off{background:var(--warn-soft);border-color:#C8A040;color:#7a5200;border-left-style:dashed}
+.sch2-legend{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-top:10px;font-size:.85rem;font-weight:600}
+.sch2-legend span{display:inline-flex;align-items:center;gap:6px}
+.sch2-legend i.chip2{width:22px;height:14px;padding:0}
+.daystrip2{display:flex;gap:8px;overflow-x:auto;margin:4px 0 8px}
+.daystrip2 button{min-width:84px;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:8px;font:inherit;color:var(--ink);cursor:pointer;display:flex;flex-direction:column;align-items:center}
+.daystrip2 b{font-size:.8rem;color:var(--muted)} .daystrip2 span{font-family:var(--brand-font);font-weight:800;font-size:1.5rem;line-height:1.1} .daystrip2 i{font-style:normal;font-size:.72rem;color:var(--muted);font-weight:600}
+.daystrip2 button.today span{color:var(--jade)}
+.daystrip2 button[aria-pressed="true"]{background:var(--char);color:#fff;border-color:var(--char)} .daystrip2 button[aria-pressed="true"] b,.daystrip2 button[aria-pressed="true"] i{color:#D8DCD6}
+.tl2{padding:10px 14px}
+.tl2-row{display:grid;grid-template-columns:210px 1fr;gap:12px;align-items:center;min-height:48px}
+.tl2-head{min-height:26px;border-bottom:1px solid var(--line);margin-bottom:4px}
+.tl2-axis{position:relative;height:26px}
+.tl2-axis span{position:absolute;top:4px;transform:translateX(-50%);font-size:.75rem;font-weight:700;color:var(--muted)}
+.tl2-axis span:first-child{transform:none} .tl2-axis span:last-child{transform:translateX(-100%)}
+.tl2-name{display:flex;align-items:center;gap:8px;min-width:0}
+.tl2-name b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl2-name .rl{font-style:normal;font-size:.7rem;font-weight:700;border-radius:999px;padding:1px 7px;background:var(--jade-pale);color:var(--jade)}
+.tl2-track{position:relative;height:38px;background-image:linear-gradient(90deg,var(--line) 0 1px,transparent 1px);background-size:calc(100% / var(--n,8)) 100%;border-right:1px solid var(--line)}
+.tl2-bar{position:absolute;top:4px;bottom:4px;border-radius:9px;border:0;border-left:4px solid;font:inherit;font-weight:700;font-size:.85rem;text-align:left;padding:0 10px;white-space:nowrap;overflow:hidden;cursor:pointer;min-width:80px}
+.tl2-bar[disabled]{cursor:default}
+.tl2-bar.am{background:#E3F1EC;border-color:#2E8B70;color:#164B3D} .tl2-bar.mid{background:#E6EEF6;border-color:#3D6E9E;color:#20405F}
+.tl2-bar.pm{background:#ECE7F3;border-color:#6B4E9B;color:#3D2A5E} .tl2-bar.bar{background:#FBF0D6;border-color:var(--mustard);color:#6B4A07}
+.tl2-bar.toclose{border-top-right-radius:0;border-bottom-right-radius:0}
+.req-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px}
+.req-card{border-left:4px solid var(--line-2)}
+.req-card.pending{border-left-color:var(--mustard)} .req-card.approved{border-left-color:var(--jade)} .req-card.denied{border-left-color:var(--ketchup);opacity:.85}
+.req-who{font-size:1.05rem}
+.req-msg{margin:8px 0 0;font-style:italic;color:var(--ink-2)}
+.req-act{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;margin-top:6px}
+@media (max-width:700px){ .tl2-row{grid-template-columns:120px 1fr} .tl2-name .av{display:none} .req-act{grid-template-columns:1fr 1fr} .req-act .inp{grid-column:1/-1} }
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .chip2.am,:root:not([data-theme="light"]) .tl2-bar.am{background:#173A30;color:#BFE6D7} :root:not([data-theme="light"]) .chip2.mid,:root:not([data-theme="light"]) .tl2-bar.mid{background:#1B2C3D;color:#C6D9EE}
+  :root:not([data-theme="light"]) .chip2.pm,:root:not([data-theme="light"]) .tl2-bar.pm{background:#2A2238;color:#D9CCF0} :root:not([data-theme="light"]) .chip2.bar,:root:not([data-theme="light"]) .tl2-bar.bar{background:#3A2F14;color:#F2DDA8} }
+:root[data-theme="dark"] .chip2.am,:root[data-theme="dark"] .tl2-bar.am{background:#173A30;color:#BFE6D7} :root[data-theme="dark"] .chip2.mid,:root[data-theme="dark"] .tl2-bar.mid{background:#1B2C3D;color:#C6D9EE}
+:root[data-theme="dark"] .chip2.pm,:root[data-theme="dark"] .tl2-bar.pm{background:#2A2238;color:#D9CCF0} :root[data-theme="dark"] .chip2.bar,:root[data-theme="dark"] .tl2-bar.bar{background:#3A2F14;color:#F2DDA8}
 </style>
 </head>
 <body>
@@ -1984,6 +2055,8 @@ function needsYou(r){
     jumps ? chip(jumps, jumps === 1 ? "supplier price went up" : "supplier prices went up", () => go("supplies"), "warn") : null
   ].filter(Boolean);
   const row = el("section",{class:"ny-row", "aria-label":"Needs you"}, list.length ? list : el("span",{class:"ny ok"}, el("b",{text:"\u2713"}), el("span",{text:"All caught up"})));
+  if (canEditSchedule()){ refreshPendingRequests(); if (SCV.pending){ const okEl = row.querySelector(".ny.ok"); if (okEl) okEl.remove();
+    row.append(el("button",{class:"ny warn", type:"button", onclick:() => { SCV.tab = "requests"; go("sched"); }}, el("b",{text:SCV.pending}), el("span",{text: SCV.pending === 1 ? "schedule request" : "schedule requests"}))); } }
   if (r.duties && r.duties.length && ["owner","manager"].includes(ACCT && ACCT.role)){
     const y = addDays(localDay(new Date()), -1);
     sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: y, p_to: y }).then(({ data, error }) => {
@@ -3117,6 +3190,7 @@ async function openTabletLink(){
 
 /* ================= Schedule and shift duties ================= */
 const DOW = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const canEditSchedule = () => !!ACCT && (ACCT.role === "owner" || ACCT.role === "manager" || !!(ST && ST.perms && USER && ST.perms[USER.id] && ST.perms[USER.id].schedule));
 const localDay = d => { const z = new Date(d); z.setMinutes(z.getMinutes() - z.getTimezoneOffset()); return z.toISOString().slice(0, 10); };
 const addDays = (iso, k) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + k); return localDay(d); };
 const mondayOf = iso => { const d = new Date(iso + "T12:00:00"); const w = (d.getDay() + 6) % 7; return addDays(iso, -w); };
@@ -3159,18 +3233,25 @@ function sched(m){
   const r = schedData(R()); const today = localDay(new Date());
   SCV.week = SCV.week || mondayOf(today);
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Schedule"}), el("p",{class:"lead", text:"Who's working, and the cleaning and prep duties for each shift. Both show on the tablet."})),
-    el("div",{class:"seg", role:"tablist"}, [["week","Week"],["lists","Checklists"],["duties","Set up lists"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String(SCV.tab === k), text:t, onclick:() => { SCV.tab = k; render(); }})))));
-  if (SCV.tab === "duties") return schedDuties(m, r);
+    el("div",{class:"seg", role:"tablist"}, [["week","Schedule"],["requests","Requests"],["lists","Checklists"],["duties","Set up lists"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String(SCV.tab === k), onclick:() => { SCV.tab = k; render(); }}, t,
+      k === "requests" && SCV.pending ? el("span",{class:"seg-badge", text: SCV.pending}) : null)))));
+  refreshPendingRequests();
+  const edit = canEditSchedule();
+  if (!edit) m.append(el("div",{class:"msg", style:"margin-bottom:12px", text:"View only. Owners, managers, and people given \u201cCan edit the schedule\u201d (Brand & accounts \u2192 Team) can change the schedule and checklists."}));
+  if (SCV.tab === "duties") return schedDuties(m, r, edit);
   if (SCV.tab === "lists" || SCV.tab === "log") return schedChecklists(m, r, today);
+  if (SCV.tab === "requests") return schedRequests(m, r, today, edit);
   const days = [...Array(7)].map((_, i) => addDays(SCV.week, i));
   const shiftsOn = (pid, d) => r.shifts.filter(x => x.staff === pid && x.date === d);
   const showDays = days.filter((d, i) => i > 0 || r.shifts.some(x => x.date === d));   // Mondays only when someone works
+  SCV.view = SCV.view || "week"; if (!SCV.day || !days.includes(SCV.day)) SCV.day = days.includes(today) ? today : showDays[0];
   m.append(el("div",{class:"sch-bar"},
     el("div",{class:"row"}, el("button",{class:"btn quiet", type:"button", text:"\u2039", "aria-label":"Previous week", onclick:() => { SCV.week = addDays(SCV.week, -7); render(); }}),
-      el("b",{class:"sch-range", text:"Week of " + nice(days[0]) + " to " + nice(days[6])}),
+      el("b",{class:"sch-range", text: nice(days[0]) + " \u2013 " + nice(days[6])}),
       el("button",{class:"btn quiet", type:"button", text:"\u203a", "aria-label":"Next week", onclick:() => { SCV.week = addDays(SCV.week, 7); render(); }}),
-      SCV.week !== mondayOf(today) ? el("button",{class:"linkbtn", type:"button", text:"This week", onclick:() => { SCV.week = mondayOf(today); render(); }}) : null),
-    el("div",{class:"row"},
+      SCV.week !== mondayOf(today) ? el("button",{class:"linkbtn", type:"button", text:"This week", onclick:() => { SCV.week = mondayOf(today); render(); }}) : null,
+      el("div",{class:"seg", style:"margin-left:6px"}, [["week","Week"],["day","Day"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String(SCV.view === k), text:t, onclick:() => { SCV.view = k; render(); }})))),
+    !edit ? el("span") : el("div",{class:"row"},
       el("button",{class:"btn quiet", type:"button", text:"Copy last week", onclick:() => {
         const prev = r.shifts.filter(x => x.date >= addDays(SCV.week, -7) && x.date < SCV.week && !x.off);
         if (!prev.length) return toast("Last week has no shifts to copy.");
@@ -3180,18 +3261,57 @@ function sched(m){
       el("button",{class:"btn quiet", type:"button", text:"Import schedule", onclick:() => openSchedImport()}),
       el("button",{class:"btn primary", type:"button", text:"+ Add person", onclick:() => { const nm = prompt("Name as it should show on the schedule (first name and last initial is plenty):"); if (!nm || !nm.trim()) return; r.staff.push({ id: uid("p"), name: nm.trim() }); save(); render(); }}))));
   if (!r.staff.length){ m.append(el("div",{class:"card empty", text:"No one on the schedule yet. Add people, or use Import schedule to bring in a posted schedule."})); return; }
-  const head = el("tr",null, el("th",{text:"Name"}), showDays.map(d => { const dt = new Date(d + "T12:00:00"); const note = r.dayNotes[d];
-    return el("th",{class:"sch-day" + (d === today ? " today" : "")}, el("button",{class:"sch-dayb", type:"button", title:"Add a note for this day", onclick:() => { const v = prompt("Note for " + nice(d) + " (events, specials, closing early):", note || ""); if (v === null) return; if (v.trim()) r.dayNotes[d] = v.trim(); else delete r.dayNotes[d]; save(); render(); }},
-      el("span",{text: DOW[dt.getDay()] + " " + dt.getDate()}), note ? el("span",{class:"sch-note", text:note}) : null)); }));
-  const body = r.staff.map(p => el("tr",null,
-    el("th",{class:"sch-name"}, el("button",{class:"linkbtn", type:"button", text:p.name, title:"Rename or remove", onclick:() => { const v = prompt("Rename " + p.name + " (leave empty to remove them from the schedule):", p.name); if (v === null) return;
-      if (!v.trim()){ if (confirm("Remove " + p.name + " and their shifts?")){ r.staff = r.staff.filter(x => x !== p); r.shifts = r.shifts.filter(x => x.staff !== p.id); } } else p.name = v.trim(); save(); render(); }})),
-    showDays.map(d => { const list = shiftsOn(p.id, d);
-      return el("td",{class:"sch-cell" + (d === today ? " today" : "")}, el("button",{type:"button", class:"sch-cellb", "aria-label":"Edit " + p.name + " on " + nice(d), onclick:() => editShifts(r, p, d)},
-        list.length ? list.map(x => el("span",{class:"sch-shift" + (x.off ? " off" : "")}, shiftText(x, true), x.role ? el("i",{text:(r.roleCodes[x.role] || x.role)}) : null)) : el("span",{class:"sch-empty", text:"\u2013"}))); })));
-  m.append(el("div",{class:"tw sch-tw"}, el("table",{class:"sch"}, el("thead",null, head), el("tbody",null, body))));
+  const toMin = v => v ? +v.slice(0, 2) * 60 + +v.slice(3) : null;
+  const closeMin = toMin(r.closeTime || "21:00");
+  const hoursOf = x => x.off ? 0 : Math.max(0, ((x.end ? toMin(x.end) : Math.max(closeMin, toMin(x.start) + 60)) - toMin(x.start)) / 60);
+  const fmtH = v => (Math.round(v * 10) / 10).toString().replace(/\.0$/, "") + " h";
+  const bucket = x => x.off ? "off" : /bar/i.test(x.role || "") || /bar/i.test(r.roleCodes[x.role] || "") ? "bar" : toMin(x.start) < 11 * 60 ? "am" : toMin(x.start) < 16 * 60 ? "mid" : "pm";
+  const chip = x => el("span",{class:"chip2 " + bucket(x)}, el("b",{text: shiftText(x, true)}), x.role ? el("i",{text:(r.roleCodes[x.role] || x.role)}) : null);
+  const avatar = nm => { let hsh = 0; for (const c of nm) hsh = (hsh * 31 + c.charCodeAt(0)) % 360; return el("span",{class:"av", style:"--h:" + hsh, text: nm.split(/\s+/).map(w => w[0] || "").join("").slice(0, 2).toUpperCase()}); };
+  const dayNoteBtn = d => { const note = r.dayNotes[d]; return note ? el("span",{class:"sch-note", text:note}) : null; };
+  const editNote = d => { if (!edit) return; const v = prompt("Note for " + nice(d) + " (events, specials, closing early):", r.dayNotes[d] || ""); if (v === null) return; if (v.trim()) r.dayNotes[d] = v.trim(); else delete r.dayNotes[d]; save(); render(); };
+  if (SCV.view === "day"){
+    // Day view: the same timeline as the tablet, for checking coverage.
+    m.append(el("div",{class:"daystrip2"}, showDays.map(d => { const dt = new Date(d + "T12:00:00"), n = new Set(r.shifts.filter(x => x.date === d && !x.off).map(x => x.staff)).size;
+      return el("button",{type:"button", "aria-pressed": String(d === SCV.day), class: d === today ? "today" : "", onclick:() => { SCV.day = d; render(); }}, el("b",{text:DOW[dt.getDay()]}), el("span",{text:dt.getDate()}), el("i",{text: n + " on"})); })));
+    const d = SCV.day, list = r.shifts.filter(x => x.date === d && !x.off).sort((a, b) => (a.start || "").localeCompare(b.start || ""));
+    const dt = new Date(d + "T12:00:00");
+    m.append(el("div",{class:"spread", style:"margin:8px 0"}, el("h2",{style:"margin:0", text: DOW[dt.getDay()] + " " + nice(d)}),
+      el("div",{class:"row"}, dayNoteBtn(d), edit ? el("button",{class:"linkbtn", type:"button", text: r.dayNotes[d] ? "Edit note" : "Add a note", onclick:() => editNote(d)}) : null)));
+    if (!list.length) m.append(el("div",{class:"card empty", text:"No one scheduled."}));
+    else {
+      const lo = Math.floor(Math.min(...list.map(x => toMin(x.start))) / 60) * 60, hi = Math.max(Math.ceil((Math.max(...list.map(x => x.end ? toMin(x.end) : closeMin)) + 30) / 60) * 60, lo + 8 * 60);
+      const pct = v => (Math.min(Math.max(v, lo), hi) - lo) / (hi - lo) * 100;
+      const hours = []; for (let v = lo; v <= hi; v += 60) hours.push(v);
+      m.append(el("div",{class:"card tl2"},
+        el("div",{class:"tl2-row tl2-head"}, el("span"), el("div",{class:"tl2-axis"}, hours.map(v => el("span",{style:"left:" + pct(v) + "%", text: ((v / 60) % 12 || 12) + ((v / 60) >= 12 && v / 60 < 24 ? "p" : "a")})))),
+        list.map(x => { const p = r.staff.find(q => q.id === x.staff) || { name:"?" }, e = x.end ? toMin(x.end) : hi;
+          return el("div",{class:"tl2-row"}, el("div",{class:"tl2-name"}, avatar(p.name), el("b",{text:p.name}), x.role ? el("i",{class:"rl", text:(r.roleCodes[x.role] || x.role)}) : null),
+            el("div",{class:"tl2-track", style:"--n:" + (hours.length - 1)}, el("button",{type:"button", class:"tl2-bar " + bucket(x) + (x.end ? "" : " toclose"), style:"left:" + pct(toMin(x.start)) + "%;width:" + Math.max(pct(e) - pct(toMin(x.start)), 7) + "%", disabled: edit ? null : "", onclick:() => { if (edit) editShifts(r, p, d); }}, shiftText(x, true)))); })));
+      const free = r.staff.filter(p => !r.shifts.some(x => x.staff === p.id && x.date === d));
+      m.append(el("p",{class:"mini", style:"margin-top:8px"}, el("b",{text:"Not working: "}), free.map(p => p.name).join(", ") || "everyone is on"));
+    }
+  } else {
+    // Week view
+    const head = el("tr",null, el("th",{class:"sch2-corner", text:"Team"}), showDays.map(d => { const dt = new Date(d + "T12:00:00");
+      const on = r.shifts.filter(x => x.date === d && !x.off), hrs = on.reduce((t, x) => t + hoursOf(x), 0);
+      return el("th",{class:"sch2-day" + (d === today ? " today" : "")}, el("button",{class:"sch2-dayb", type:"button", disabled: edit ? null : "", title: edit ? "Add a note for this day" : null, onclick:() => editNote(d)},
+        el("span",{class:"dn", text: DOW[dt.getDay()]}), el("span",{class:"dd", text: dt.getDate()}), el("span",{class:"dc", text: new Set(on.map(x => x.staff)).size + " on, " + fmtH(hrs)}), dayNoteBtn(d))); }));
+    const body = r.staff.map(p => { const wk = r.shifts.filter(x => x.staff === p.id && showDays.includes(x.date)), hrs = wk.reduce((t, x) => t + hoursOf(x), 0);
+      return el("tr",null,
+        el("th",{class:"sch2-name"}, el("div",{class:"row", style:"gap:10px;flex-wrap:nowrap"}, avatar(p.name),
+          el("div",null, !edit ? el("b",{text:p.name}) : el("button",{class:"linkbtn sch2-nm", type:"button", text:p.name, title:"Rename or remove", onclick:() => { const v = prompt("Rename " + p.name + " (leave empty to remove them from the schedule):", p.name); if (v === null) return;
+            if (!v.trim()){ if (confirm("Remove " + p.name + " and their shifts?")){ r.staff = r.staff.filter(x => x !== p); r.shifts = r.shifts.filter(x => x.staff !== p.id); } } else p.name = v.trim(); save(); render(); }}),
+            el("div",{class:"mini", text: hrs ? fmtH(hrs) + ", " + new Set(wk.filter(x => !x.off).map(x => x.date)).size + " days" : "Not scheduled"})))),
+        showDays.map(d => { const list = shiftsOn(p.id, d);
+          return el("td",{class:"sch2-cell" + (d === today ? " today" : "")}, el("button",{type:"button", class:"sch2-cellb" + (list.length ? "" : " empty"), disabled: edit ? null : "", "aria-label":(edit ? "Edit " : "") + p.name + " on " + nice(d), onclick:() => { if (edit) editShifts(r, p, d); }},
+            list.length ? list.map(chip) : el("span",{class:"plus", text: edit ? "+" : ""}))); })); });
+    m.append(el("div",{class:"sch2-wrap"}, el("table",{class:"sch2"}, el("thead",null, head), el("tbody",null, body))));
+    m.append(el("div",{class:"sch2-legend"}, [["am","Morning"],["mid","Afternoon"],["pm","Evening"],["bar","Bar"],["off","Off"]].map(([k, t]) => el("span",null, el("i",{class:"chip2 " + k}), t)),
+      el("span",{class:"mini", text:"Shifts \u201cuntil close\u201d count to " + t12(r.closeTime || "21:00") + " in hours."})));
+  }
   const codes = [...new Set(r.shifts.map(x => x.role).filter(Boolean))];
-  if (codes.length) m.append(el("p",{class:"mini", style:"margin-top:8px"}, "Role labels: ", codes.map((c, i) => el("span",null, i ? ", " : "", el("button",{class:"linkbtn", type:"button", text: c + (r.roleCodes[c] && r.roleCodes[c] !== c ? " = " + r.roleCodes[c] : ""), onclick:() => { const v = prompt("What does \u201c" + c + "\u201d mean? (shown on the tablet)", r.roleCodes[c] || c); if (v === null) return; r.roleCodes[c] = v.trim() || c; save(); render(); }}))), ". Tap one to spell it out."));
+  if (codes.length) m.append(el("p",{class:"mini", style:"margin-top:8px"}, "Role labels: ", codes.map((c, i) => el("span",null, i ? ", " : "", el("button",{class:"linkbtn", type:"button", disabled: edit ? null : "", text: c + (r.roleCodes[c] && r.roleCodes[c] !== c ? " = " + r.roleCodes[c] : ""), onclick:() => { if (!edit) return; const v = prompt("What does \u201c" + c + "\u201d mean? (shown on the tablet)", r.roleCodes[c] || c); if (v === null) return; r.roleCodes[c] = v.trim() || c; save(); render(); }}))), edit ? ". Tap one to spell it out." : "."));
 }
 function editShifts(r, p, d){
   let list = r.shifts.filter(x => x.staff === p.id && x.date === d).map(x => Object.assign({}, x));
@@ -3279,6 +3399,74 @@ function reviewSchedImport(pk){
 }
 
 // Checklists: check duties off here or on the tablet (same record), see any day, print a paper copy.
+
+// ---------- Schedule change requests (sent from the tablet) ----------
+const REQ_KIND = { off:"Time off", swap:"Swap or cover", cant:"Can't make a shift", other:"Something else" };
+let PENDING_T = 0;
+function refreshPendingRequests(force){
+  if (!ACCT || (!force && Date.now() - PENDING_T < 60000)) return; PENDING_T = Date.now();
+  sb.rpc("schedule_requests_list", { p_account: ACCT.id }).then(({ data, error }) => { if (error) return; const n2 = (data || []).filter(q => q.status === "pending").length;
+    if (n2 !== SCV.pending){ SCV.pending = n2; if (ST && (ST.page === "sched" || ST.page === "home") && !dlg.open) render(); } });
+}
+function schedRequests(m, r, today, edit){
+  r.schedAlerts = r.schedAlerts || { on:true, emails: ((r.dutyAlerts || {}).emails || []).slice() };
+  const box = el("div",null, el("div",{class:"spin"}));
+  const a = r.schedAlerts, on = el("input",{type:"checkbox"}); on.checked = a.on !== false; on.disabled = !edit;
+  const em = el("input",{class:"inp", value:(a.emails || []).join(", "), placeholder:"manager@triplefoxllc.com", disabled: edit ? null : ""});
+  const keep = () => { a.on = on.checked; a.emails = em.value.split(/[,;\s]+/).filter(x => /@/.test(x)).slice(0, 5); save(); };
+  on.onchange = keep; em.onchange = keep;
+  m.append(el("div",{class:"card feed-card", style:"margin-bottom:14px"}, el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:"Requests from the tablet"}),
+      el("p",{class:"mini", style:"margin:2px 0 0", text:"Staff tap Request a change on the tablet (no account needed). You get an email, and approving here updates the schedule."})),
+    el("label",{class:"row", style:"gap:6px;font-weight:600"}, on, "Email new requests")), fld("Send to (up to 5)", em)), box);
+  (async () => {
+    const { data, error } = await sb.rpc("schedule_requests_list", { p_account: ACCT.id });
+    if (error){ box.replaceChildren(el("div",{class:"msg bad", text: /function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "One-time setup: run supabase/010_schedule_requests.sql in Supabase's SQL Editor." : plainErr(error)})); return; }
+    const list = data || []; SCV.pending = list.filter(q => q.status === "pending").length;
+    if (!list.length){ box.replaceChildren(el("div",{class:"card empty", text:"No requests yet. They show up here when someone sends one from the tablet."})); return; }
+    box.replaceChildren(el("div",{class:"req-grid"}, list.map(q => reqCard(r, q, today, edit))));
+  })();
+}
+function reqWhen(q){ const f = d => { const dt = new Date(d + "T12:00:00"); return DOW[dt.getDay()] + " " + nice(d); }; return q.day ? f(q.day) + (q.day_to && q.day_to !== q.day ? " to " + f(q.day_to) : "") : ""; }
+function reqCard(r, q, today, edit){
+  const pid = q.person_id && r.staff.some(p => p.id === q.person_id) ? q.person_id : (r.staff.find(p => p.name.toLowerCase() === String(q.person).toLowerCase()) || {}).id;
+  const dates = []; if (q.day){ let d = q.day; const end = q.day_to && q.day_to >= q.day ? q.day_to : q.day; while (d <= end && dates.length < 31){ dates.push(d); d = addDays(d, 1); } }
+  const theirs = dates.flatMap(d => r.shifts.filter(x => x.staff === pid && x.date === d && !x.off));
+  const free = q.day ? r.staff.filter(p => p.id !== pid && !r.shifts.some(x => x.staff === p.id && x.date === q.day && !x.off)).map(p => p.name) : [];
+  const coverP = q.cover && r.staff.find(p => p.name.toLowerCase() === q.cover.toLowerCase());
+  // What approving will change on the schedule
+  const effect = q.kind === "off" ? (theirs.length ? "Approving takes " + q.person + " off " + theirs.length + (theirs.length === 1 ? " shift" : " shifts") + " and marks the day" + (dates.length > 1 ? "s" : "") + " off." : "Approving marks the day" + (dates.length > 1 ? "s" : "") + " off.")
+    : q.kind === "swap" ? (coverP && theirs.length ? "Approving moves the shift to " + coverP.name + "." + (r.shifts.some(x => x.staff === coverP.id && x.date === q.day && !x.off) ? " Heads up: " + coverP.name + " already works " + r.shifts.filter(x => x.staff === coverP.id && x.date === q.day && !x.off).map(x => shiftText(x, true)).join(", ") + " that day, so they'd have both." : "") : theirs.length ? "Approving opens the shift; pick who covers it afterward." : "No matching shift on the schedule.")
+    : q.kind === "cant" ? (theirs.length ? "Approving opens the shift so you can give it to someone else." : "No matching shift on the schedule.")
+    : "Approving doesn't change the schedule; make the change yourself.";
+  const reply = el("input",{class:"inp", placeholder:"Reply (optional), shown on the tablet"});
+  const decide = async status => {
+    if (status === "approved") {
+      if (q.kind === "off"){ r.shifts = r.shifts.filter(x => !(x.staff === pid && dates.includes(x.date))); dates.forEach(d => r.shifts.push({ id: uid("sh"), date: d, staff: pid, off: true, note: "Approved time off" })); }
+      else if ((q.kind === "swap" || q.kind === "cant") && theirs.length){
+        const sh = theirs.find(x => x.date === q.day) || theirs[0];
+        if (q.kind === "swap" && coverP) sh.staff = coverP.id;
+        else { r.shifts = r.shifts.filter(x => x !== sh); r.shifts.push({ id: uid("sh"), date: sh.date, staff: pid, off: true, note: q.kind === "cant" ? "Can't make it (approved)" : "Swapping out" });
+          r.dayNotes[sh.date] = ((r.dayNotes[sh.date] ? r.dayNotes[sh.date] + "; " : "") + "Open shift " + shiftText(sh, true) + " (was " + q.person + ")").slice(0, 120); }
+      }
+      if (pid && q.kind !== "other") save();
+    }
+    const { error } = await sb.rpc("schedule_request_decide", { p_account: ACCT.id, p_id: q.id, p_status: status, p_reply: reply.value.trim() || null });
+    if (error) return toast(plainErr(error));
+    toast(status === "approved" ? "Approved" + (q.kind !== "other" ? " and the schedule is updated" : "") : "Denied"); PENDING_T = 0; refreshPendingRequests(true); render();
+  };
+  return el("div",{class:"card req-card " + q.status},
+    el("div",{class:"spread"}, el("div",{class:"row", style:"gap:10px;flex-wrap:nowrap"}, el("b",{class:"req-who", text:q.person}), el("span",{class:"pill " + (q.status === "pending" ? "warn" : q.status === "approved" ? "good" : "bad"), text: q.status === "pending" ? "Waiting" : q.status === "approved" ? "Approved" : "Denied"})),
+      el("span",{class:"mini", text: new Date(q.created_at).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" })})),
+    el("h3",{style:"margin:8px 0 2px", text: REQ_KIND[q.kind] + (reqWhen(q) ? ": " + reqWhen(q) : "")}),
+    q.shift_text ? el("p",{class:"mini", style:"margin:0", text:"Shift: " + q.shift_text}) : null,
+    q.cover ? el("p",{class:"mini", style:"margin:0", text:"Covering: " + q.cover}) : null,
+    q.message ? el("p",{class:"req-msg", text:"\u201c" + q.message + "\u201d"}) : null,
+    q.status === "pending" ? el("div",null,
+      el("p",{class:"mini", style:"margin:8px 0 4px;color:var(--ink-2)", text:effect}),
+      (q.kind === "swap" && !coverP) || q.kind === "cant" ? el("p",{class:"mini", style:"margin:0 0 6px", text:"Free that day: " + (free.join(", ") || "nobody")}) : null,
+      edit ? el("div",{class:"req-act"}, reply, el("button",{class:"btn primary", type:"button", text:"Approve", onclick:() => decide("approved")}), el("button",{class:"btn quiet", type:"button", text:"Deny", onclick:() => decide("denied")})) : el("p",{class:"mini", text:"A manager will answer this."}))
+    : el("p",{class:"mini", style:"margin:8px 0 0", text: (q.status === "approved" ? "Approved" : "Denied") + (q.decided_by ? " by " + q.decided_by : "") + (q.reply ? ": \u201c" + q.reply + "\u201d" : "")}));
+}
 function schedChecklists(m, r, today){
   SCV.logDay = SCV.logDay || today;
   const day = SCV.logDay, lists = dutiesFor(r, day).slice().sort((a, b) => ({ open:0, mid:1, daily:2, close:3 })[a.when] - ({ open:0, mid:1, daily:2, close:3 })[b.when] || a.area.localeCompare(b.area));
@@ -3368,14 +3556,14 @@ function dutyAlertsCard(r){
       catch(e){ msg.replaceChildren(el("div",{class:"msg bad", text: e.reason === "nomail" ? "Add POSTMARK_SERVER_TOKEN in Netlify (Postmark > your server > API Tokens), then redeploy." : (e.message || "Couldn't send it right now.")})); } }}) : el("p",{class:"mini", text:"Owners and managers can change alerts."}),
     msg);
 }
-function schedDuties(m, r){
+function schedDuties(m, r, edit){
   m.append(dutyAlertsCard(r));
   m.append(el("p",{class:"mini", style:"margin:14px 0 12px", text:"Set up the checklist for each shift here. They're checked off under Checklists (here or on the tablet). Lists set to certain days only appear on those days."}));
   m.append(el("div",{class:"duty-grid"}, r.duties.map(l => el("div",{class:"card duty-card"},
     el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:l.name}), el("span",{class:"mini", text: l.area + ", " + ({ open:"opening", mid:"mid-shift", close:"closing", daily:"any time" })[l.when] + (l.days && l.days.length ? ", " + l.days.map(dn => DOW[dn]).join(" & ") + " only" : ", every day")})),
-      el("button",{class:"btn quiet", type:"button", text:"Edit", onclick:() => editDutyList(r, l)})),
+      edit ? el("button",{class:"btn quiet", type:"button", text:"Edit", onclick:() => editDutyList(r, l)}) : null),
     el("ul",{class:"duty-items"}, l.items.map(x => el("li",{text:x.text})))))),
-    el("button",{class:"btn quiet", type:"button", style:"margin-top:12px", text:"+ New checklist", onclick:() => { const l = { id: uid("dl").slice(0, 12), name:"New checklist", area:"Kitchen", when:"open", days:null, items:[] }; editDutyList(r, l, true); }}));
+    !edit ? null : el("button",{class:"btn quiet", type:"button", style:"margin-top:12px", text:"+ New checklist", onclick:() => { const l = { id: uid("dl").slice(0, 12), name:"New checklist", area:"Kitchen", when:"open", days:null, items:[] }; editDutyList(r, l, true); }}));
 }
 function editDutyList(r, l, isNew){
   const c = JSON.parse(JSON.stringify(l));
@@ -3852,13 +4040,18 @@ async function drawTeam(box){
       actions.append(sel, el("button",{class:"btn danger", text:"Remove", onclick: async () => { if (!confirm("Remove " + t.email + " from this kitchen?")) return; const { error } = await sb.rpc("remove_member", { p_account: ACCT.id, p_user: t.user_id }); if (error) toast(plainErr(error)); drawTeam(box); }}));
     }
     if (t.kind === "member" && t.is_me && ACCOUNTS.length > 1) actions.append(el("button",{class:"btn quiet", text:"Leave kitchen", onclick: async () => { if (!confirm("Leave " + ACCT.name + "?")) return; const { error } = await sb.rpc("remove_member", { p_account: ACCT.id, p_user: t.user_id }); if (error) return toast(plainErr(error)); afterLogin(); }}));
+    if (t.kind === "member" && t.role === "member" && canInvite){
+      const cb = el("input",{type:"checkbox"}); cb.checked = !!(ST.perms && ST.perms[t.user_id] && ST.perms[t.user_id].schedule);
+      cb.onchange = () => { ST.perms = ST.perms || {}; ST.perms[t.user_id] = Object.assign({}, ST.perms[t.user_id], { schedule: cb.checked }); save(); toast(cb.checked ? t.email + " can now edit the schedule" : t.email + " can no longer edit the schedule"); };
+      actions.append(el("label",{class:"row", style:"gap:6px;font-weight:600"}, cb, "Can edit the schedule"));
+    }
     return el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:t.email || "(no email)"}), t.is_me ? el("span",{class:"mini", text:"  you"}) : null),
       el("td",null, t.kind === "invite" ? el("span",{class:"pill warn", text:"Invited, not joined yet"}) : el("span",{class:"pill", text:ROLE_LABEL[t.role]})), el("td",null, actions));
   });
   const parts = [el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Person"}), el("th",{text:"Role"}), el("th",{text:""}))), el("tbody",null, rows)))];
   if (canInvite){
     const em = el("input",{class:"inp", type:"email", autocapitalize:"none", autocorrect:"off", spellcheck:"false", placeholder:"cook@example.com"});
-    const rl = el("select",{class:"inp"}, el("option",{value:"member", text:"Member: can edit menu, supplies and invoices"}), el("option",{value:"manager", text:"Manager: also invites people"}));
+    const rl = el("select",{class:"inp"}, el("option",{value:"member", text:"Member: can edit menu, supplies and invoices"}), el("option",{value:"manager", text:"Manager: also invites people and sets the schedule"}));
     const msg = el("div");
     const go2 = async () => {
       const { error } = await sb.rpc("invite_member", { p_account: ACCT.id, p_email: em.value.trim().toLowerCase(), p_role: rl.value });
