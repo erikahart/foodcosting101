@@ -991,6 +991,40 @@ aside .brandbox b{font-size:1.3rem}
 .kb-card .kb-ph{aspect-ratio:1/1}
 .kb-aitag{z-index:1}
 
+/* ---------- Home for a bar manager ---------- */
+.ny-row{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0 4px}
+.ny{display:inline-flex;align-items:baseline;gap:8px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-weight:600;cursor:pointer;min-height:46px}
+.ny b{font-family:var(--brand-font);font-size:1.5rem;font-weight:800;line-height:1}
+.ny.bad{background:var(--bad-soft);border-color:transparent} .ny.bad b{color:var(--bad)}
+.ny.warn{background:var(--warn-soft);border-color:transparent} .ny.warn b{color:var(--warn)}
+.ny.ok{cursor:default;background:var(--good-soft);border-color:transparent;color:var(--good)} .ny.ok b{font-family:var(--font);font-size:1rem}
+.ny:not(.ok):hover{filter:brightness(.97)}
+.cats{display:grid;gap:22px;margin:22px 0 6px}
+.cat-sec h2{margin:0 0 10px}
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.cat{position:relative;display:flex;flex-direction:column;border:1px solid var(--line);border-radius:14px;background:var(--panel);overflow:hidden}
+.cat::before{content:"";position:absolute;left:0;top:0;bottom:0;width:5px;background:var(--line-2)}
+.cat.good::before{background:var(--jade)} .cat.warn::before{background:var(--mustard)} .cat.bad::before{background:var(--ketchup)}
+.cat-main{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:16px 16px 10px 20px;border:0;background:transparent;color:var(--ink);font:inherit;text-align:left;cursor:pointer;min-height:104px}
+.cat-main:hover{background:var(--field)}
+.cat-main:focus-visible{outline:3px solid var(--mustard);outline-offset:-3px}
+.cat-name{font-family:var(--brand-font);font-weight:800;font-size:1.65rem;line-height:1.05}
+.cat-count{font-weight:600;color:var(--ink-2);font-size:.92rem}
+.cat-pct{font-size:.86rem;color:var(--muted)} .cat-pct b{color:var(--ink)}
+.cat.bad .cat-pct b{color:var(--bad)} .cat.warn .cat-pct b{color:var(--warn)}
+.cat-foot{display:flex;justify-content:space-between;align-items:center;padding:0 14px 10px 20px;min-height:36px}
+.cat-fix{font-size:.8rem;font-weight:700;color:var(--bad);background:var(--bad-soft);border-radius:999px;padding:2px 9px}
+@media (max-width:700px){
+  .cat-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  .cat-main{min-height:96px;padding:14px 12px 8px 16px}
+  .cat-name{font-size:1.4rem}
+  .cat-foot{padding:0 10px 8px 16px}
+  .ny{flex:1 1 calc(50% - 8px)}
+}
+.ny{align-items:center;text-align:left}
+.ny span{line-height:1.25}
+@media (max-width:700px){.ny{padding:10px 12px;gap:10px}.ny b{font-size:1.7rem}}
+
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
 .demo-dot{width:8px;height:8px;border-radius:50%;background:#6FC79A;flex:none;box-shadow:0 0 0 4px rgba(111,199,154,.18)}
@@ -1668,7 +1702,8 @@ function home(m){
   const sales = costedAll.reduce((a, x) => a + x.s.price * (n(x.i.sold) || 0), 0), cost = costedAll.reduce((a, x) => a + x.s.plate * (n(x.i.sold) || 0), 0);
   const ins = visibleInsights(r);
   m.append(el("h1",{text:r.name}), el("p",{class:"lead", text: ACCT && ACCT.role === "member" ? "What do you need?" : "Here's where your menu stands this " + r.period + "."}));
-  m.append(quickActions(r));
+  if (items.length) m.append(needsYou(r));
+  if (items.length) m.append(categoryButtons(r));
   if (!items.length && !Object.keys(r.supplies).length){
     m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fill,minmax(240px,1fr))"},
       el("div",{class:"card"}, el("h3",{text:"1. Connect your suppliers"}), el("p",{text:"Sysco, US Foods, Gordon and PFG send invoices straight in. Everyone else: email or snap a photo."}), el("button",{class:"btn primary", text:"Connect suppliers", onclick:() => go("suppliers")})),
@@ -1676,12 +1711,7 @@ function home(m){
       el("div",{class:"card"}, el("h3",{text:"3. Follow the coach"}), el("p",{text:"See what's losing money, what to push, and what each change is worth."}), el("button",{class:"btn quiet", text:"Open coach", onclick:() => go("coach")}))));
     return;
   }
-  const fcAll = sales ? cost / sales : null, low = all.filter(x => x.s.status === "bad").length, toReview = r.inbox.filter(d => d.status === "new").length;
-  m.append(el("div",{class:"kstrip"},
-    el("div",null, el("div",{class:"n" + (fcAll != null && fcAll > r.target + r.tol ? " bad" : fcAll != null && fcAll > r.target ? " warn" : ""), text: fcAll != null ? pc(fcAll) : "\u2014"}), el("div",{class:"l", text:"Food cost, target " + pc(r.target)})),
-    el("div",null, el("div",{class:"n", text:$0(sales - cost)}), el("div",{class:"l", text:"Profit after food, per " + r.period})),
-    el("div",{class:"clickable", onclick:() => { MV.status = "bad"; MV.cat = "all"; go("menu"); }}, el("div",{class:"n" + (low ? " bad" : ""), text: low}), el("div",{class:"l", text:"Items priced too low"})),
-    el("div",{class:"clickable", onclick:() => go("inbox")}, el("div",{class:"n" + (toReview ? " warn" : ""), text: toReview}), el("div",{class:"l", text:"Invoices to review"}))));
+  m.append(barKitchenNumbers(r, all));
   r.hidden = r.hidden || {};
   const hasSales = items.some(i => n(i.sold) > 0);
   if (items.length && (!hasSales || salesStale(r)) && !r.hidden.sales) m.append(el("div",{class:"card banner", style:"margin-top:18px"},
@@ -1866,6 +1896,63 @@ function fcCell(fc, tgt, status){
 }
 
 
+
+/* ================= Home for a bar manager: what needs you, then your categories ================= */
+function needsYou(r){
+  const toReview = r.inbox.filter(d => d.status === "new").length;
+  const low = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || "") && stats(it).status === "bad");
+  const lowDrinks = low.filter(isDrink).length, lowFood = low.length - lowDrinks;
+  const recent = d => d && (Date.now() - new Date(d + "T12:00:00")) < 21 * 864e5;
+  const jumps = Object.values(r.supplies).filter(su => (lastChange(su) || 0) > 0.05 && recent(((su.history || []).slice(-1)[0] || {}).date)).length;
+  const chip = (count, label, run, tone) => el("button",{class:"ny " + tone, type:"button", onclick: run}, el("b",{text:count}), el("span",{text:label}));
+  const list = [
+    toReview ? chip(toReview, toReview === 1 ? "invoice to check" : "invoices to check", () => go("inbox"), "warn") : null,
+    lowDrinks ? chip(lowDrinks, lowDrinks === 1 ? "drink priced too low" : "drinks priced too low", () => { MV.status = "bad"; MV.cat = "all"; go("menu"); }, "bad") : null,
+    lowFood ? chip(lowFood, lowFood === 1 ? "dish priced too low" : "dishes priced too low", () => { MV.status = "bad"; MV.cat = "all"; go("menu"); }, "bad") : null,
+    jumps ? chip(jumps, jumps === 1 ? "supplier price went up" : "supplier prices went up", () => go("supplies"), "warn") : null
+  ].filter(Boolean);
+  return el("section",{class:"ny-row", "aria-label":"Needs you"}, list.length ? list : el("span",{class:"ny ok"}, el("b",{text:"\u2713"}), el("span",{text:"All caught up"})));
+}
+function categoryButtons(r){
+  const order = sectionOrder(r);
+  const groups = {};
+  Object.values(r.items).forEach(it => { if (SUMMARY_SECTION.test(it.section || "")) return; const k = it.section || "Menu"; (groups[k] = groups[k] || []).push(it); });
+  const names = Object.keys(groups).sort((a, b) => order.indexOf(a) - order.indexOf(b));
+  const isBar = k => groups[k].filter(isDrink).length * 2 > groups[k].length;
+  const tile = k => {
+    const its = groups[k], st = its.map(it => ({ it, s: stats(it) })).filter(x => x.s.status !== "norecipe" && x.s.price > 0);
+    const sold = st.reduce((t, x) => t + (n(x.it.sold) || 0), 0);
+    const pct = st.length ? (sold ? st.reduce((t, x) => t + x.s.plate * (n(x.it.sold) || 0), 0) / st.reduce((t, x) => t + x.s.price * (n(x.it.sold) || 0), 0)
+                                  : st.reduce((t, x) => t + x.s.fc, 0) / st.length) : null;
+    const target = targetFor(its[0], r), fix = st.filter(x => x.s.status === "bad").length;
+    const tone = pct == null ? "" : pct > target + (r.tol || 0.05) ? "bad" : pct > target ? "warn" : "good";
+    const drink = isBar(k);
+    return el("div",{class:"cat " + tone},
+      el("button",{class:"cat-main", type:"button", onclick:() => { BKV.cat = k; BKV.q = ""; go("book"); }, "aria-label":"Open " + k + " recipe cards"},
+        el("span",{class:"cat-name", text:k}),
+        el("span",{class:"cat-count", text: its.length + " " + (drink ? (its.length === 1 ? "drink" : "drinks") : (its.length === 1 ? "item" : "items"))}),
+        pct != null ? el("span",{class:"cat-pct"}, el("b",{text:pc(pct)}), " " + (drink ? "pour cost" : "food cost") + ", target " + pc(target)) : el("span",{class:"cat-pct", text:"Not costed yet"})),
+      el("div",{class:"cat-foot"}, fix ? el("span",{class:"cat-fix", text: fix + " to fix"}) : el("span"),
+        el("button",{class:"linkbtn", type:"button", text:"Costs", onclick:() => { MV.cat = k; MV.status = "all"; go("menu"); }})));
+  };
+  const bar = names.filter(isBar), kitchen = names.filter(k => !isBar(k));
+  const section = (title, list) => list.length ? el("section",{class:"cat-sec", "aria-label":title}, el("h2",{text:title}), el("div",{class:"cat-grid"}, list.map(tile))) : null;
+  return el("div",{class:"cats"}, section("Bar", bar), section("Kitchen", kitchen));
+}
+function barKitchenNumbers(r, all){
+  const part = pick => { const xs = all.filter(x => x.s.status !== "norecipe" && x.s.price > 0 && pick(x.i));
+    const sales = xs.reduce((t, x) => t + x.s.price * (n(x.i.sold) || 0), 0), cost = xs.reduce((t, x) => t + x.s.plate * (n(x.i.sold) || 0), 0);
+    const pct = sales ? cost / sales : xs.length ? xs.reduce((t, x) => t + x.s.fc, 0) / xs.length : null;
+    return { pct, profit: sales - cost, n: xs.length }; };
+  const bar = part(isDrink), food = part(it => !isDrink(it));
+  const barTarget = n(r.liquorTarget) || 0.18, cell = (val, label, cls, run) => el("div",{class: run ? "clickable" : null, onclick: run || null}, el("div",{class:"n" + (cls ? " " + cls : ""), text:val}), el("div",{class:"l", text:label}));
+  const tone = (p, t) => p == null ? "" : p > t + (r.tol || 0.05) ? "bad" : p > t ? "warn" : "";
+  return el("div",{class:"kstrip"},
+    bar.n ? cell(bar.pct != null ? pc(bar.pct) : "\u2014", "Bar pour cost", tone(bar.pct, barTarget)) : null,
+    cell(food.pct != null ? pc(food.pct) : "\u2014", "Kitchen food cost, target " + pc(r.target), tone(food.pct, r.target)),
+    cell($0(bar.profit + food.profit), "Profit after costs, per " + r.period),
+    cell(String(all.filter(x => x.s.status === "bad").length), "Items priced too low", all.some(x => x.s.status === "bad") ? "bad" : "", () => { MV.status = "bad"; MV.cat = "all"; go("menu"); }));
+}
 /* ================= Quick actions (Home) =================
    Only things you DO, not places you go: the sidebar and tab bar already cover pages. */
 function quickActions(r){
