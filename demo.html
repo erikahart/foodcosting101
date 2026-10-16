@@ -1084,6 +1084,19 @@ aside .brandbox b{font-size:1.3rem}
   .lab-revise .row{flex-wrap:wrap} .lab-revise .btn{width:100%}
 }
 
+/* ---------- Choice groups ---------- */
+.opts{display:grid;gap:12px}
+.opt-group{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--panel)}
+.opt-h{display:flex;flex-direction:column;gap:2px;margin-bottom:8px}
+.opt-up{width:92px;min-height:36px;text-align:right}
+.line.in-choice{border-left:3px solid var(--mustard);padding-left:6px}
+.line-choice{display:grid;grid-template-columns:auto minmax(0,200px) 1fr;gap:8px;align-items:center;margin:-2px 0 8px 10px}
+.line-choice .inp{min-height:36px}
+.lab-echoice{display:grid;grid-template-columns:minmax(0,2fr) 140px;gap:8px;margin-top:8px}
+.lab-echoice label{display:flex;flex-direction:column;gap:3px;font-size:.78rem;font-weight:600;color:var(--muted)}
+.lab-echoice .inp{min-height:38px}
+@media (max-width:700px){.line-choice{grid-template-columns:1fr;margin-left:0}.lab-echoice{grid-template-columns:1fr 1fr}}
+
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
 .demo-dot{width:8px;height:8px;border-radius:50%;background:#6FC79A;flex:none;box-shadow:0 0 0 4px rgba(111,199,154,.18)}
@@ -1502,12 +1515,17 @@ const targetFor = (it, r = R()) => { const k = drinkKind(it);
   if (k === "wine") return n(r.wineTarget) || 0.30;
   if (k === "liquor") return n(r.liquorTarget) || 0.18;
   return n(r.drinkTarget) || 0.22; };
+// Choice groups: ingredients the guest picks between (Protein: chicken OR salmon). Only the picked one is costed.
+function choiceGroups(it){ const g = {}; (it.lines || []).forEach(l => { if (l.choice) (g[l.choice] = g[l.choice] || []).push(l); }); return g; }
+const pickedIn = list => list.find(l => l.pick) || list[0];
+function activeLines(it){ const g = choiceGroups(it), on = new Set(Object.values(g).map(pickedIn)); return (it.lines || []).filter(l => !l.choice || on.has(l)); }
+const optionUpcharge = it => activeLines(it).reduce((t, l) => t + (l.choice ? n(l.extra) || 0 : 0), 0);
 function stats(it, r = R(), sups = r.supplies){
   const tgt = targetFor(it, r);
   let raw = 0, missing = 0;
-  (it.lines || []).forEach(l => { const c = lineCost(l, r, sups); if (c == null) missing++; else raw += c; });
+  activeLines(it).forEach(l => { const c = lineCost(l, r, sups); if (c == null) missing++; else raw += c; });
   const plate = raw / (n(it.portions) || 1) * (1 + r.q);
-  const price = n(it.price) || 0, fc = price ? plate / price : NaN;
+  const price = (n(it.price) || 0) + (n(it.price) ? optionUpcharge(it) : 0), fc = price ? plate / price : NaN;
   const suggested = plate > 0 ? Math.ceil(plate / tgt / r.round - 1e-9) * r.round : 0;
   const profit = price - plate;
   let status = "good";
@@ -1745,7 +1763,7 @@ function insightActs(ins){
   if (ins.linkAll) acts.append(el("button",{class:"btn primary", text:"Link ingredients to supplies", onclick:() => openLinkIngredients()}));
   if (ins.goMenu) acts.append(el("button",{class:"btn primary", text:"Show those items", onclick:() => { MV.status = ins.goMenu; MV.cat = "all"; go("menu"); }}));
   if (ins.item) acts.append(el("button",{class:"btn quiet", text:"Open recipe", onclick:() => openRecipe(ins.item)}));
-  if (ins.item && ins.sev === "bad" && ins.tag === "Losing margin") acts.append(el("button",{class:"btn primary", text:"Apply suggested price", onclick:() => { const it = R().items[ins.item]; it.price = stats(it).suggested; save(); render(); toast("Price updated"); }}));
+  if (ins.item && ins.sev === "bad" && ins.tag === "Losing margin") acts.append(el("button",{class:"btn primary", text:"Apply suggested price", onclick:() => { const it = R().items[ins.item]; it.price = Math.max(0, stats(it).suggested - optionUpcharge(it)); save(); render(); toast("Price updated"); }}));
   if (ins.supply) acts.append(el("button",{class:"btn quiet", text:"See supply", onclick:() => openSupply(ins.supply)}));
   acts.append(el("button",{class:"linkbtn dismiss", type:"button", text:"Dismiss", "aria-label":"Dismiss this suggestion", onclick:() => dismissInsight(ins)}));
   return acts;
@@ -2104,7 +2122,7 @@ function ingredientRows(it, r){
     const name = su ? supName(su) : (l.label || "Ingredient");
     const unit = l.unit || (su ? su.unit : "");
     const qty = n(l.qty) ? (Math.round(n(l.qty) * 100) / 100) : "";
-    return { qty: qty + (unit ? " " + unit : ""), name };
+    return { qty: qty + (unit ? " " + unit : ""), name: name + (l.choice ? " (" + l.choice + " choice" + (n(l.extra) ? ", +" + $$(n(l.extra)) : "") + ")" : "") };
   });
 }
 const BKV = { q:"", cat:"all" };
@@ -2602,10 +2620,42 @@ function labVendors(r){
   const vs = (r.vendors || []).map(v => v.name + (v.kind === "bev" ? " (beer, wine and liquor)" : ""));
   return vs.length ? vs : ["Gordon Food Service (food)", "Ohio Liquor agency store (spirits)", "Heidelberg Distributing (beer and wine)"];
 }
+// One row per option: what that choice costs, what it sells for and whether it hits target.
+function optionsPanel(it, r, sups, changed){
+  const groups = choiceGroups(it); if (!Object.keys(groups).length) return null;
+  const drink = isDrink(it), base = n(it.price) || 0;
+  return el("div",{class:"opts"}, Object.entries(groups).map(([gname, list]) => {
+    const cur = pickedIn(list);
+    return el("div",{class:"opt-group"},
+      el("div",{class:"opt-h"}, el("b",{text: gname + " (guest picks one)"}), el("span",{class:"mini", text:"Only the option you pick below is counted in the costs above."})),
+      el("div",{class:"tw"}, el("table",null,
+        el("thead",null, el("tr",null, el("th",{text:"Show costs with"}), el("th",{class:"num", text:"Option cost"}), el("th",{class:"num", text:"Upcharge"}), el("th",{class:"num", text:"Price"}), el("th",{class:"num", text: drink ? "Pour cost" : "Food cost"}), el("th",{class:"num", text:"Profit"}), el("th",{class:"num", text:"Suggested upcharge"}))),
+        el("tbody",null, list.map(l => {
+          const keep = list.map(x => x.pick); list.forEach(x => x.pick = x === l);
+          const st = stats(it, r, sups), oc = lineCost(l, r, sups);
+          const noExtra = n(l.extra); l.extra = 0; const sg = stats(it, r, sups).suggested; l.extra = noExtra;
+          list.forEach((x, i) => x.pick = keep[i]);
+          const sugUp = base ? Math.max(0, Math.ceil((sg - base) / r.round - 1e-9) * r.round) : 0;
+          const radio = el("input",{type:"radio", name:"pick-" + gname, "aria-label":"Show costs with " + (l.label || "this option")}); radio.checked = l === cur;
+          radio.onchange = () => { list.forEach(x => x.pick = x === l); changed(); };
+          const up = el("input",{class:"inp opt-up", type:"number", min:"0", step:"0.25", inputmode:"decimal", "aria-label":"Upcharge for " + (l.label || "option")}); up.value = n(l.extra) ? n(l.extra).toFixed(2) : "";
+          up.onchange = () => { l.extra = n(up.value) || 0; changed(); };
+          const tone = st.fc > targetFor(it, r) + r.tol ? "bad" : st.fc > targetFor(it, r) ? "warn" : "good";
+          return el("tr",{style:"cursor:default"},
+            el("td",null, el("label",{class:"row", style:"gap:8px;font-weight:600"}, radio, l.label || (l.s && sups[l.s] ? supName(sups[l.s]) : "Option"))),
+            el("td",{class:"num", text: oc != null ? $$(oc / (n(it.portions) || 1)) : "\u2014"}),
+            el("td",{class:"num"}, up),
+            el("td",{class:"num", text:$$(st.price)}),
+            el("td",{class:"num"}, el("span",{class:"pill " + tone, text: isFinite(st.fc) ? pc(st.fc) : "\u2014"})),
+            el("td",{class:"num", text:$$(st.profit)}),
+            el("td",{class:"num"}, sugUp > n(l.extra) + 0.001 ? el("button",{class:"linkbtn", type:"button", text:"+" + $$(sugUp), title:"Use this upcharge", onclick:() => { l.extra = sugUp; changed(); }}) : el("span",{class:"mini", text:"On target"})));
+        })))));
+  }));
+}
 function labRecipeJSON(dr){
   return { name: dr.name, description: dr.desc, kind: dr.kind, section: dr.section, servings: dr.servings,
     ingredients: dr.lines.map(l => { const e = l.s && dr.est[l.s];
-      return { name: l.label, qty: l.qty, unit: l.unit, supplyId: l.have ? l.s : null, estimate: e ? { order: e.name, caseQty: e.caseQty, unit: e.unit, price: e.price, from: e.supplier } : null }; }),
+      return { name: l.label, qty: l.qty, unit: l.unit, supplyId: l.have ? l.s : null, choice: l.choice || null, addPrice: n(l.extra) || 0, estimate: e ? { order: e.name, caseQty: e.caseQty, unit: e.unit, price: e.price, from: e.supplier } : null }; }),
     steps: dr.card.steps, plating: dr.card.plating, notes: dr.card.notes || "", prepMin: dr.card.prepMin, cookMin: dr.card.cookMin, station: dr.card.station, allergens: dr.card.allergens };
 }
 async function labAsk(task, brief){
@@ -2619,7 +2669,7 @@ async function labAsk(task, brief){
     "\nTheir suppliers: " + labVendors(r).join("; ") +
     "\nFor each ingredient give the amount in one of these units: " + UNIT_NAMES.join(", ") + ". If it matches one of their supplies, give that supply's id. If not, give an estimate of a typical case or bottle: what to order, its size (caseQty in that unit), a typical US price, and which of their suppliers would most likely carry it (spirits in Ohio come from the state liquor agency store)." +
     "\nReturn ONLY JSON: {\"name\": string, \"description\": one appetizing sentence for the menu, \"kind\": \"food\"|\"liquor\"|\"beer\"|\"wine\"|\"drink\", \"section\": a menu section like Specials or Cocktails, \"servings\": number, " +
-    "\"ingredients\": [{\"name\": string, \"qty\": number, \"unit\": string, \"supplyId\": string or null, \"estimate\": null or {\"order\": what to order, \"caseQty\": number, \"unit\": string, \"price\": number, \"from\": supplier name}}], " +
+    "\"ingredients\": [{\"name\": string, \"qty\": number, \"unit\": string, \"supplyId\": string or null, \"choice\": null, or a group name like \"Protein\" when the guest picks ONE of several alternatives (each alternative gets the same group name), \"addPrice\": extra charge for that option or 0, \"estimate\": null or {\"order\": what to order, \"caseQty\": number, \"unit\": string, \"price\": number, \"from\": supplier name}}], " +
     "\"steps\": [short imperative steps], \"plating\": string, \"notes\": storage and reheat instructions or \"\", \"prepMin\": number, \"cookMin\": number, \"station\": string, \"allergens\": [from: " + ALLERGENS.join(", ") + "]}", null, { maxTokens: 7000 });
 }
 async function labRun(task, keep){
@@ -2649,14 +2699,15 @@ function labPrepare(d, r){
   const est = {}, lines = [];
   (d.ingredients || []).forEach((g, i) => {
     const qty = n(g.qty) || 0, unit = UNITS[g.unit] ? g.unit : null;
+    const opt = g.choice ? { choice: String(g.choice).slice(0, 30), extra: n(g.addPrice) || 0 } : {};
     const su = g.supplyId && r.supplies[g.supplyId];
     const ok = su && unit && UNITS[su.unit] && UNITS[su.unit][0] === UNITS[unit][0];
-    if (ok){ lines.push({ s: su.id, label: g.name, qty, unit, have: true }); return; }
+    if (ok){ lines.push(Object.assign({ s: su.id, label: g.name, qty, unit, have: true }, opt)); return; }
     const e = g.estimate || {};
     if (n(e.price) > 0 && n(e.caseQty) > 0 && UNITS[e.unit] && unit && UNITS[e.unit][0] === UNITS[unit][0]){
       const id = "est" + i; est[id] = { id, name: (e.order || g.name), cat: guessCat(e.order || g.name), supplier: e.from || "", caseQty: n(e.caseQty), unit: e.unit, yield: 1, price: Math.round(n(e.price) * 100) / 100, estimated: true };
-      lines.push({ s: id, label: g.name, qty, unit, from: e.from || "", order: e.order || g.name });
-    } else lines.push({ s: null, label: g.name, qty, unit: unit || g.unit || "each", missing: true });
+      lines.push(Object.assign({ s: id, label: g.name, qty, unit, from: e.from || "", order: e.order || g.name }, opt));
+    } else lines.push(Object.assign({ s: null, label: g.name, qty, unit: unit || g.unit || "each", missing: true }, opt));
   });
   const kind = ["food","liquor","beer","wine","drink"].includes(d.kind) ? d.kind : "food";
   return { name: String(d.name || "New item").slice(0, 80), desc: String(d.description || ""), kind, section: String(d.section || (kind === "food" ? "Specials" : "Cocktails")).slice(0, 40),
@@ -2677,9 +2728,10 @@ async function labPhoto(dr){
 function labStats(dr, r){
   const sups = Object.assign({}, r.supplies, dr.est);
   const it = { name: dr.name, section: dr.section, drinkType: dr.kind === "food" ? "food" : dr.kind, lines: dr.lines.filter(l => l.s), portions: dr.servings, price: 0 };
-  const st = stats(it, r, sups), target = targetFor(it, r);
-  const price = n(dr.price) || st.suggested;
-  return { it, sups, st, target, price, pct: price ? st.plate / price : null, profit: price - st.plate };
+  const st0 = stats(it, r, sups), target = targetFor(it, r), up = optionUpcharge(it);
+  it.price = n(dr.price) || Math.max(0, st0.suggested - up);
+  const st = stats(it, r, sups), price = st.price;
+  return { it, sups, st, target, price, base: it.price, pct: price ? st.plate / price : null, profit: price - st.plate };
 }
 function lab(m){
   const r = R(); r.ideas = r.ideas || []; if (r.ideas.some(i => i.hasPhoto)) loadPhotos();
@@ -2733,6 +2785,9 @@ function labEditor(dr, r){
         txt(l.label, v => { l.label = v || l.label; redo(); }, "Ingredient"),
         numIn(l.qty, v => { l.qty = v; redo(); }), unitSel(l.unit, v => { l.unit = v; redo(); }), src,
         el("button",{class:"btn quiet lab-x", type:"button", "aria-label":"Remove " + l.label, text:"\u00d7", onclick:() => { dr.lines.splice(idx, 1); redo(); }})),
+      el("div",{class:"lab-echoice"},
+        el("label",null, "Choice group (blank = always included)", (() => { const i = txt(l.choice, v => { if (v) l.choice = v; else { delete l.choice; delete l.extra; delete l.pick; } redo(); }, "e.g. Protein"); i.setAttribute("list", "lab-groups"); return i; })()),
+        l.choice ? el("label",null, "Upcharge ($)", numIn(l.extra, v => { l.extra = v; redo(); }, "0.25")) : null),
       e ? el("div",{class:"lab-eest"},
         el("label",null, "Order", txt(e.name, v => { e.name = v || e.name; redo(); })),
         el("label",null, "Pack size", el("span",{class:"row"}, numIn(e.caseQty, v => { e.caseQty = v || 1; redo(); }, "1"), unitSel(e.unit, v => { e.unit = v; redo(); }))),
@@ -2745,6 +2800,7 @@ function labEditor(dr, r){
   const al = el("div",{class:"kb-al-pick"}, ALLERGENS.map(a => { const cb = el("input",{type:"checkbox"}); cb.checked = dr.card.allergens.includes(a); cb.onchange = () => { dr.card.allergens = ALLERGENS.filter(x => x === a ? cb.checked : dr.card.allergens.includes(x)); }; return el("label",null, cb, a); }));
   return el("div",{class:"lab-edit"},
     el("datalist",{id:"lab-vendors"}, vendors.map(v => el("option",{value:v}))),
+    el("datalist",{id:"lab-groups"}, [...new Set(dr.lines.map(l => l.choice).filter(Boolean).concat(["Protein","Side","Sauce","Size"]))].map(v => el("option",{value:v}))),
     el("div",{class:"lab-eg"}, fld("Makes (servings)", numIn(dr.servings, v => { dr.servings = Math.max(1, Math.round(v) || 1); redo(); }, "1")),
       fld("Prep (min)", numIn(dr.card.prepMin, v => dr.card.prepMin = v, "1")), fld(dr.kind === "food" ? "Cook (min)" : "Build (min)", numIn(dr.card.cookMin, v => dr.card.cookMin = v, "1")),
       fld("Station", txt(dr.card.station, v => dr.card.station = v))),
@@ -2757,18 +2813,20 @@ function labEditor(dr, r){
         el("div",{class:"field"}, el("span",{class:"q", text:"Allergens"}), al))));
 }
 function labResult(dr, r){
-  const x = labStats(dr, r), drink = dr.kind !== "food";
+  let x = labStats(dr, r); const drink = dr.kind !== "food";
+  if (!n(dr.price) && x.base){ dr.price = x.base; x = labStats(dr, r); }   // fix the base price; choosing an option no longer moves it
   const sups = x.sups;
   const rows = dr.lines.map(l => {
     const su = l.s && sups[l.s], c = l.s ? lineCost(l, r, sups) : null;
     const where = l.have ? el("span",null, el("span",{class:"pill good", text:"You stock it"}), " ", (su.supplier || "your supplies") + ": " + supName(su))
       : l.from || l.order ? el("span",null, el("span",{class:"pill warn", text:"To order"}), " ", (l.from ? "from " + l.from + ": " : "") + (su ? su.name + ", about " + $$(su.price) + " per " + su.caseQty + " " + su.unit : l.order))
       : el("span",{class:"pill bad", text:"No price yet"});
-    return el("tr",{style:"cursor:default"}, el("td",{style:"white-space:normal"}, el("b",{text:l.label})), el("td",{class:"num", text: (Math.round(n(l.qty) * 100) / 100) + " " + (l.unit || "")}),
+    return el("tr",{style:"cursor:default"}, el("td",{style:"white-space:normal"}, el("b",{text:l.label}), l.choice ? el("div",{class:"mini", text: l.choice + " choice" + (n(l.extra) ? ", +" + $$(n(l.extra)) : "")}) : null), el("td",{class:"num", text: (Math.round(n(l.qty) * 100) / 100) + " " + (l.unit || "")}),
       el("td",{style:"white-space:normal"}, where), el("td",{class:"num", text: c != null ? (l.have ? "" : "\u2248") + $$(c / dr.servings) : "\u2014"}));
   });
-  const priceIn = el("input",{class:"inp", type:"number", min:"0", step:"0.25", inputmode:"decimal", "aria-label":"Menu price"}); priceIn.value = x.price ? x.price.toFixed(2) : "";
+  const priceIn = el("input",{class:"inp", type:"number", min:"0", step:"0.25", inputmode:"decimal", "aria-label":"Menu price"}); priceIn.value = x.base ? x.base.toFixed(2) : "";
   priceIn.oninput = () => { dr.price = n(priceIn.value) || 0; const y = labStats(dr, r); pctEl.textContent = y.pct != null ? pc(y.pct) : "\u2014"; profitEl.textContent = $$(y.profit); };
+  priceIn.onchange = () => setTimeout(() => render(), 0);
   const pctEl = el("b",{text: x.pct != null ? pc(x.pct) : "\u2014"}), profitEl = el("b",{text:$$(x.profit)});
   const secIn = el("input",{class:"inp", list:"lab-secs"}); secIn.value = dr.section;
   const nameIn = el("input",{class:"inp"}); nameIn.value = dr.name; nameIn.oninput = () => dr.name = nameIn.value;
@@ -2776,10 +2834,11 @@ function labResult(dr, r){
   const addBtn = el("button",{class:"btn primary", type:"button", text:"Add to menu", onclick:() => {
     dr.section = secIn.value.trim() || dr.section; const ids = {};
     Object.values(dr.est).forEach(e => { if (!dr.lines.some(l => l.s === e.id)) return; const id = uid("s"); ids[e.id] = id;
-      r.supplies[id] = { id, name: e.name, cat: e.cat, supplier: e.supplier, code:"", caseQty: e.caseQty, unit: e.unit, yield: 1, price: e.price, estimated: true, history:[{ date: today(), price: e.price, src:"estimate" }] }; });
+      const short = e.name.replace(/,\s*[^,]*\d[^,]*$/, "").trim();
+      r.supplies[id] = { id, name: e.name, title: short !== e.name ? short : undefined, cat: e.cat, supplier: e.supplier, code:"", caseQty: e.caseQty, unit: e.unit, yield: 1, price: e.price, estimated: true, history:[{ date: today(), price: e.price, src:"estimate" }] }; });
     const order = Math.max(0, ...Object.values(r.items).map(i => i.order || 0)) + 1;
-    const it = { id: uid("m"), name: dr.name.trim() || "New item", section: dr.section, price: n(priceIn.value) || x.price, sold: 0, portions: dr.servings, order, desc: dr.desc,
-      lines: dr.lines.filter(l => l.s).map(l => ({ s: ids[l.s] || l.s, label: l.label, qty: l.qty, unit: l.unit })).concat(dr.lines.filter(l => !l.s).map(l => ({ s: null, label: l.label, qty: l.qty, unit: l.unit }))),
+    const it = { id: uid("m"), name: dr.name.trim() || "New item", section: dr.section, price: n(priceIn.value) || x.base, sold: 0, portions: dr.servings, order, desc: dr.desc,
+      lines: dr.lines.filter(l => l.s).map(l => Object.assign({ s: ids[l.s] || l.s, label: l.label, qty: l.qty, unit: l.unit }, l.choice ? { choice: l.choice, extra: n(l.extra) || 0, pick: !!l.pick } : {})).concat(dr.lines.filter(l => !l.s).map(l => Object.assign({ s: null, label: l.label, qty: l.qty, unit: l.unit }, l.choice ? { choice: l.choice, extra: n(l.extra) || 0 } : {}))),
       card: Object.assign({}, dr.card, { drafted: true }) };
     if (dr.kind !== "food") it.drinkType = dr.kind;
     r.items[it.id] = it; if (!r.sectionOrder) r.sectionOrder = []; if (!r.sectionOrder.includes(it.section)) r.sectionOrder.push(it.section);
@@ -2800,6 +2859,7 @@ function labResult(dr, r){
         el("div",null, el("span",{text:(drink ? "Pour" : "Food") + " cost"}), pctEl),
         el("div",null, el("span",{text:"Profit each"}), profitEl))),
     el("p",{class:"mini", text:"Suggested price " + $$(x.st.suggested) + " hits your " + pc(x.target) + " " + (drink ? "pour" : "food") + "-cost target" + (dr.servings > 1 ? " (recipe makes " + dr.servings + ")" : "") + ". Change it to see the effect."}),
+    (() => { const p = optionsPanel(x.it, r, x.sups, () => setTimeout(() => { const y = window.scrollY; render(); window.scrollTo(0, y); }, 0)); return p ? el("div",null, el("h3",{text:"Choices"}), p) : null; })(),
     dr.editing ? labEditor(dr, r) : el("h3",{text:"Ingredients and where to order"}),
     dr.editing ? null : el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Ingredient"}), el("th",{class:"num", text:"Amount"}), el("th",{text:"Where it comes from"}), el("th",{class:"num", text:"Cost each"}))), el("tbody",null, rows))),
     anyEst ? el("p",{class:"mini", text:"\u2248 marks AI-estimated prices for things you don't stock yet. Real prices replace them when an invoice arrives."}) : null,
@@ -3396,7 +3456,7 @@ function openRecipe(id){
   const sec = el("input",{class:"inp", list:"secs"}); sec.value = it.section || ""; sec.oninput = () => it.section = sec.value;
   const secs = el("datalist",{id:"secs"}, [...new Set(sectionOrder(r).concat(["Breakfast","Lunch","Dinner","Sides","Desserts","Drinks"]))].map(s => el("option",{value:s})));
   const num = (k, step) => { const i = el("input",{class:"inp", type:"number", inputmode:"decimal", min:"0", step}); i.value = it[k] || ""; i.oninput = () => { it[k] = n(i.value) || 0; paint(); }; return i; };
-  const costBox = el("div",{class:"cost"}), tip = el("div"), linesBox = el("div");
+  const costBox = el("div",{class:"cost"}), tip = el("div"), linesBox = el("div"); let choiceMode = false;
   const aiIn = el("textarea",{class:"inp", placeholder:"Describe the dish: \u201cPhilly cheesesteak: 6 oz shaved beef, peppers, onions, provolone on a hoagie, fries on the side\u201d"});
   const aiBtn = el("button",{class:"btn primary", text:"Draft recipe", onclick:() => draftAI()}); const aiMsg = el("div",{class:"mini", style:"margin-top:6px"});
   function paint(){
@@ -3430,9 +3490,18 @@ function openRecipe(id){
       sel.onchange = () => { l.s = sel.value || null; l.unit = null; drawLines(); paint(); };
       q.oninput = () => { l.qty = n(q.value); delete l.note; q.style.borderColor = ""; q.title = ""; lc.textContent = lineCost(l) != null ? $$(lineCost(l)) : "—"; paint(); };
       un.onchange = () => { l.unit = un.value; lc.textContent = lineCost(l) != null ? $$(lineCost(l)) : "—"; paint(); };
-      linesBox.append(el("div",{class:"line" + (c == null ? " bad" : "")}, sel, q, un, lc, el("button",{class:"ix", "aria-label":"Remove", text:"×", onclick:() => { it.lines.splice(i,1); drawLines(); paint(); }})));
+      linesBox.append(el("div",{class:"line" + (c == null ? " bad" : "") + (l.choice ? " in-choice" : "")}, sel, q, un, lc, el("button",{class:"ix", "aria-label":"Remove", text:"×", onclick:() => { it.lines.splice(i,1); drawLines(); paint(); }})));
+      if (choiceMode || l.choice){
+        const g = el("input",{class:"inp", list:"rc-groups", placeholder:"Always included", "aria-label":"Choice group"}); g.value = l.choice || "";
+        g.onchange = () => { const v = g.value.trim(); if (v) l.choice = v; else { delete l.choice; delete l.extra; delete l.pick; } setTimeout(() => { drawLines(); paint(); }, 0); };
+        linesBox.append(el("div",{class:"line-choice"}, el("span",{class:"mini", text:"Choice group"}), g, l.choice ? el("span",{class:"mini", text:"Upcharge and which option to cost: see Choices below"}) : null));
+      }
     });
-    linesBox.append(el("button",{class:"btn quiet", style:"margin-top:6px", text:"+ Add ingredient", onclick:() => { it.lines.push({ s:null, qty:1, unit:null }); drawLines(); }}));
+    linesBox.append(el("datalist",{id:"rc-groups"}, [...new Set(it.lines.map(l => l.choice).filter(Boolean).concat(["Protein","Side","Sauce","Size"]))].map(v => el("option",{value:v}))));
+    const op = optionsPanel(it, r, r.supplies, () => setTimeout(() => { drawLines(); paint(); }, 0));
+    if (op) linesBox.append(el("h3",{style:"margin:14px 0 6px", text:"Choices"}), op);
+    linesBox.append(el("div",{class:"row", style:"margin-top:6px"}, el("button",{class:"btn quiet", text:"+ Add ingredient", onclick:() => { it.lines.push({ s:null, qty:1, unit:null }); drawLines(); }}),
+      el("button",{class:"btn quiet", text: choiceMode ? "Hide choice groups" : "Choices (like chicken or salmon)", onclick:() => { choiceMode = !choiceMode; drawLines(); }})));
   }
   async function draftAI(){
     const desc = aiIn.value.trim(); if (!desc){ aiMsg.textContent = "Describe the dish first."; return; }
