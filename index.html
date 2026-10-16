@@ -981,6 +981,9 @@ aside .brandbox b{font-size:1.3rem}
 .pk-n{display:flex;flex-direction:column;align-items:flex-end;text-align:right}
 .pk-ings summary{cursor:pointer;font-weight:600;padding:6px 0}
 .kb-hero{object-fit:contain;max-height:440px;background:var(--field)}
+/* Tickets hang straight */
+.tk,.tk:nth-child(odd){transform:none}
+@keyframes tkDrop{from{transform:translateY(-26px);opacity:0}to{transform:none;opacity:1}}
 </style>
 </head>
 <body>
