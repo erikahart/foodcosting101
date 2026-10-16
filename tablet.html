@@ -108,6 +108,13 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
 .pick > div{background:var(--panel);color:var(--ink);width:min(720px,100%);border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px))}
 .pick h3{margin:0 0 4px;font-family:var(--head);font-weight:800;font-size:1.6rem}
 .pick .names{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:14px 0}
+.pick .names.two{grid-template-columns:1fr 1fr}
+.pick .names .okb{background:var(--jade);color:#fff;border-color:var(--jade);min-height:78px;font-size:1.2rem}
+.pick .names .cantb{background:var(--warn-soft);border-color:var(--mustard);min-height:78px;font-size:1.2rem}
+.why-in{width:100%;font:inherit;font-size:1.1rem;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--ink);min-height:54px}
+.chk.skipped{background:var(--warn-soft);border-color:transparent}
+.chk.skipped .box{background:var(--mustard);border-color:var(--mustard)}
+.chk.skipped .by{color:#9A6A0B;white-space:normal;text-align:right;max-width:45%}
 .pick .names button{min-height:58px;border-radius:12px;border:1px solid var(--line);background:var(--field);font-weight:700;font-size:1.05rem;cursor:pointer}
 .tbtn.custom{background:var(--mustard);border-color:var(--mustard);color:#24221F}
 .ask{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;display:grid;gap:12px;margin-bottom:18px}
@@ -294,12 +301,30 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
         h("button", { class:"back", type:"button", text:"Cancel", onclick: () => wrap.remove() })));
     document.body.append(wrap);
   }
-  async function setDuty(l, it, by, done){
+  async function setDuty(l, it, by, status, note){
     const day = localDay(), key = l.id + "|" + it.id;
-    if (done) CHECKS.set(key, { list_id: l.id, item_id: it.id, done_by: by, done_at: new Date().toISOString() }); else CHECKS.delete(key);
+    if (status) CHECKS.set(key, { list_id: l.id, item_id: it.id, done_by: by, done_at: new Date().toISOString(), status, note: note || null }); else CHECKS.delete(key);
     render();
-    const { data, error } = await sb.rpc("book_duty_set", { p_token: token, p_day: day, p_list: l.id, p_item: it.id, p_by: by || null, p_done: done });
+    const { data, error } = await sb.rpc("book_duty_mark", { p_token: token, p_day: day, p_list: l.id, p_item: it.id, p_by: by || null, p_status: status || null, p_note: note || null });
     if (error || data !== true){ alert("That didn't save. Check the Wi-Fi and try again."); loadChecks(); }
+  }
+  // Tap a duty: Done, or Can't do it with a reason. Then who you are.
+  const REASONS = ["Ran out of supplies", "Equipment broken", "Short-staffed / too busy", "Ran out of time"];
+  function dutySheet(l, x, c){
+    const wrap = h("div", { class:"pick", onclick: e => { if (e.target === wrap) wrap.remove(); } });
+    const close = () => wrap.remove();
+    const choose = () => wrap.replaceChildren(h("div", null, h("h3", { text: x.text }),
+      h("div", { class:"names two" },
+        h("button", { type:"button", class:"okb", text:"\u2713 Done", onclick: () => { close(); namePicker(x.text, nm => setDuty(l, x, nm, "done")); } }),
+        h("button", { type:"button", class:"cantb", text:"Can't do it", onclick: reasons })),
+      c ? h("button", { class:"back", type:"button", text:"Clear it (not done yet)", onclick: () => { close(); setDuty(l, x, null, null); } }) : null,
+      h("button", { class:"back", type:"button", style:"margin-left:8px", text:"Cancel", onclick: close })));
+    const reasons = () => { const other = h("input", { type:"text", placeholder:"Or type what happened", class:"why-in" });
+      wrap.replaceChildren(h("div", null, h("h3", { text:"Why couldn't it get done?" }), h("div", { class:"sub-note", text: x.text }),
+        h("div", { class:"names" }, REASONS.map(r => h("button", { type:"button", text: r, onclick: () => { close(); namePicker(x.text, nm => setDuty(l, x, nm, "skipped", r)); } }))),
+        other, h("div", { class:"row", style:"margin-top:12px" }, h("button", { class:"go", type:"button", text:"Next", onclick: () => { const v = other.value.trim(); if (!v) return other.focus(); close(); namePicker(x.text, nm => setDuty(l, x, nm, "skipped", v)); } }),
+          h("button", { class:"back", type:"button", text:"Back", onclick: choose })))); };
+    choose(); document.body.append(wrap);
   }
   function dutiesView(m){
     const today = localDay(), dn = new Date(today + "T12:00:00").getDay();
@@ -308,12 +333,12 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
     const lists = (BOOK.duties || []).filter(l => !l.days || !l.days.length || l.days.includes(dn)).sort((a, b) => (order[a.when] - order[b.when]) || a.area.localeCompare(b.area));
     const parts = [h("div", { class:"day-h" }, h("h2", { text:"Duties for " + DOWL[dn] }), h("span", { class:"sub-note", text:"Tap a duty when it's done, then tap your name." }))];
     if (!lists.length) parts.push(h("div", { class:"empty", text:"No checklists set up for today. Managers add them in the app under Schedule \u2192 Duties." }));
-    lists.forEach(l => { const n = l.items.filter(x => CHECKS.has(l.id + "|" + x.id)).length;
+    lists.forEach(l => { const n = l.items.filter(x => { const c = CHECKS.get(l.id + "|" + x.id); return c && c.status !== "skipped"; }).length;
       parts.push(h("section", { class:"duty" }, h("div", { class:"duty-h" }, h("h3", { text: l.name }), h("span", { class:"prog" + (n === l.items.length && n ? " all" : ""), text: n + " of " + l.items.length })),
-        l.items.map(x => { const c = CHECKS.get(l.id + "|" + x.id);
-          return h("button", { class:"chk" + (c ? " done" : ""), type:"button", onclick: () => { if (c){ if (confirm("Mark \u201c" + x.text + "\u201d as not done?")) setDuty(l, x, null, false); } else namePicker(x.text, nm => setDuty(l, x, nm, true)); } },
-            h("span", { class:"box", text: c ? "\u2713" : "" }), h("span", { class:"tx", text: x.text }),
-            c ? h("span", { class:"by", text: (c.done_by || "") + " " + new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) }) : null); }))); });
+        l.items.map(x => { const c = CHECKS.get(l.id + "|" + x.id), sk = c && c.status === "skipped";
+          return h("button", { class:"chk" + (sk ? " skipped" : c ? " done" : ""), type:"button", onclick: () => dutySheet(l, x, c) },
+            h("span", { class:"box", text: sk ? "!" : c ? "\u2713" : "" }), h("span", { class:"tx", text: x.text }),
+            c ? h("span", { class:"by", text: sk ? "Couldn't: " + (c.note || "") + " (" + (c.done_by || "") + ")" : (c.done_by || "") + " " + new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) }) : null); }))); });
     m.replaceChildren(...parts, status());
     clearInterval(checkTimer); checkTimer = setInterval(() => { if (location.hash === "#duties") loadChecks(); else clearInterval(checkTimer); }, 60000);
   }
