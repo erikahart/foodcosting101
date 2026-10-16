@@ -1057,6 +1057,12 @@ aside .brandbox b{font-size:1.3rem}
   .lab-actions .row{width:100%} .lab-sec{flex:1} .lab-sec .inp{width:100%}
 }
 .lab-notes{white-space:pre-line}
+.lab-photo{flex:0 0 220px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.lab-photo .kb-imgwrap{width:220px;border-radius:12px}
+.lab-photo .kb-imgwrap img{width:100%;height:100%;object-fit:contain}
+.lab-photo-wait{width:220px;aspect-ratio:1/1;border-radius:12px;border:1px dashed var(--line-2);background:var(--field);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center}
+.lab-idea-img{width:48px;height:48px;border-radius:8px;object-fit:cover;margin-left:6px}
+@media (max-width:700px){.lab-photo{flex-basis:100%;align-items:stretch}.lab-photo .kb-imgwrap,.lab-photo-wait{width:100%}}
 </style>
 </head>
 <body>
@@ -2515,6 +2521,7 @@ async function labBuild(twist){
     try { d = await ask(false); }
     catch(e){ if (e && (e.code === "unreadable" || e.reason === "timeout")) d = await ask(true); else throw e; }   // one shorter retry
     LAB.draft = labPrepare(d, r);
+    setTimeout(() => labPhoto(LAB.draft), 50);
   } catch(e){ LAB.err = aiProblem(e) || "Couldn't build that right now (" + ((e && (e.reason || e.code)) || "unknown") + "). Try again in a moment."; }
   LAB.busy = false; render();
 }
@@ -2537,6 +2544,17 @@ function labPrepare(d, r){
     servings: Math.max(1, Math.round(n(d.servings) || 1)), lines, est,
     card: { prepMin: n(d.prepMin), cookMin: n(d.cookMin), station: String(d.station || (kind === "food" ? "" : "Bar")), steps: (d.steps || []).map(String).slice(0, 14), plating: String(d.plating || ""), notes: String(d.notes || ""), allergens: ALLERGENS.filter(a => (d.allergens || []).includes(a)), yieldText: "" } };
 }
+// A sample photo of the idea, from the same AI image service as the Kitchen book.
+async function labPhoto(dr){
+  if (!dr || dr.photoBusy) return;
+  dr.photoBusy = true; dr.photoErr = null; if (LAB.draft === dr) render();
+  try {
+    const details = [dr.desc, dr.kind === "food" ? "" : "This is a drink, served in a glass.", dr.card.plating ? "Presentation: " + dr.card.plating : ""].filter(Boolean).join(" ");
+    const d = await apiPost("/api/ai-image", { dish: dr.name, details });
+    dr.photo = await photoDataUrl(b64ToBlob(d.data, d.type || "image/png"));
+  } catch(e){ dr.photoErr = (e && e.reason && AI_REASONS[e.reason]) || (e && e.message) || "Couldn't create a sample photo right now."; if (dr.photo) toast(dr.photoErr); }
+  dr.photoBusy = false; if (LAB.draft === dr) render();
+}
 function labStats(dr, r){
   const sups = Object.assign({}, r.supplies, dr.est);
   const it = { name: dr.name, section: dr.section, drinkType: dr.kind === "food" ? "food" : dr.kind, lines: dr.lines.filter(l => l.s), portions: dr.servings, price: 0 };
@@ -2545,7 +2563,7 @@ function labStats(dr, r){
   return { it, sups, st, target, price, pct: price ? st.plate / price : null, profit: price - st.plate };
 }
 function lab(m){
-  const r = R(); r.ideas = r.ideas || [];
+  const r = R(); r.ideas = r.ideas || []; if (r.ideas.some(i => i.hasPhoto)) loadPhotos();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Test kitchen"}), el("p",{class:"lead", text:"Describe something new. Get a recipe, where to order each ingredient, what it costs and what to charge."}))));
   const box = el("textarea",{class:"inp lab-in", rows:"3", placeholder:"e.g. a fall apple cider mule for the bar, or a smash burger special with fries"}); box.value = LAB.prompt;
   box.oninput = () => LAB.prompt = box.value;
@@ -2564,9 +2582,10 @@ function lab(m){
   if (r.ideas.length){
     m.append(el("div",{class:"sect-h"}, el("h2",{text:"Saved ideas"})));
     m.append(el("div",{class:"lab-saved"}, r.ideas.slice().reverse().map(idea => { const x = labStats(idea.draft, r);
-      return el("div",{class:"lab-idea"}, el("button",{class:"lab-idea-main", type:"button", onclick:() => { LAB.draft = JSON.parse(JSON.stringify(idea.draft)); LAB.prompt = idea.prompt || ""; render(); window.scrollTo({ top: 0, behavior:"smooth" }); }},
+      const ph = PHOTOS.get("idea_" + idea.id);
+      return el("div",{class:"lab-idea"}, ph ? el("img",{class:"lab-idea-img", src:ph, alt:""}) : null, el("button",{class:"lab-idea-main", type:"button", onclick:() => { LAB.draft = JSON.parse(JSON.stringify(idea.draft)); if (ph) LAB.draft.photo = ph; LAB.prompt = idea.prompt || ""; render(); window.scrollTo({ top: 0, behavior:"smooth" }); }},
           el("b",{text:idea.draft.name}), el("span",{class:"mini", text: "Cost " + $$(x.st.plate) + ", charge " + $$(x.price) + ", saved " + nice(idea.saved)})),
-        el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { r.ideas = r.ideas.filter(i => i !== idea); save(); render(); }})); })));
+        el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { r.ideas = r.ideas.filter(i => i !== idea); save(); render(); if (idea.hasPhoto){ sb.rpc("delete_photo", { p_account: ACCT.id, p_item: "idea_" + idea.id }); PHOTOS.delete("idea_" + idea.id); } }})); })));
   }
 }
 function labResult(dr, r){
@@ -2597,10 +2616,16 @@ function labResult(dr, r){
     if (dr.kind !== "food") it.drinkType = dr.kind;
     r.items[it.id] = it; if (!r.sectionOrder) r.sectionOrder = []; if (!r.sectionOrder.includes(it.section)) r.sectionOrder.push(it.section);
     save(); LAB.draft = null; toast(it.name + " is on your menu" + (anyEst ? ". New ingredients are tagged \u201cAI estimate\u201d until an invoice brings real prices." : "."));
+    if (dr.photo){ const m2 = dr.photo.match(/^data:([^;]+);base64,(.*)$/); if (m2) storePhoto(it, b64ToBlob(m2[2], m2[1]), "ai").then(() => save()).catch(() => {}); }
     openRecipe(it.id);
   }});
+  const photo = el("div",{class:"lab-photo"},
+    dr.photo ? el("div",{class:"kb-imgwrap", style:'--bg:url("' + dr.photo + '")'}, el("img",{src:dr.photo, alt:"AI sample photo of " + dr.name}), el("span",{class:"kb-aitag", text:"AI sample photo"}))
+      : dr.photoBusy ? el("div",{class:"lab-photo-wait"}, el("div",{class:"spin"}), el("span",{class:"mini", text:"Creating a sample photo…"}))
+      : el("div",{class:"lab-photo-wait"}, el("span",{class:"mini", text: dr.photoErr || "No photo yet."})),
+    el("button",{class:"linkbtn", type:"button", disabled: dr.photoBusy ? "" : null, text: dr.photo ? "New photo" : "Create a sample photo", onclick:() => labPhoto(dr)}));
   return el("div",{class:"card lab-result"},
-    el("div",{class:"lab-head"}, el("div",{style:"flex:1;min-width:0"}, fld("Name", nameIn), el("p",{class:"lab-desc", text:dr.desc})),
+    el("div",{class:"lab-head"}, photo, el("div",{style:"flex:1;min-width:0"}, fld("Name", nameIn), el("p",{class:"lab-desc", text:dr.desc})),
       el("div",{class:"lab-price"},
         el("div",null, el("span",{text:(drink ? "Pour" : "Plate") + " cost"}), el("b",{text:$$(x.st.plate)})),
         el("div",null, el("span",{text:"Charge"}), priceIn),
@@ -2620,7 +2645,10 @@ function labResult(dr, r){
     el("div",{class:"lab-actions"},
       el("div",{class:"row"}, el("button",{class:"btn quiet", type:"button", text:"Make it cheaper", onclick:() => labBuild("Make it cheaper to produce: lower-cost ingredients or smaller portions, same idea")}),
         el("button",{class:"btn quiet", type:"button", text:"Make it fancier", onclick:() => labBuild("Make it a more premium version worth a higher price")}),
-        el("button",{class:"btn quiet", type:"button", text:"Save idea", onclick:() => { r.ideas = r.ideas || []; dr.price = n(priceIn.value) || x.price; r.ideas.push({ id: uid("i"), prompt: LAB.prompt, saved: today(), draft: JSON.parse(JSON.stringify(dr)) }); save(); toast("Saved to your ideas"); render(); }})),
+        el("button",{class:"btn quiet", type:"button", text:"Save idea", onclick: async () => { r.ideas = r.ideas || []; dr.price = n(priceIn.value) || x.price;
+          const keep = JSON.parse(JSON.stringify(Object.assign({}, dr, { photo: undefined, photoBusy: undefined, photoErr: undefined }))), id = uid("i");
+          r.ideas.push({ id, prompt: LAB.prompt, saved: today(), draft: keep, hasPhoto: !!dr.photo }); save(); toast("Saved to your ideas"); render();
+          if (dr.photo){ const { error } = await sb.rpc("save_photo", { p_account: ACCT.id, p_item: "idea_" + id, p_data: dr.photo }); if (!error){ PHOTOS.set("idea_" + id, dr.photo); render(); } } }})),
       el("div",{class:"row"}, el("label",{class:"lab-sec"}, "Section ", secIn), el("datalist",{id:"lab-secs"}, sectionOrder(r).map(sct => el("option",{value:sct}))), addBtn)));
 }
 /* ================= Recipe packs: ready-made recipes with cards and photos ================= */
