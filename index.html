@@ -1063,6 +1063,26 @@ aside .brandbox b{font-size:1.3rem}
 .lab-photo-wait{width:220px;aspect-ratio:1/1;border-radius:12px;border:1px dashed var(--line-2);background:var(--field);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:14px;text-align:center}
 .lab-idea-img{width:48px;height:48px;border-radius:8px;object-fit:cover;margin-left:6px}
 @media (max-width:700px){.lab-photo{flex-basis:100%;align-items:stretch}.lab-photo .kb-imgwrap,.lab-photo-wait{width:100%}}
+
+.lab-edit{display:grid;gap:10px;border:1px dashed var(--line-2);border-radius:12px;padding:14px;background:var(--field)}
+.lab-eg{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.lab-erows{display:grid;gap:8px}
+.lab-erow{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:8px}
+.lab-eline{display:grid;grid-template-columns:minmax(0,2fr) 90px 96px minmax(0,2fr) 44px;gap:8px;align-items:center}
+.lab-eline .inp,.lab-eest .inp{min-height:40px}
+.lab-x{min-height:40px;padding:0;font-size:1.2rem}
+.lab-eest{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1.4fr) 110px minmax(0,1.4fr);gap:8px;margin-top:8px;padding-top:8px;border-top:1px dashed var(--line)}
+.lab-eest label{display:flex;flex-direction:column;gap:3px;font-size:.78rem;font-weight:600;color:var(--muted)}
+.lab-eest .row{gap:6px;flex-wrap:nowrap} .lab-eest .row .inp:first-child{width:80px}
+.lab-revise{display:grid;gap:6px;border-top:1px solid var(--line);padding-top:12px}
+.lab-revise .row{flex-wrap:nowrap} .lab-revise .inp{flex:1}
+@media (max-width:700px){
+  .lab-eg{grid-template-columns:1fr 1fr}
+  .lab-eline{grid-template-columns:1fr 80px 90px;}
+  .lab-eline > select:nth-of-type(2){grid-column:1/3} .lab-x{grid-column:3}
+  .lab-eest{grid-template-columns:1fr 1fr}
+  .lab-revise .row{flex-wrap:wrap} .lab-revise .btn{width:100%}
+}
 </style>
 </head>
 <body>
@@ -2501,29 +2521,47 @@ function labVendors(r){
   const vs = (r.vendors || []).map(v => v.name + (v.kind === "bev" ? " (beer, wine and liquor)" : ""));
   return vs.length ? vs : ["Gordon Food Service (food)", "Ohio Liquor agency store (spirits)", "Heidelberg Distributing (beer and wine)"];
 }
-async function labBuild(twist){
-  const r = R(); if (!LAB.prompt.trim()) return;
-  LAB.busy = true; LAB.err = null; render();
+function labRecipeJSON(dr){
+  return { name: dr.name, description: dr.desc, kind: dr.kind, section: dr.section, servings: dr.servings,
+    ingredients: dr.lines.map(l => { const e = l.s && dr.est[l.s];
+      return { name: l.label, qty: l.qty, unit: l.unit, supplyId: l.have ? l.s : null, estimate: e ? { order: e.name, caseQty: e.caseQty, unit: e.unit, price: e.price, from: e.supplier } : null }; }),
+    steps: dr.card.steps, plating: dr.card.plating, notes: dr.card.notes || "", prepMin: dr.card.prepMin, cookMin: dr.card.cookMin, station: dr.card.station, allergens: dr.card.allergens };
+}
+async function labAsk(task, brief){
+  const r = R();
   const sups = Object.values(r.supplies).filter(su => n(su.price) > 0 && n(su.caseQty) > 0).slice(0, 220);
   const list = sups.map(su => su.id + "|" + supName(su) + "|" + su.unit + "|" + (su.supplier || "")).join("\n");
-  const ask = brief => aiJSON("You develop new menu items for a small-town American diner and bar (" + (r.name || "the kitchen") + "). The owner wants: \u201c" + LAB.prompt.trim() + "\u201d" +
-      (LAB.kind !== "auto" ? ". Type: " + LAB_KINDS.find(k => k[0] === LAB.kind)[1] : "") + (n(LAB.price) ? ". They'd like to charge about $" + n(LAB.price).toFixed(2) : "") + (twist ? ". " + twist : "") +
-      ".\nWrite ONE practical recipe for a single serving (or a batch, saying how many servings) that a busy line or bar can execute. Use ingredients they already stock when sensible. Leave out ice, water and anything with no real cost." +
-      " Be concise: at most " + (brief ? "12 ingredients and 8 steps" : "18 ingredients and 12 steps") + ", each step under 20 words. If it's made ahead, frozen or held, put storage, labeling and reheating instructions in \"notes\"." +
-      "\nTheir supplies (id|name|unit|supplier):\n" + (list || "(none yet)") +
-      "\nTheir suppliers: " + labVendors(r).join("; ") +
-      "\nFor each ingredient give the amount in one of these units: " + UNIT_NAMES.join(", ") + ". If it matches one of their supplies, give that supply's id. If not, give an estimate of a typical case or bottle: what to order, its size (caseQty in that unit), a typical US price, and which of their suppliers would most likely carry it (spirits in Ohio come from the state liquor agency store)." +
-      "\nReturn ONLY JSON: {\"name\": string, \"description\": one appetizing sentence for the menu, \"kind\": \"food\"|\"liquor\"|\"beer\"|\"wine\"|\"drink\", \"section\": a menu section like Specials or Cocktails, \"servings\": number, " +
-      "\"ingredients\": [{\"name\": string, \"qty\": number, \"unit\": string, \"supplyId\": string or null, \"estimate\": null or {\"order\": what to order, \"caseQty\": number, \"unit\": string, \"price\": number, \"from\": supplier name}}], " +
-      "\"steps\": [short imperative steps], \"plating\": string, \"notes\": storage and reheat instructions or \"\", \"prepMin\": number, \"cookMin\": number, \"station\": string, \"allergens\": [from: " + ALLERGENS.join(", ") + "]}", null, { maxTokens: 7000 });
+  return aiJSON("You develop menu items for a small-town American diner and bar (" + (r.name || "the kitchen") + "). " + task +
+    "\nWrite ONE practical recipe for a single serving (or a batch, saying how many servings) that a busy line or bar can execute. Use ingredients they already stock when sensible. Leave out ice, water and anything with no real cost." +
+    " Be concise: at most " + (brief ? "12 ingredients and 8 steps" : "18 ingredients and 12 steps") + ", each step under 20 words. If it's made ahead, frozen or held, put storage, labeling and reheating instructions in \"notes\"." +
+    "\nTheir supplies (id|name|unit|supplier):\n" + (list || "(none yet)") +
+    "\nTheir suppliers: " + labVendors(r).join("; ") +
+    "\nFor each ingredient give the amount in one of these units: " + UNIT_NAMES.join(", ") + ". If it matches one of their supplies, give that supply's id. If not, give an estimate of a typical case or bottle: what to order, its size (caseQty in that unit), a typical US price, and which of their suppliers would most likely carry it (spirits in Ohio come from the state liquor agency store)." +
+    "\nReturn ONLY JSON: {\"name\": string, \"description\": one appetizing sentence for the menu, \"kind\": \"food\"|\"liquor\"|\"beer\"|\"wine\"|\"drink\", \"section\": a menu section like Specials or Cocktails, \"servings\": number, " +
+    "\"ingredients\": [{\"name\": string, \"qty\": number, \"unit\": string, \"supplyId\": string or null, \"estimate\": null or {\"order\": what to order, \"caseQty\": number, \"unit\": string, \"price\": number, \"from\": supplier name}}], " +
+    "\"steps\": [short imperative steps], \"plating\": string, \"notes\": storage and reheat instructions or \"\", \"prepMin\": number, \"cookMin\": number, \"station\": string, \"allergens\": [from: " + ALLERGENS.join(", ") + "]}", null, { maxTokens: 7000 });
+}
+async function labRun(task, keep){
+  const r = R(); LAB.busy = true; LAB.err = null; render();
   try {
     let d;
-    try { d = await ask(false); }
-    catch(e){ if (e && (e.code === "unreadable" || e.reason === "timeout")) d = await ask(true); else throw e; }   // one shorter retry
-    LAB.draft = labPrepare(d, r);
-    setTimeout(() => labPhoto(LAB.draft), 50);
+    try { d = await labAsk(task, false); }
+    catch(e){ if (e && (e.code === "unreadable" || e.reason === "timeout")) d = await labAsk(task, true); else throw e; }   // one shorter retry
+    const next = labPrepare(d, r);
+    if (keep){ ["photo","ideaId"].forEach(k => { if (keep[k]) next[k] = keep[k]; }); }
+    LAB.draft = next;
+    if (!next.photo) setTimeout(() => labPhoto(LAB.draft), 50);
   } catch(e){ LAB.err = aiProblem(e) || "Couldn't build that right now (" + ((e && (e.reason || e.code)) || "unknown") + "). Try again in a moment."; }
   LAB.busy = false; render();
+}
+function labBuild(twist){
+  if (!LAB.prompt.trim()) return;
+  return labRun("The owner wants: \u201c" + LAB.prompt.trim() + "\u201d" + (LAB.kind !== "auto" ? ". Type: " + LAB_KINDS.find(k => k[0] === LAB.kind)[1] : "") + (n(LAB.price) ? ". They'd like to charge about $" + n(LAB.price).toFixed(2) : "") + (twist ? ". " + twist : "") + ".");
+}
+// Revise the recipe on screen: keep what isn't asked to change.
+function labRevise(dr, request){
+  if (!request.trim()) return;
+  return labRun("Here is their current recipe as JSON:\n" + JSON.stringify(labRecipeJSON(dr)) + "\nChange it as the owner asks: \u201c" + request.trim() + "\u201d. Keep everything else the same unless the change requires it (amounts, steps, allergens and notes should stay consistent with the change).", dr);
 }
 // Turn the AI draft into lines the app can cost with its own math.
 function labPrepare(d, r){
@@ -2583,10 +2621,59 @@ function lab(m){
     m.append(el("div",{class:"sect-h"}, el("h2",{text:"Saved ideas"})));
     m.append(el("div",{class:"lab-saved"}, r.ideas.slice().reverse().map(idea => { const x = labStats(idea.draft, r);
       const ph = PHOTOS.get("idea_" + idea.id);
-      return el("div",{class:"lab-idea"}, ph ? el("img",{class:"lab-idea-img", src:ph, alt:""}) : null, el("button",{class:"lab-idea-main", type:"button", onclick:() => { LAB.draft = JSON.parse(JSON.stringify(idea.draft)); if (ph) LAB.draft.photo = ph; LAB.prompt = idea.prompt || ""; render(); window.scrollTo({ top: 0, behavior:"smooth" }); }},
+      return el("div",{class:"lab-idea"}, ph ? el("img",{class:"lab-idea-img", src:ph, alt:""}) : null, el("button",{class:"lab-idea-main", type:"button", onclick:() => { LAB.draft = JSON.parse(JSON.stringify(idea.draft)); LAB.draft.ideaId = idea.id; if (ph) LAB.draft.photo = ph; LAB.prompt = idea.prompt || ""; render(); window.scrollTo({ top: 0, behavior:"smooth" }); }},
           el("b",{text:idea.draft.name}), el("span",{class:"mini", text: "Cost " + $$(x.st.plate) + ", charge " + $$(x.price) + ", saved " + nice(idea.saved)})),
         el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { r.ideas = r.ideas.filter(i => i !== idea); save(); render(); if (idea.hasPhoto){ sb.rpc("delete_photo", { p_account: ACCT.id, p_item: "idea_" + idea.id }); PHOTOS.delete("idea_" + idea.id); } }})); })));
   }
+}
+function labEditor(dr, r){
+  const sups = Object.values(r.supplies).sort((a, b) => supName(a).localeCompare(supName(b)));
+  const vendors = labVendors(r).map(v => v.replace(/ \(.*\)$/, ""));
+  // Redraw after the current change finishes (redrawing mid-blur can drop an edit).
+  const redo = () => { if (LAB.redraw) return; LAB.redraw = setTimeout(() => { LAB.redraw = null; const y = window.scrollY; render(); window.scrollTo(0, y); }, 0); };
+  const unitSel = (val, on) => { const u = el("select",{class:"inp"}, UNIT_NAMES.map(x => el("option",{value:x, text:x}))); u.value = UNITS[val] ? val : "oz"; u.onchange = () => on(u.value); return u; };
+  const numIn = (val, on, step) => { const i = el("input",{class:"inp", type:"number", min:"0", step: step || "0.25", inputmode:"decimal"}); i.value = val != null ? val : ""; i.onchange = () => on(n(i.value) || 0); return i; };
+  const txt = (val, on, ph) => { const i = el("input",{class:"inp", placeholder: ph || ""}); i.value = val || ""; i.onchange = () => on(i.value.trim()); return i; };
+  const rows = dr.lines.map((l, idx) => {
+    const src = el("select",{class:"inp", "aria-label":"Where " + l.label + " comes from"},
+      el("option",{value:"est", text:"To order (estimate)"}), el("option",{value:"none", text:"No price"}),
+      el("optgroup",{label:"Your supplies"}, sups.map(su => el("option",{value:su.id, text:supName(su) + (su.supplier ? " (" + su.supplier + ")" : "")}))));
+    src.value = l.have ? l.s : l.s && dr.est[l.s] ? "est" : "none";
+    src.onchange = () => {
+      const v = src.value;
+      if (v === "none"){ l.s = null; l.have = false; l.missing = true; }
+      else if (v === "est"){ const id = "est" + uid(""); dr.est[id] = { id, name: l.label, cat: guessCat(l.label), supplier: vendors[0] || "", caseQty: 1, unit: l.unit || "each", yield: 1, price: 0, estimated: true }; l.s = id; l.have = false; l.missing = false; }
+      else { l.s = v; l.have = true; l.missing = false; const su = r.supplies[v]; if (su && UNITS[su.unit] && UNITS[l.unit] && UNITS[su.unit][0] !== UNITS[l.unit][0]) l.unit = su.unit; }
+      redo();
+    };
+    const e = l.s && !l.have && dr.est[l.s];
+    return el("div",{class:"lab-erow"},
+      el("div",{class:"lab-eline"},
+        txt(l.label, v => { l.label = v || l.label; redo(); }, "Ingredient"),
+        numIn(l.qty, v => { l.qty = v; redo(); }), unitSel(l.unit, v => { l.unit = v; redo(); }), src,
+        el("button",{class:"btn quiet lab-x", type:"button", "aria-label":"Remove " + l.label, text:"\u00d7", onclick:() => { dr.lines.splice(idx, 1); redo(); }})),
+      e ? el("div",{class:"lab-eest"},
+        el("label",null, "Order", txt(e.name, v => { e.name = v || e.name; redo(); })),
+        el("label",null, "Pack size", el("span",{class:"row"}, numIn(e.caseQty, v => { e.caseQty = v || 1; redo(); }, "1"), unitSel(e.unit, v => { e.unit = v; redo(); }))),
+        el("label",null, "Price ($)", numIn(e.price, v => { e.price = v; redo(); }, "0.01")),
+        el("label",null, "From", (() => { const i = txt(e.supplier, v => { e.supplier = v; redo(); }); i.setAttribute("list", "lab-vendors"); return i; })())) : null);
+  });
+  const steps = el("textarea",{class:"inp", rows:"7"}); steps.value = dr.card.steps.join("\n");
+  steps.onchange = () => { dr.card.steps = steps.value.split("\n").map(t => t.replace(/^\s*(\d+[.)]|[-\u2022*])\s*/, "").trim()).filter(Boolean); };
+  const area = (val, on, rowsN) => { const t = el("textarea",{class:"inp", rows: String(rowsN || 2)}); t.value = val || ""; t.onchange = () => on(t.value.trim()); return t; };
+  const al = el("div",{class:"kb-al-pick"}, ALLERGENS.map(a => { const cb = el("input",{type:"checkbox"}); cb.checked = dr.card.allergens.includes(a); cb.onchange = () => { dr.card.allergens = ALLERGENS.filter(x => x === a ? cb.checked : dr.card.allergens.includes(x)); }; return el("label",null, cb, a); }));
+  return el("div",{class:"lab-edit"},
+    el("datalist",{id:"lab-vendors"}, vendors.map(v => el("option",{value:v}))),
+    el("div",{class:"lab-eg"}, fld("Makes (servings)", numIn(dr.servings, v => { dr.servings = Math.max(1, Math.round(v) || 1); redo(); }, "1")),
+      fld("Prep (min)", numIn(dr.card.prepMin, v => dr.card.prepMin = v, "1")), fld(dr.kind === "food" ? "Cook (min)" : "Build (min)", numIn(dr.card.cookMin, v => dr.card.cookMin = v, "1")),
+      fld("Station", txt(dr.card.station, v => dr.card.station = v))),
+    fld("Menu description", area(dr.desc, v => dr.desc = v)),
+    el("h3",{text:"Ingredients"}), el("div",{class:"lab-erows"}, rows),
+    el("button",{class:"btn quiet", type:"button", text:"+ Add ingredient", onclick:() => { dr.lines.push({ s:null, label:"New ingredient", qty:1, unit:"oz", missing:true }); redo(); }}),
+    el("div",{class:"lab-cols", style:"margin-top:14px"},
+      el("div",null, el("h3",{text:"How to make it (one step per line)"}), steps),
+      el("div",null, fld("Plating", area(dr.card.plating, v => dr.card.plating = v)), fld("Storage and reheating", area(dr.card.notes, v => dr.card.notes = v, 3)),
+        el("div",{class:"field"}, el("span",{class:"q", text:"Allergens"}), al))));
 }
 function labResult(dr, r){
   const x = labStats(dr, r), drink = dr.kind !== "food";
@@ -2632,22 +2719,28 @@ function labResult(dr, r){
         el("div",null, el("span",{text:(drink ? "Pour" : "Food") + " cost"}), pctEl),
         el("div",null, el("span",{text:"Profit each"}), profitEl))),
     el("p",{class:"mini", text:"Suggested price " + $$(x.st.suggested) + " hits your " + pc(x.target) + " " + (drink ? "pour" : "food") + "-cost target" + (dr.servings > 1 ? " (recipe makes " + dr.servings + ")" : "") + ". Change it to see the effect."}),
-    el("h3",{text:"Ingredients and where to order"}),
-    el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Ingredient"}), el("th",{class:"num", text:"Amount"}), el("th",{text:"Where it comes from"}), el("th",{class:"num", text:"Cost each"}))), el("tbody",null, rows))),
+    dr.editing ? labEditor(dr, r) : el("h3",{text:"Ingredients and where to order"}),
+    dr.editing ? null : el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Ingredient"}), el("th",{class:"num", text:"Amount"}), el("th",{text:"Where it comes from"}), el("th",{class:"num", text:"Cost each"}))), el("tbody",null, rows))),
     anyEst ? el("p",{class:"mini", text:"\u2248 marks AI-estimated prices for things you don't stock yet. Real prices replace them when an invoice arrives."}) : null,
     missing ? el("p",{class:"mini", style:"color:var(--warn)", text: missing + (missing === 1 ? " ingredient has" : " ingredients have") + " no price yet, so the cost is a little low."}) : null,
-    el("div",{class:"lab-cols"},
+    dr.editing ? null : el("div",{class:"lab-cols"},
       el("div",null, el("h3",{text:"How to make it"}), el("ol",{class:"kb-steps"}, dr.card.steps.map(t => el("li",{text:t})))),
       el("div",null, dr.card.plating ? el("div",null, el("h3",{text:"Plating"}), el("p",{text:dr.card.plating})) : null,
         dr.card.notes ? el("div",null, el("h3",{text:"Storage and reheating"}), el("p",{class:"lab-notes", text:dr.card.notes})) : null,
         dr.card.allergens.length ? el("p",{class:"kb-allergens"}, el("b",{text:"Contains: "}), dr.card.allergens.join(", ")) : null,
         el("p",{class:"mini", text:[dr.card.station, dr.card.prepMin ? "Prep " + mins(dr.card.prepMin) : "", dr.card.cookMin ? (drink ? "Build " : "Cook ") + mins(dr.card.cookMin) : ""].filter(Boolean).join("   |   ")}))),
+    (() => { const ask = el("input",{class:"inp", placeholder:"e.g. use puff pastry instead, make it gluten-free, swap chicken for turkey"});
+      const go3 = () => labRevise(dr, ask.value); ask.onkeydown = e => { if (e.key === "Enter") go3(); };
+      return el("div",{class:"lab-revise"}, el("label",{class:"q", text:"Change it with AI"}), el("div",{class:"row"}, ask, el("button",{class:"btn quiet", type:"button", text:"Ask AI", onclick: go3}))); })(),
     el("div",{class:"lab-actions"},
-      el("div",{class:"row"}, el("button",{class:"btn quiet", type:"button", text:"Make it cheaper", onclick:() => labBuild("Make it cheaper to produce: lower-cost ingredients or smaller portions, same idea")}),
+      el("div",{class:"row"}, el("button",{class:"btn " + (dr.editing ? "primary" : "quiet"), type:"button", text: dr.editing ? "Done editing" : "Edit recipe", onclick:() => { dr.editing = !dr.editing; render(); }}),
+        el("button",{class:"btn quiet", type:"button", text:"Make it cheaper", onclick:() => labBuild("Make it cheaper to produce: lower-cost ingredients or smaller portions, same idea")}),
         el("button",{class:"btn quiet", type:"button", text:"Make it fancier", onclick:() => labBuild("Make it a more premium version worth a higher price")}),
         el("button",{class:"btn quiet", type:"button", text:"Save idea", onclick: async () => { r.ideas = r.ideas || []; dr.price = n(priceIn.value) || x.price;
-          const keep = JSON.parse(JSON.stringify(Object.assign({}, dr, { photo: undefined, photoBusy: undefined, photoErr: undefined }))), id = uid("i");
-          r.ideas.push({ id, prompt: LAB.prompt, saved: today(), draft: keep, hasPhoto: !!dr.photo }); save(); toast("Saved to your ideas"); render();
+          const keep = JSON.parse(JSON.stringify(Object.assign({}, dr, { photo: undefined, photoBusy: undefined, photoErr: undefined, editing: undefined })));
+          const old = dr.ideaId && r.ideas.find(i => i.id === dr.ideaId), id = old ? old.id : uid("i"); dr.ideaId = id; keep.ideaId = id;
+          if (old) Object.assign(old, { prompt: LAB.prompt, saved: today(), draft: keep, hasPhoto: !!dr.photo }); else r.ideas.push({ id, prompt: LAB.prompt, saved: today(), draft: keep, hasPhoto: !!dr.photo });
+          save(); toast(old ? "Idea updated" : "Saved to your ideas"); render();
           if (dr.photo){ const { error } = await sb.rpc("save_photo", { p_account: ACCT.id, p_item: "idea_" + id, p_data: dr.photo }); if (!error){ PHOTOS.set("idea_" + id, dr.photo); render(); } } }})),
       el("div",{class:"row"}, el("label",{class:"lab-sec"}, "Section ", secIn), el("datalist",{id:"lab-secs"}, sectionOrder(r).map(sct => el("option",{value:sct}))), addBtn)));
 }
