@@ -2978,13 +2978,13 @@ function reviewRecipePack(pk){
   (pk.supplies || []).forEach(ps => {
     let best = null, bs = 0;
     sups.forEach(su => { const ua = UNITS[ps.unit], ub = UNITS[su.unit]; if (ua && ub && ua[0] !== ub[0]) return;
-      const sc = Math.max(simScore(base(ps.name), supName(su)), simScore(base(ps.name), su.name || "")); if (sc > bs){ bs = sc; best = su; } });
+      const sc = (su.name || "").trim().toLowerCase() === ps.name.trim().toLowerCase() ? 2 : Math.max(simScore(base(ps.name), supName(su)), simScore(base(ps.name), su.name || ""), simScore(base(ps.name), base(su.name))); if (sc > bs){ bs = sc; best = su; } });
     plan[ps.key] = { ps, use: best && bs >= 0.8 ? best.id : "" };
   });
   const unitCost = key => { const p = plan[key]; if (!p) return 0; const su = p.use && r.supplies[p.use];
     if (su && n(su.price) > 0 && n(su.caseQty) > 0) return su.price / su.caseQty / (n(su.yield) || 1) * (UNITS[p.ps.unit] && UNITS[su.unit] ? UNITS[p.ps.unit][1] / UNITS[su.unit][1] : 1);
     return p.ps.price / p.ps.caseQty; };
-  const costOf = it => (it.lines || []).reduce((t, l) => t + unitCost(l.s) * n(l.qty), 0);
+  const costOf = it => activeLines(it).reduce((t, l) => t + unitCost(l.s) * n(l.qty), 0);
   const section = el("input",{class:"inp"}); section.value = pk.section || "Recipes";
   const take = new Set(pk.items.map((x, i) => i));
   const existing = nm => Object.values(r.items).find(it => it.name.trim().toLowerCase() === nm.trim().toLowerCase());
@@ -3019,7 +3019,8 @@ function reviewRecipePack(pk){
     const photos = [];
     pk.items.forEach((it, i) => {
       if (!take.has(i)) return;
-      const lines = it.lines.map(l => ({ s: ids[l.s], label: (plan[l.s] ? plan[l.s].ps.name : l.s).replace(/,.*$/, ""), qty: l.qty, unit: l.unit }));
+      const lines = it.lines.map(l => Object.assign({ s: ids[l.s], label: l.label || (plan[l.s] ? plan[l.s].ps.name : l.s).replace(/,.*$/, ""), qty: l.qty, unit: l.unit },
+        l.choice ? { choice: l.choice, extra: n(l.extra) || 0, pick: !!l.pick } : {}));   // packs can carry choices (e.g. Add bacon +$2)
       const card = Object.assign({}, it.card, it.photo ? { photoSrc:"upload" } : {});
       let tgt = existing(it.name);
       if (tgt){ tgt.card = Object.assign({}, tgt.card || {}, card); if (!(tgt.lines || []).length) tgt.lines = lines; if (!tgt.desc && it.desc) tgt.desc = it.desc; }
