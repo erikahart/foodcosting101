@@ -987,7 +987,8 @@ aside .brandbox b{font-size:1.3rem}
 /* Kitchen book photos: show the whole picture in a square, with a soft blurred fill behind tall or wide shots */
 .kb-imgwrap{position:relative;aspect-ratio:1/1;overflow:hidden;background:var(--field);isolation:isolate}
 .kb-imgwrap::before{content:"";position:absolute;inset:-24px;background:var(--bg) center/cover no-repeat;filter:blur(20px) saturate(1.1) brightness(.88);z-index:-1}
-.kb-card .kb-imgwrap img{width:100%;height:100%;aspect-ratio:auto;object-fit:contain;display:block;background:transparent}
+.kb-card .kb-imgwrap img{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:contain;display:block;background:transparent}
+.kb-card.tall .kb-imgwrap,.kb-card.tall .kb-ph{aspect-ratio:3/4}
 .kb-card .kb-ph{aspect-ratio:1/1}
 .kb-aitag{z-index:1}
 
@@ -2075,7 +2076,7 @@ function book(m){
   if (!shown.length){ m.append(el("div",{class:"card empty", text:"Nothing matches that search."})); return; }
   m.append(el("div",{class:"kb-grid"}, shown.map(it => {
     const c = cardOf(it), ph = PHOTOS.get(it.id), total = n(c.prepMin) + n(c.cookMin);
-    return el("button",{class:"kb-card", type:"button", onclick:() => openCard(it.id), "aria-label":"Open the card for " + it.name},
+    return el("button",{class:"kb-card" + (isDrink(it) ? " tall" : ""), type:"button", onclick:() => openCard(it.id), "aria-label":"Open the card for " + it.name},
       ph ? el("div",{class:"kb-imgwrap", style:'--bg:url("' + ph + '")'}, el("img",{src:ph, alt:"", loading:"lazy"}), c.photoSrc === "ai" ? el("span",{class:"kb-aitag", text:"AI image"}) : null) : plateArt(it),
       el("div",{class:"kb-body"}, el("b",{text:it.name}),
         el("div",{class:"kb-meta"}, el("span",{text:it.section || ""}), total ? el("span",{class:"kb-time", text: total + " min"}) : null, c.station ? el("span",{text:c.station}) : null),
@@ -2607,6 +2608,26 @@ function labReset(msg){
   if (msg) toast(msg);
   render(); window.scrollTo({ top: 0, behavior: "smooth" });
 }
+// Custom builds the bar or line saved from the tablet ("Not on the menu?").
+function tabletBuildsBox(){
+  const box = el("div");
+  (async () => {
+    const { data, error } = await sb.rpc("tablet_builds_list", { p_account: ACCT.id });
+    if (error || !data || !data.length) return;
+    box.replaceChildren(el("div",{class:"sect-h"}, el("h2",{text:"From the tablet"}), el("span",{class:"mini", text:"Custom builds made for guests. Cost one to see if it belongs on the menu."})),
+      el("div",{class:"lab-saved"}, data.map(b => { const d = b.data || {};
+        return el("div",{class:"lab-idea"}, el("div",{class:"lab-idea-main", style:"cursor:default"}, el("b",{text: d.name || b.prompt}),
+            el("span",{class:"mini", text: (d.kind === "food" ? "Dish" : "Drink") + ", asked for \u201c" + (b.prompt || "") + "\u201d, " + new Date(b.created_at).toLocaleDateString(undefined, { month:"short", day:"numeric" })})),
+          el("button",{class:"btn quiet", type:"button", text:"Cost it", onclick: async () => {
+            const rec = { name: d.name, description: d.description, glass: d.glass, garnish: d.garnish, ingredients: d.ingredients, steps: d.steps, notes: d.notes, allergens: d.allergens };
+            LAB.kind = d.kind === "food" ? "food" : "liquor";
+            await labRun("The bar made this for a guest from the tablet:\n" + JSON.stringify(rec) + "\nWrite it up as a menu item: same drink or dish, matched to their supplies with amounts in your units, plus how to make it" + (d.kind === "food" ? "" : " (glass and garnish go in plating)") + ".", null, b.prompt || d.name);
+            if (LAB.draft && !LAB.err){ await sb.rpc("tablet_build_delete", { p_account: ACCT.id, p_id: b.id }); render(); window.scrollTo({ top: 0, behavior:"smooth" }); }
+          }}),
+          el("button",{class:"linkbtn", type:"button", text:"Dismiss", onclick: async () => { await sb.rpc("tablet_build_delete", { p_account: ACCT.id, p_id: b.id }); render(); }})); })));
+  })();
+  return box;
+}
 function labRecipeJSON(dr){
   return { name: dr.name, description: dr.desc, kind: dr.kind, section: dr.section, servings: dr.servings,
     ingredients: dr.lines.map(l => { const e = l.s && dr.est[l.s];
@@ -2711,6 +2732,7 @@ function lab(m){
   if (LAB.busy) m.append(el("div",{class:"card lab-wait"}, el("div",{class:"spin"}), el("p",{text:"Writing the recipe, checking what you already stock and pricing it\u2026 (about 10 to 20 seconds)"})));
   if (LAB.err) m.append(el("div",{class:"msg bad", text:LAB.err}));
   if (LAB.draft && !LAB.busy) m.append(labResult(LAB.draft, r));
+  m.append(tabletBuildsBox());
   if (r.ideas.length){
     m.append(el("div",{class:"sect-h"}, el("h2",{text:"Saved ideas"})));
     m.append(el("div",{class:"lab-saved"}, r.ideas.slice().reverse().map(idea => { const x = labStats(idea.draft, r);
@@ -2955,7 +2977,8 @@ function bookSnapshot(r){
         steps: c.steps || [], plating: c.plating || "", notes: c.notes || "", allergens: c.allergens || [] },
       photo: PHOTOS.has(it.id), ai: c.photoSrc === "ai", order: it.order || 0 };
   });
-  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, made: new Date().toISOString(),
+  const stock = [...new Set(Object.values(r.supplies).map(su => supName(su)).filter(Boolean))].slice(0, 400);   // names only, for custom builds
+  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, made: new Date().toISOString(),
     brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Kitchen book" } };
 }
 let BOOK_T = null;
