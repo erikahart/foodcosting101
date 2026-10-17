@@ -989,6 +989,10 @@ aside .brandbox b{font-size:1.3rem}
 .kb-imgwrap::before{content:"";position:absolute;inset:-24px;background:var(--bg) center/cover no-repeat;filter:blur(20px) saturate(1.1) brightness(.88);z-index:-1}
 .kb-card .kb-imgwrap img{position:absolute;inset:0;width:100%;height:100%;aspect-ratio:auto;object-fit:contain;display:block;background:transparent}
 .kb-card.tall .kb-imgwrap,.kb-card.tall .kb-ph{aspect-ratio:3/4}
+/* Same padding trick for older iPad Safari: the frame's height comes from its width. */
+.kb-card .kb-imgwrap{aspect-ratio:auto;height:0;padding-top:100%}
+.kb-card.tall .kb-imgwrap{padding-top:133.33%}
+.kb-card .kb-imgwrap .kb-aitag{position:absolute}
 .kb-card .kb-ph{aspect-ratio:1/1}
 .kb-aitag{z-index:1}
 
