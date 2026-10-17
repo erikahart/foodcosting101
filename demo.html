@@ -1255,6 +1255,20 @@ aside .brandbox b{font-size:1.3rem}
 .sch2-sec th{text-align:left;padding:8px 12px;background:color-mix(in srgb,var(--pc) 10%,var(--panel));border-left:5px solid var(--pc);position:sticky;left:0}
 .sch2-sec b{font-family:var(--brand-font);font-weight:800;font-size:1.05rem;letter-spacing:.02em}
 
+.os-plan{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:12px;display:grid;gap:6px;background:var(--field)}
+.os-plan-h{display:flex;gap:10px;align-items:baseline}
+.os-plan-row{display:grid;grid-template-columns:minmax(0,1fr) 110px 70px;gap:10px;align-items:center;font-weight:600}
+.os-plan-row .inp{min-height:38px;text-align:right}
+.os-vendor{margin-bottom:12px;display:grid;gap:8px}
+.os-total{display:flex;justify-content:flex-end;gap:14px;align-items:baseline;font-size:1.1rem;padding:6px 4px}
+.os-total b{font-family:var(--brand-font);font-weight:800;font-size:1.7rem}
+@media print{
+  .pa-order .po{font-size:10.5pt} .pa-order h1{font-size:18pt;margin:0} .pa-order .po-sub{margin:2pt 0 12pt;color:#444}
+  .pa-order .po-v{break-inside:avoid;page-break-inside:avoid;margin-bottom:14pt} .pa-order h2{font-size:13pt;margin:0 0 4pt}
+  .pa-order table{width:100%;border-collapse:collapse} .pa-order th,.pa-order td{border:0.75pt solid #999;padding:4pt 6pt;text-align:left}
+  .pa-order th{background:#eee;font-size:9pt} .pa-order .po-ord{font-weight:900;text-align:center;width:0.6in} .pa-order tfoot td{font-weight:700}
+}
+
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
 .demo-dot{width:8px;height:8px;border-radius:50%;background:#6FC79A;flex:none;box-shadow:0 0 0 4px rgba(111,199,154,.18)}
@@ -2052,6 +2066,9 @@ function menu(m){
     move.onchange = () => { let to = move.value; if (!to) return; if (to === "__new"){ to = (prompt("New category name?") || "").trim(); if (!to) return; }
       MV.sel.forEach(id => { if (r.items[id]) r.items[id].section = to; }); toast("Moved " + MV.sel.size + " to " + to); MV.sel.clear(); save(); render(); };
     m.append(el("div",{class:"bulk"}, el("b",{text: MV.sel.size + " selected"}), move,
+      el("button",{class:"btn quiet", text:"Order summary", onclick:() => { const list = [...MV.sel].map(id => r.items[id]).filter(it => it && (it.lines || []).length);
+        if (!list.length) return toast("Those items don't have recipes yet.");
+        openOrderSummary(list.map(it => ({ name: it.name, lines: it.lines, portions: n(it.portions) || 1, sups: r.supplies, qty: n(it.sold) || n(it.portions) || 10, unitWord: isDrink(it) ? "drinks" : "servings" })), "Order summary: " + list.length + (list.length === 1 ? " item" : " items")); }}),
       el("button",{class:"btn quiet", text:"Draft recipes with AI", onclick:() => { const list = [...MV.sel].map(id => r.items[id]).filter(Boolean); MV.sel.clear(); draftRecipes(list, true); }}),
       el("button",{class:"btn quiet", text:"Delete", onclick:() => { if (!confirm("Delete " + MV.sel.size + " menu items? This can't be undone.")) return; MV.sel.forEach(id => delete r.items[id]); MV.sel.clear(); save(); render(); toast("Deleted"); }}),
       el("button",{class:"btn quiet", text:"Clear", onclick:() => { MV.sel.clear(); render(); }})));
@@ -3117,6 +3134,7 @@ function labResult(dr, r){
       return el("div",{class:"lab-revise"}, el("label",{class:"q", text:"Change it with AI"}), el("div",{class:"row"}, ask, el("button",{class:"btn quiet", type:"button", text:"Ask AI", onclick: go3}))); })(),
     el("div",{class:"lab-actions"},
       el("div",{class:"row"}, el("button",{class:"btn " + (dr.editing ? "primary" : "quiet"), type:"button", text: dr.editing ? "Done editing" : "Edit recipe", onclick:() => { dr.editing = !dr.editing; render(); }}),
+        el("button",{class:"btn quiet", type:"button", text:"Order summary", onclick:() => { const y = labStats(dr, r); openOrderSummary([{ name: dr.name, lines: dr.lines.filter(l => l.s), portions: dr.servings, sups: y.sups, qty: dr.servings, unitWord: dr.kind === "food" ? "servings" : "drinks" }], "Order summary: " + dr.name); }}),
         el("button",{class:"btn quiet", type:"button", text:"Start over", onclick:() => { if (confirm("Clear this recipe and the prompt? " + (dr.ideaId ? "The saved idea stays in your list." : "It isn't saved."))) labReset(); }}),
         el("button",{class:"btn quiet", type:"button", text:"Make it cheaper", onclick:() => labBuild("Make it cheaper to produce: lower-cost ingredients or smaller portions, same idea")}),
         el("button",{class:"btn quiet", type:"button", text:"Make it fancier", onclick:() => labBuild("Make it a more premium version worth a higher price")}),
@@ -3792,6 +3810,92 @@ function editDutyList(r, l, isNew){
        if (!out.days.length) out.days = null;
        const i = r.duties.findIndex(x => x.id === c.id); if (i >= 0) r.duties[i] = out; else r.duties.push(out);
        save(); dlg.close(); }})]);
+}
+
+/* ================= Order summary by vendor (for the purchasing manager) ================= */
+// entries: [{ name, lines, portions, sups, qty, unitWord }]. Adds up every ingredient for the planned amounts, converts to
+// each supply's pack, rounds up to whole cases or bottles, and groups by vendor.
+function orderNeeds(entries, r){
+  const need = new Map(), loose = [];
+  entries.forEach(e => {
+    const per = (n(e.qty) || 0) / (n(e.portions) || 1); if (!per) return;
+    activeLines({ lines: e.lines }).forEach(l => {
+      const su = l.s && e.sups[l.s];
+      const a = UNITS[l.unit || (su && su.unit)], b = su && UNITS[su.unit];
+      if (!su || !a || !b || a[0] !== b[0]){ if (n(l.qty)) loose.push({ name: l.label || (su ? supName(su) : "Ingredient"), qty: n(l.qty) * per, unit: l.unit || "", recipe: e.name }); return; }
+      const key = su.id || l.s, cur = need.get(key) || { su, amt: 0, recipes: new Set() };
+      cur.amt += n(l.qty) * a[1] / b[1] * per; cur.recipes.add(e.name); need.set(key, cur);
+    });
+  });
+  const groups = {};
+  need.forEach(x => { const v = (x.su.supplier || "").trim() || "No vendor yet"; const caseQty = n(x.su.caseQty) || 1;
+    const cases = Math.max(1, Math.ceil(x.amt / caseQty - 1e-9));
+    (groups[v] = groups[v] || []).push({ su: x.su, amt: x.amt, cases, cost: cases * (n(x.su.price) || 0), recipes: [...x.recipes] }); });
+  Object.values(groups).forEach(list => list.sort((p, q) => supName(p.su).localeCompare(supName(q.su))));
+  const vendors = Object.keys(groups).sort((p, q) => (p === "No vendor yet") - (q === "No vendor yet") || p.localeCompare(q));
+  return { groups, vendors, loose };
+}
+const fmtAmt = (v, unit) => (v >= 100 ? Math.round(v) : Math.round(v * 10) / 10) + " " + unit;
+const packWord = su => /keg|bbl/i.test(su.name || "") ? "keg" : /liquor|wine/i.test(su.cat || "") || /\b\d+(\.\d+)?\s*(ml|l)\b/i.test(su.name || "") ? "bottle" : "case";
+const packText = su => (n(su.caseQty) ? fmtAmt(n(su.caseQty), su.unit) + " per " + packWord(su) : "");
+function openOrderSummary(entries, title){
+  const r = R();
+  const plan = el("div",{class:"os-plan"}), out = el("div");
+  let res = null;
+  const vendorOf = name => (r.vendors || []).find(v => v.name && name && (v.name.toLowerCase() === name.toLowerCase() || simScore(v.name, name) >= 0.85));
+  const draw = () => {
+    res = orderNeeds(entries, r);
+    const total = res.vendors.reduce((t, v) => t + res.groups[v].reduce((u, x) => u + x.cost, 0), 0);
+    out.replaceChildren(...[
+      res.vendors.length ? null : el("div",{class:"card empty", text:"Nothing to order yet. Enter how many you plan to make above."}),
+      ...res.vendors.map(v => { const list = res.groups[v], sub = list.reduce((t, x) => t + x.cost, 0), vi = vendorOf(v);
+        const contact = vi && vi.repContact, mail = contact && /@/.test(contact) ? contact : "";
+        return el("section",{class:"os-vendor card"},
+          el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:v}),
+              el("span",{class:"mini", text: [vi && vi.rep ? "Rep: " + vi.rep : "", contact || "", vi && vi.account ? "Account " + vi.account : "", vi && vi.order ? (ORDER_HOW[vi.order] || "") : ""].filter(Boolean).join("  |  ") || (v === "No vendor yet" ? "Pick a supplier for these on the Supplies page" : "")})),
+            el("div",{class:"row"}, el("b",{text:$$(sub)}),
+              mail ? el("a",{class:"btn quiet", href:"mailto:" + encodeURIComponent(mail) + "?subject=" + encodeURIComponent("Order from " + ((ACCT && ACCT.name) || "us")) + "&body=" + encodeURIComponent(vendorText(v, list, vi)), text:"Email order"}) : null,
+              el("button",{class:"btn quiet", type:"button", text:"Copy", onclick:() => { navigator.clipboard && navigator.clipboard.writeText(vendorText(v, list, vi)); toast("Copied the " + v + " order"); }}))),
+          el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Item"}), el("th",{text:"Code"}), el("th",{text:"Pack"}), el("th",{class:"num", text:"Need"}), el("th",{class:"num", text:"Order"}), el("th",{class:"num", text:"Est. cost"}))),
+            el("tbody",null, list.map(x => el("tr",{style:"cursor:default"},
+              el("td",{style:"white-space:normal"}, el("b",{text: supName(x.su)}), x.su.estimated ? el("span",{class:"pill warn", style:"margin-left:6px", text:"AI estimate"}) : null, el("div",{class:"mini", text:"For: " + x.recipes.join(", ")})),
+              el("td",{text: x.su.code || ""}), el("td",{text: packText(x.su)}), el("td",{class:"num", text: fmtAmt(x.amt, x.su.unit)}),
+              el("td",{class:"num"}, el("b",{text: x.cases + " " + packWord(x.su) + (x.cases === 1 ? "" : "s")})),
+              el("td",{class:"num", text: (x.su.estimated ? "\u2248" : "") + $$(x.cost)})))))));
+      }),
+      res.loose.length ? el("section",{class:"os-vendor card"}, el("h3",{style:"margin:0 0 6px", text:"Not linked to a supply yet"}), el("p",{class:"mini", text:"These have no supply or a unit that doesn't match, so they're not in a vendor's order. Link them on the recipe to include them."}),
+        el("ul",{class:"duty-items"}, res.loose.map(x => el("li",{text: x.name + ": " + fmtAmt(x.qty, x.unit) + " (" + x.recipe + ")"})))) : null,
+      res.vendors.length ? el("div",{class:"os-total"}, el("span",{text:"Estimated total"}), el("b",{text:$$(total)})) : null,
+      el("p",{class:"mini", text:"Orders round up to whole cases or bottles. It doesn't know what's already on your shelves, so take off anything you have on hand. \u2248 marks AI-estimated prices."})].filter(Boolean));
+  };
+  plan.replaceChildren(el("div",{class:"os-plan-h"}, el("b",{text:"Plan"}), el("span",{class:"mini", text:"How many of each are you making?"})),
+    ...entries.map(e => { const i = el("input",{class:"inp", type:"number", min:"0", step:"1", inputmode:"numeric", value: e.qty || "", "aria-label":"How many " + e.name});
+      i.oninput = () => { e.qty = n(i.value) || 0; draw(); };
+      return el("label",{class:"os-plan-row"}, el("span",{text:e.name}), i, el("span",{class:"mini", text: e.unitWord || "servings"})); }));
+  const vendorText = (v, list, vi) => [((ACCT && ACCT.name) || "Our kitchen") + " order for " + v + (vi && vi.account ? " (account " + vi.account + ")" : ""), ""]
+    .concat(list.map(x => "- " + x.cases + " x " + (x.su.code ? x.su.code + "  " : "") + x.su.name + (packText(x.su) ? " (" + packText(x.su) + ")" : ""))).concat(["", "Thank you!"]).join("\n");
+  const csv = () => { const rows = [["Vendor","Item","Code","Pack","Need","Unit","Order","Est. cost","For"]];
+    res.vendors.forEach(v => res.groups[v].forEach(x => rows.push([v, x.su.name, x.su.code || "", packText(x.su), Math.round(x.amt * 100) / 100, x.su.unit, x.cases, (Math.round(x.cost * 100) / 100).toFixed(2), x.recipes.join("; ")])));
+    const text = rows.map(r2 => r2.map(c => /[",\n]/.test(String(c)) ? '"' + String(c).replace(/"/g, '""') + '"' : c).join(",")).join("\n");
+    const a = el("a",{href: URL.createObjectURL(new Blob([text], { type:"text/csv" })), download: "order-summary-" + localDay(new Date()) + ".csv"}); document.body.append(a); a.click(); a.remove(); };
+  draw();
+  openDlg(title || "Order summary by vendor", [plan, out], [
+    el("button",{class:"btn quiet", text:"Download spreadsheet", onclick: csv}),
+    el("button",{class:"btn primary", text:"Print", onclick:() => printOrderSummary(res, entries)})]);
+}
+function printOrderSummary(res, entries){
+  const area = $("printArea"); area.className = "pa-order";
+  area.replaceChildren(el("div",{class:"po"},
+    el("h1",{text:((ACCT && ACCT.name) || "Kitchen") + " order summary"}), el("p",{class:"po-sub", text: nice(localDay(new Date())) + "  |  For: " + entries.filter(e => n(e.qty)).map(e => e.qty + " " + e.name).join(", ")}),
+    res.vendors.map(v => el("section",{class:"po-v"}, el("h2",{text:v}),
+      el("table",null, el("thead",null, el("tr",null, ["Item","Code","Pack","Need","Order","Est. cost"].map(h2 => el("th",{text:h2})))),
+        el("tbody",null, res.groups[v].map(x => el("tr",null, el("td",{text:x.su.name}), el("td",{text:x.su.code || ""}), el("td",{text:packText(x.su)}), el("td",{text:fmtAmt(x.amt, x.su.unit)}), el("td",{class:"po-ord", text:String(x.cases)}), el("td",{text:(x.su.estimated ? "\u2248" : "") + $$(x.cost)})))),
+        el("tfoot",null, el("tr",null, el("td",{colspan:"5", text:"Subtotal"}), el("td",{text:$$(res.groups[v].reduce((t, x) => t + x.cost, 0))}))))))));
+  let ps = $("printPageStyle"); if (!ps){ ps = document.createElement("style"); ps.id = "printPageStyle"; document.head.append(ps); }
+  ps.textContent = "@media print{@page{size:letter;margin:0.5in}}";
+  document.body.classList.add("printing");
+  const fin = () => { document.body.classList.remove("printing"); window.removeEventListener("afterprint", fin); };
+  window.addEventListener("afterprint", fin); setTimeout(() => { window.print(); setTimeout(fin, 1500); }, 60);
 }
 /* ================= Backup & restore ================= */
 async function downloadBackup(){
