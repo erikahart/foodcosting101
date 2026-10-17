@@ -23,7 +23,7 @@
 html,body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:18px;line-height:1.45;-webkit-text-size-adjust:100%}
 button{font:inherit;color:inherit}
 .top{position:sticky;top:0;z-index:5;background:var(--char);color:#fff;display:flex;align-items:center;gap:14px;padding:12px 18px;padding-top:calc(12px + env(safe-area-inset-top,0px));flex-wrap:wrap}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--char);z-index:6}
+body::before{content:"";position:fixed;top:0;right:0;bottom:auto;left:0;height:env(safe-area-inset-top,0px);background:var(--char);z-index:6}
 .top h1{margin:0;font-family:var(--head);font-weight:800;font-size:1.9rem;line-height:1;letter-spacing:.01em}
 .top .sub{font-size:.8rem;color:#C8D0CB}
 .top .grow{flex:1}
@@ -57,16 +57,16 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
 .card{display:flex;flex-direction:column;padding:0;border-radius:14px;border:1px solid var(--line);background:var(--panel);overflow:hidden;cursor:pointer;text-align:left}
 .ph{position:relative;aspect-ratio:1/1;overflow:hidden;background:var(--field);isolation:isolate;display:grid;place-items:center}
 .ph.tall{aspect-ratio:3/4}
-.ph img{position:absolute;inset:0}
+.ph img{position:absolute;top:0;right:0;bottom:0;left:0}
 /* Older iPad Safari can't size a box from aspect-ratio alone when its only content is positioned, so cards use the
    padding trick instead: the frame's height comes from its width, and the photo fills it. */
 .card .ph{aspect-ratio:auto;height:0;padding-top:100%}
 .card .ph.tall{padding-top:133.33%}
-.card .ph .init{position:absolute;inset:0;display:grid;place-items:center}
+.card .ph .init{position:absolute;top:0;right:0;bottom:0;left:0;display:grid;place-items:center}
 .spec .ph{aspect-ratio:auto;height:auto;padding:0;display:block}
 .spec .ph img{position:static;width:100%;height:auto;max-height:78vh;object-fit:contain;display:block;margin:0 auto}
 .spec .ph .init{display:grid;place-items:center;min-height:260px}
-.ph::before{content:"";position:absolute;inset:-24px;background:var(--bg-img,none) center/cover no-repeat;filter:blur(20px) brightness(.88);z-index:-1}
+.ph::before{content:"";position:absolute;top:-24px;right:-24px;bottom:-24px;left:-24px;background:var(--bg-img,none) center/cover no-repeat;filter:blur(20px) brightness(.88);z-index:-1}
 .ph img{width:100%;height:100%;object-fit:contain;display:block}
 .ph .init{font-family:var(--head);font-weight:800;font-size:2.6rem;color:var(--muted);opacity:.6}
 .ai{position:absolute;left:8px;top:8px;background:rgba(36,34,31,.82);color:#fff;font-size:.7rem;font-weight:700;border-radius:999px;padding:2px 8px}
@@ -121,7 +121,7 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
 .chk.done .box{background:var(--jade);border-color:var(--jade)}
 .chk.done .tx{text-decoration:line-through;color:var(--ink-2)}
 .chk .by{margin-left:auto;font-size:.85rem;color:var(--muted);font-weight:600;white-space:nowrap}
-.pick{position:fixed;inset:0;background:rgba(0,0,0,.45);display:grid;place-items:end center;z-index:20}
+.pick{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(0,0,0,.45);display:grid;place-items:end center;z-index:20}
 .pick > div{background:var(--panel);color:var(--ink);width:min(720px,100%);border-radius:18px 18px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom,0px))}
 .pick h3{margin:0 0 4px;font-family:var(--head);font-weight:800;font-size:1.6rem}
 .pick .names{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin:14px 0}
