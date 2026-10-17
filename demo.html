@@ -1268,6 +1268,8 @@ aside .brandbox b{font-size:1.3rem}
   .pa-order table{width:100%;border-collapse:collapse} .pa-order th,.pa-order td{border:0.75pt solid #999;padding:4pt 6pt;text-align:left}
   .pa-order th{background:#eee;font-size:9pt} .pa-order .po-ord{font-weight:900;text-align:center;width:0.6in} .pa-order tfoot td{font-weight:700}
 }
+.lab-top-acts{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.lab-idea .btn{min-height:38px;padding:0 12px;white-space:nowrap}
 
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
@@ -3011,6 +3013,7 @@ function lab(m){
         LAB.draft = JSON.parse(JSON.stringify(idea.draft)); LAB.draft.ideaId = idea.id; LAB.draft.prompt = LAB.draft.prompt || idea.prompt || ""; LAB.prompt = "";
         if (ph){ LAB.draft.photo = ph; labKeepPhoto(LAB.draft); } labPersist(true); render(); window.scrollTo({ top: 0, behavior:"smooth" }); }},
           el("b",{text:idea.draft.name}), el("span",{class:"mini", text: "Cost " + $$(x.st.plate) + ", charge " + $$(x.price) + ", saved " + nice(idea.saved)})),
+        el("button",{class:"btn quiet", type:"button", text:"Order summary", onclick:() => labOrder(idea.draft, r)}),
         el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { r.ideas = r.ideas.filter(i => i !== idea); save(); render(); if (idea.hasPhoto){ sb.rpc("delete_photo", { p_account: ACCT.id, p_item: "idea_" + idea.id }); PHOTOS.delete("idea_" + idea.id); } }})); })));
   }
 }
@@ -3067,6 +3070,7 @@ function labEditor(dr, r){
       el("div",null, fld("Plating", area(dr.card.plating, v => dr.card.plating = v)), fld("Storage and reheating", area(dr.card.notes, v => dr.card.notes = v, 3)),
         el("div",{class:"field"}, el("span",{class:"q", text:"Allergens"}), al))));
 }
+function labOrder(dr, r){ const y = labStats(dr, r); openOrderSummary([{ name: dr.name, lines: dr.lines.filter(l => l.s), portions: dr.servings, sups: y.sups, qty: dr.servings, unitWord: dr.kind === "food" ? "servings" : "drinks" }], "Order summary: " + dr.name); }
 function labResult(dr, r){
   let x = labStats(dr, r); const drink = dr.kind !== "food"; labPersist();
   if (!n(dr.price) && x.base){ dr.price = x.base; x = labStats(dr, r); }   // fix the base price; choosing an option no longer moves it
@@ -3117,7 +3121,8 @@ function labResult(dr, r){
         el("div",null, el("span",{text:"Charge"}), priceIn),
         el("div",null, el("span",{text:(drink ? "Pour" : "Food") + " cost"}), pctEl),
         el("div",null, el("span",{text:"Profit each"}), profitEl))),
-    el("p",{class:"mini", text:"Suggested price " + $$(x.st.suggested) + " hits your " + pc(x.target) + " " + (drink ? "pour" : "food") + "-cost target" + (dr.servings > 1 ? " (recipe makes " + dr.servings + ")" : "") + ". Change it to see the effect."}),
+    el("div",{class:"lab-top-acts"}, el("p",{class:"mini", style:"margin:0", text:"Suggested price " + $$(x.st.suggested) + " hits your " + pc(x.target) + " " + (drink ? "pour" : "food") + "-cost target" + (dr.servings > 1 ? " (recipe makes " + dr.servings + ")" : "") + ". Change it to see the effect."}),
+      el("button",{class:"btn primary", type:"button", text:"Order summary by vendor", onclick:() => labOrder(dr, r)})),
     (() => { const p = optionsPanel(x.it, r, x.sups, () => setTimeout(() => { const y = window.scrollY; render(); window.scrollTo(0, y); }, 0)); return p ? el("div",null, el("h3",{text:"Choices"}), p) : null; })(),
     dr.editing ? labEditor(dr, r) : el("h3",{text:"Ingredients and where to order"}),
     dr.editing ? null : el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Ingredient"}), el("th",{class:"num", text:"Amount"}), el("th",{text:"Where it comes from"}), el("th",{class:"num", text:"Cost each"}))), el("tbody",null, rows))),
@@ -3134,7 +3139,6 @@ function labResult(dr, r){
       return el("div",{class:"lab-revise"}, el("label",{class:"q", text:"Change it with AI"}), el("div",{class:"row"}, ask, el("button",{class:"btn quiet", type:"button", text:"Ask AI", onclick: go3}))); })(),
     el("div",{class:"lab-actions"},
       el("div",{class:"row"}, el("button",{class:"btn " + (dr.editing ? "primary" : "quiet"), type:"button", text: dr.editing ? "Done editing" : "Edit recipe", onclick:() => { dr.editing = !dr.editing; render(); }}),
-        el("button",{class:"btn quiet", type:"button", text:"Order summary", onclick:() => { const y = labStats(dr, r); openOrderSummary([{ name: dr.name, lines: dr.lines.filter(l => l.s), portions: dr.servings, sups: y.sups, qty: dr.servings, unitWord: dr.kind === "food" ? "servings" : "drinks" }], "Order summary: " + dr.name); }}),
         el("button",{class:"btn quiet", type:"button", text:"Start over", onclick:() => { if (confirm("Clear this recipe and the prompt? " + (dr.ideaId ? "The saved idea stays in your list." : "It isn't saved."))) labReset(); }}),
         el("button",{class:"btn quiet", type:"button", text:"Make it cheaper", onclick:() => labBuild("Make it cheaper to produce: lower-cost ingredients or smaller portions, same idea")}),
         el("button",{class:"btn quiet", type:"button", text:"Make it fancier", onclick:() => labBuild("Make it a more premium version worth a higher price")}),
