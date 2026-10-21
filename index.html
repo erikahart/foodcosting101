@@ -1322,6 +1322,21 @@ td.desc-cell{white-space:normal !important;min-width:180px}
 .ck.excused .ck-box{border-color:var(--muted);color:var(--muted);background:transparent}
 .ck.excused .ck-tx{text-decoration:line-through}
 .ck.excused .ck-by{white-space:normal;text-align:right}
+
+/* ---------- Manager PIN lock ---------- */
+.pin-wrap{display:grid;place-items:center;min-height:70vh}
+.pin-card{width:min(420px,100%);text-align:center;display:grid;gap:8px;padding:24px}
+.pin-card h1{margin:0}
+.pin-lock{font-size:2.4rem}
+.pin-in{font-size:2rem;text-align:center;letter-spacing:.5em;min-height:60px}
+.pin-msg{min-height:1.2em;margin:0;color:var(--bad);font-weight:600}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px}
+.pin-key{min-height:62px;border-radius:14px;border:1px solid var(--line);background:var(--field);font:inherit;font-size:1.5rem;font-weight:700;color:var(--ink);cursor:pointer}
+.pin-key:active{background:var(--line)}
+.staff-tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:14px}
+.staff-tile{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;cursor:pointer;font:inherit;color:var(--ink);min-height:110px}
+.staff-tile b{font-family:var(--brand-font);font-weight:800;font-size:1.5rem}
+.lockctl{width:100%;margin-bottom:8px;justify-content:center}
 </style>
 </head>
 <body>
@@ -1604,7 +1619,10 @@ function renderUserBox(){
   const initials = (USER.email || "?").split("@")[0].split(/[._-]+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join("") || "?";
   const out = el("button",{class:"signout", type:"button", "aria-label":"Sign out", title:"Sign out", onclick:signOut});
   out.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></svg>';
-  fillIn(box, pick, el("div",{class:"ubox"}, el("span",{class:"avatar", text:initials}),
+  const pl = pinCfg() && pinCfg().on && (pinCfg().pins || []).length;
+  const lockCtl = !pl ? null : pinLocked() ? el("button",{class:"btn quiet lockctl", type:"button", text:"\ud83d\udd12 Manager mode", onclick:() => { ST.page = STAFF_PAGES.includes(ST.page) ? "coach" : ST.page; render(); }})
+    : UNLOCK && UNLOCK.until > Date.now() ? el("button",{class:"btn quiet lockctl", type:"button", title:"Unlocked by " + UNLOCK.name, text:"\ud83d\udd13 Lock (" + UNLOCK.name + ")", onclick: lockNow}) : null;
+  fillIn(box, pick, lockCtl, el("div",{class:"ubox"}, el("span",{class:"avatar", text:initials}),
     el("div",{class:"who"}, el("b",{text:USER.email}), el("span",{text:ACCT ? ACCT.name : ""})), themeButton(), out));
 }
 async function boot(){
@@ -1809,14 +1827,18 @@ const navIcon = id => { const sp = document.createElement("span"); sp.className 
 function renderNav(){
   const nav = $("nav"); nav.replaceChildren();
   const newDocs = R().inbox.filter(d => d.status === "new").length, bad = visibleInsights().filter(i => i.sev === "bad").length;
-  PAGES.forEach(([id, label]) => nav.append(el("button",{"aria-current": ST.page === id ? "page" : null, onclick:() => go(id)}, navIcon(id), el("span",{class:"lbl", text:label}),
+  const locked = pinLocked();
+  (locked ? PAGES.filter(([id]) => id === "home" || STAFF_PAGES.includes(id)) : PAGES).forEach(([id, label]) => nav.append(el("button",{"aria-current": ST.page === id ? "page" : null, onclick:() => go(id)}, navIcon(id), el("span",{class:"lbl", text:label}),
     id === "inbox" && newDocs ? el("span",{class:"badge", text:newDocs}) : null, id === "coach" && bad ? el("span",{class:"badge", text:bad}) : null)));
   // Phone tab bar: the five pages used most, plus More.
   const tbar = $("tabbar");
   if (tbar){
-    const MAIN = ACCT && ACCT.role === "member" ? [["book","Book"],["home","Home"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]] : [["home","Home"],["coach","Coach"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]];
+    const MAIN = locked ? [["home","Home"],["book","Book"],["sched","Schedule"],["events","Events"]] : ACCT && ACCT.role === "member" ? [["book","Book"],["home","Home"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]] : [["home","Home"],["coach","Coach"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]];
     const moreIc = document.createElement("span"); moreIc.className = "ic"; moreIc.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
     const onMore = !MAIN.some(([id]) => id === ST.page);
+    if (locked){ tbar.replaceChildren(...MAIN.map(([id, label]) => el("button",{type:"button", "aria-current": ST.page === id ? "page" : null, onclick:() => go(id)}, navIcon(id), el("span",{class:"lbl", text:label}))),
+      el("button",{type:"button", "aria-label":"Manager mode", onclick:() => { ST.page = "coach"; render(); }}, el("span",{class:"ic", text:"\ud83d\udd12"}), el("span",{class:"lbl", text:"Manager"}))); }
+    else
     tbar.replaceChildren(...MAIN.map(([id, label]) => { const b = el("button",{type:"button", "aria-current": ST.page === id ? "page" : null, onclick:() => go(id)}, navIcon(id), el("span",{class:"lbl", text:label}));
         const n2 = id === "inbox" ? newDocs : id === "coach" ? bad : 0; if (n2) b.append(el("span",{class:"tb-badge", text:n2})); return b; }),
       el("button",{type:"button", "aria-current": onMore ? "page" : null, "aria-label":"More", onclick:() => openMore()}, moreIc, el("span",{class:"lbl", text:"More"})));
@@ -1837,7 +1859,10 @@ function labelTables(root){
     }));
   });
 }
-function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, book, lab, sched, events, supplies, inbox, suppliers, brand })[ST.page](m); pageHeader(m); labelTables(m); }
+function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren();
+  if (pinLocked() && !STAFF_PAGES.includes(ST.page)){ if (ST.page === "home") staffHome(m); else pinScreen(m, ST.page); pageHeader(m); return; }
+  ({ home, coach, menu, book, lab, sched, events, supplies, inbox, suppliers, brand })[ST.page](m);
+  if (ST.page === "brand"){ const pc = pinLockCard(); if (pc) m.append(pc); } pageHeader(m); labelTables(m); }
 // Group each page's title, description and main actions into one header with a fine rule under it.
 function pageHeader(m){
   const first = m.firstElementChild; if (!first) return;
@@ -1849,6 +1874,100 @@ function pageHeader(m){
   }
 }
 
+
+/* ================= Manager PIN lock: staff mode on shared devices, manager mode with a PIN ================= */
+// Staff mode shows the Kitchen book, Schedule (with checklists) and Events. Everything else needs a manager's PIN.
+// This is a lock for shared devices; separate logins (Member role) are the real separation.
+const STAFF_PAGES = ["book","sched","events"];
+let UNLOCK = (() => { try { return JSON.parse(sessionStorage.getItem("pm-unlock") || "null"); } catch(e){ return null; } })();
+const pinCfg = () => (ST && ST.pinLock) || null;
+const deviceToken = () => { try { return localStorage.getItem("pm-trust-" + (ACCT && ACCT.id)) || ""; } catch(e){ return ""; } };
+function pinLocked(){
+  const p = pinCfg(); if (!p || !p.on || !(p.pins || []).length) return false;
+  const tok = deviceToken(); if (tok && (p.trusted || []).includes(tok)) return false;
+  return !(UNLOCK && UNLOCK.acct === (ACCT && ACCT.id) && UNLOCK.until > Date.now());
+}
+function setUnlock(name){ const p = pinCfg(); UNLOCK = name ? { acct: ACCT.id, name, until: Date.now() + (n(p && p.timeout) || 15) * 60000 } : null;
+  try { if (UNLOCK) sessionStorage.setItem("pm-unlock", JSON.stringify(UNLOCK)); else sessionStorage.removeItem("pm-unlock"); } catch(e){} }
+async function pinHash(salt, pin){ const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pin)); return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join(""); }
+// Any activity keeps manager mode open; it locks again after the chosen quiet time.
+["click","keydown","touchstart"].forEach(ev => document.addEventListener(ev, () => { if (UNLOCK && UNLOCK.until > Date.now() && pinCfg() && pinCfg().on){ UNLOCK.until = Date.now() + (n(pinCfg().timeout) || 15) * 60000; try { sessionStorage.setItem("pm-unlock", JSON.stringify(UNLOCK)); } catch(e){} } }, { passive:true }));
+setInterval(() => { if (UNLOCK && UNLOCK.until <= Date.now()){ setUnlock(null); if (ST && pinLocked()){ if (dlg.open) dlg.close(); render(); toast("Manager mode locked"); } } }, 20000);
+function lockNow(){ setUnlock(null); if (dlg.open) dlg.close(); if (!STAFF_PAGES.includes(ST.page)) ST.page = "home"; render(); toast("Locked. Staff mode is on."); }
+function pinScreen(m, wanted){
+  const p = pinCfg(), box = el("input",{class:"inp pin-in", type:"password", inputmode:"numeric", autocomplete:"off", maxlength:"6", "aria-label":"Manager PIN", placeholder:"\u2022\u2022\u2022\u2022"});
+  const msg = el("p",{class:"pin-msg"});
+  const tries = () => { try { return JSON.parse(sessionStorage.getItem("pm-tries") || '{"n":0,"until":0}'); } catch(e){ return { n:0, until:0 }; } };
+  const tryPin = async () => {
+    const t = tries(); if (t.until > Date.now()){ msg.textContent = "Too many tries. Wait " + Math.ceil((t.until - Date.now()) / 1000) + " seconds."; return; }
+    const v = box.value.trim(); if (v.length < 4) return;
+    const h = await pinHash(p.salt, v), who = (p.pins || []).find(x => x.hash === h);
+    if (who){ try { sessionStorage.removeItem("pm-tries"); } catch(e){} setUnlock(who.name); ST.page = wanted || ST.page; render(); toast("Unlocked. Hi " + who.name + "!"); return; }
+    t.n++; if (t.n >= 5){ t.until = Date.now() + 60000; t.n = 0; } try { sessionStorage.setItem("pm-tries", JSON.stringify(t)); } catch(e){}
+    box.value = ""; msg.textContent = t.until > Date.now() ? "Too many tries. Wait a minute." : "That PIN didn't match."; box.focus();
+  };
+  box.onkeydown = e => { if (e.key === "Enter") tryPin(); };
+  box.oninput = () => { box.value = box.value.replace(/\D/g, ""); if (box.value.length === 6) tryPin(); };
+  const key = d => el("button",{class:"pin-key", type:"button", text:d, onclick:() => { if (d === "\u232b") box.value = box.value.slice(0, -1); else if (d === "OK") tryPin(); else if (box.value.length < 6) box.value += d; box.focus(); }});
+  m.append(el("div",{class:"pin-wrap"},
+    el("div",{class:"pin-card card"}, el("div",{class:"pin-lock", "aria-hidden":"true", text:"\ud83d\udd12"}), el("h1",{text:"Manager mode"}),
+      el("p",{class:"lead", text:"Enter your manager PIN to see costs, prices, invoices and settings."}), box, msg,
+      el("div",{class:"pin-pad"}, ["1","2","3","4","5","6","7","8","9","\u232b","0","OK"].map(key)),
+      el("div",{class:"row", style:"justify-content:center;margin-top:10px;flex-wrap:wrap"}, STAFF_PAGES.map(pg => el("button",{class:"btn quiet", type:"button", text:"Go to " + (PAGES.find(x => x[0] === pg) || [0, pg])[1], onclick:() => go(pg)}))))));
+  setTimeout(() => box.focus(), 50);
+}
+// Staff Home: what's on today, without money.
+function staffHome(m){
+  const r = R(), t = localDay(new Date());
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text: r.name || (ACCT && ACCT.name) || "Today"}), el("p",{class:"lead", text: new Date().toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" })})),
+    el("button",{class:"btn quiet", type:"button", text:"\ud83d\udd12 Manager mode", onclick:() => { ST.page = "coach"; render(); }})));
+  calData(r); loadFeedEvents(r, addDays(t, -7), addDays(t, 35));
+  const items = dayItems(r, t);
+  m.append(el("div",{class:"card"}, el("h2",{style:"margin:0 0 8px", text:"Today"}), items.length ? el("div",{class:"cal-list"}, items.map(it => el("div",{class:"cal-item", style:"--c:" + it.color},
+    el("div",{class:"cal-when", text: it.kind === "special" ? "\u2605 Special" : it.kind === "note" ? "Note" : it.time ? t12(it.time) : "All day"}), el("div",{class:"cal-what"}, el("b",{text:it.title}), it.where ? el("div",{class:"mini", text:"@ " + it.where}) : null)))) : el("p",{class:"mini", text:"Nothing special on today."})));
+  m.append(el("div",{class:"staff-tiles"}, [["book","Kitchen book","Recipe cards and specs"],["sched","Schedule","Who's working and today's checklists"],["events","Events","Bookings, events and specials"]].map(([pg, a, b]) =>
+    el("button",{class:"staff-tile card", type:"button", onclick:() => { if (pg === "sched") SCV.tab = "week"; go(pg); }}, navIcon(pg), el("b",{text:a}), el("span",{class:"mini", text:b})))));
+}
+function pinLockCard(){
+  const can = ACCT && ["owner","manager"].includes(ACCT.role); if (!can) return null;
+  ST.pinLock = ST.pinLock || { on:false, salt: Math.random().toString(36).slice(2) + Date.now().toString(36), pins:[], timeout:15, trusted:[] };
+  const p = ST.pinLock, tok = deviceToken(), trusted = !!(tok && (p.trusted || []).includes(tok));
+  const addPin = (existing) => {
+    const name = el("input",{class:"inp", value: existing ? existing.name : (USER && USER.email ? USER.email.split("@")[0] : ""), placeholder:"Name"});
+    const a = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"6", placeholder:"4 to 6 digits"}), b = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"6", placeholder:"Same again"});
+    const msg = el("div");
+    openDlg(existing ? "Change PIN for " + existing.name : "Add a manager PIN", [fld("Manager name", name), el("div",{class:"g2"}, fld("PIN", a), fld("Confirm PIN", b)), msg,
+      el("p",{class:"mini", text:"Use a PIN that isn't a birthday or 1234. Each manager should have their own."})],
+      [el("span"), el("button",{class:"btn primary", text:"Save PIN", onclick: async () => {
+        const v = a.value.trim(); if (!/^\d{4,6}$/.test(v)) return msg.replaceChildren(el("div",{class:"msg bad", text:"The PIN needs 4 to 6 digits."}));
+        if (v !== b.value.trim()) return msg.replaceChildren(el("div",{class:"msg bad", text:"The two PINs don't match."}));
+        if (!name.value.trim()) return name.focus();
+        const h = await pinHash(p.salt, v);
+        if (p.pins.some(x => x.hash === h && x !== existing)) return msg.replaceChildren(el("div",{class:"msg bad", text:"Someone already uses that PIN. Pick another."}));
+        if (existing){ existing.name = name.value.trim(); existing.hash = h; } else p.pins.push({ id: uid("pin"), name: name.value.trim(), hash: h });
+        save(); dlg.close(); render(); toast("PIN saved"); }})]);
+  };
+  const on = el("input",{type:"checkbox"}); on.checked = !!p.on;
+  on.onchange = () => { if (on.checked && !p.pins.length){ on.checked = false; toast("Add a PIN first."); return addPin(); } p.on = on.checked; if (p.on) setUnlock((USER && USER.email || "manager").split("@")[0]); save(); render(); };
+  const tsel = el("select",{class:"inp", style:"max-width:180px"}, [5,15,30,60].map(v => el("option",{value:v, text: v + " minutes"}))); tsel.value = String(p.timeout || 15); tsel.onchange = () => { p.timeout = +tsel.value; save(); };
+  return el("div",{class:"card feed-card", style:"margin-top:16px"},
+    el("div",{class:"feed-h"}, el("div",null, el("h3",{text:"Manager PIN lock"}), el("p",{class:"mini", style:"margin:2px 0 0", text:"On shared devices, the app opens in staff mode (Kitchen book, Schedule, Events). Costs, prices, invoices and settings need a manager's PIN."})),
+      el("span",{class:"pill " + (p.on ? "good" : ""), text: p.on ? "On" : "Off"})),
+    el("label",{class:"row", style:"gap:8px;font-weight:600;margin:10px 0"}, on, "Require a manager PIN for the management side"),
+    el("div",{class:"pin-list"}, p.pins.length ? p.pins.map(x => el("div",{class:"feed-row"}, el("b",{style:"flex:1", text:x.name}), el("span",{class:"mini", text:"\u2022\u2022\u2022\u2022"}),
+      el("button",{class:"linkbtn", type:"button", text:"Change", onclick:() => addPin(x)}),
+      el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { if (p.pins.length === 1 && p.on) return toast("Turn the lock off before removing the last PIN."); if (!confirm("Remove " + x.name + "'s PIN?")) return; p.pins = p.pins.filter(y => y !== x); save(); render(); }}))) : [el("p",{class:"mini", text:"No PINs yet."})]),
+    el("button",{class:"btn quiet", type:"button", style:"margin-top:6px", text:"+ Add a manager PIN", onclick:() => addPin()}),
+    el("div",{class:"g2", style:"margin-top:12px"}, fld("Lock again after no use for", tsel),
+      el("div",{class:"field"}, el("span",{class:"q", text:"This device"}),
+        el("div",{class:"row"}, el("span",{class:"mini", text: trusted ? "Trusted: never asks for a PIN." : "Asks for a PIN."}),
+          el("button",{class:"btn quiet", type:"button", text: trusted ? "Stop trusting" : "Trust this device", onclick:() => {
+            if (trusted){ p.trusted = (p.trusted || []).filter(x => x !== tok); try { localStorage.removeItem("pm-trust-" + ACCT.id); } catch(e){} }
+            else { const t2 = Math.random().toString(36).slice(2) + Date.now().toString(36); p.trusted = (p.trusted || []).concat([t2]).slice(-20); try { localStorage.setItem("pm-trust-" + ACCT.id, t2); } catch(e){} }
+            save(); render(); }})))),
+    (p.trusted || []).length ? el("button",{class:"linkbtn", type:"button", style:"margin-top:6px", text:"Forget all trusted devices (" + p.trusted.length + ")", onclick:() => { if (!confirm("Every device will ask for a PIN again. Continue?")) return; p.trusted = []; save(); render(); }}) : null,
+    el("p",{class:"mini", style:"margin-top:10px", text:"Trust your own phone and laptop. Leave shared devices (the office computer, a phone that stays at the restaurant) untrusted. For full separation, give staff their own logins with the Member role."}));
+}
 /* ================= Pages ================= */
 const insKey = i => (i.tag || "") + "|" + (i.title || "");
 // Suggestions you dismissed stay hidden until their wording changes (e.g. a price moves again).
@@ -3324,7 +3443,7 @@ function openPositions(r){
     codeRows.forEach(({ c, s: s2 }) => { if (s2.value){ r.rolePos[c] = s2.value; if (!r.roleCodes[c] || r.roleCodes[c] === c) r.roleCodes[c] = s2.value; } else delete r.rolePos[c]; });
     save(); dlg.close(); toast("Positions saved"); }})]);
 }
-const canEditSchedule = () => !!ACCT && (ACCT.role === "owner" || ACCT.role === "manager" || !!(ST && ST.perms && USER && ST.perms[USER.id] && ST.perms[USER.id].schedule));
+const canEditSchedule = () => !pinLocked() && !!ACCT && (ACCT.role === "owner" || ACCT.role === "manager" || !!(ST && ST.perms && USER && ST.perms[USER.id] && ST.perms[USER.id].schedule));
 const localDay = d => { const z = new Date(d); z.setMinutes(z.getMinutes() - z.getTimezoneOffset()); return z.toISOString().slice(0, 10); };
 const addDays = (iso, k) => { const d = new Date(iso + "T12:00:00"); d.setDate(d.getDate() + k); return localDay(d); };
 const mondayOf = iso => { const d = new Date(iso + "T12:00:00"); const w = (d.getDay() + 6) % 7; return addDays(iso, -w); };
@@ -6564,7 +6683,7 @@ function cmdkRender(){
     el("span",{class:"k", text:e.kind}), el("span",{class:"t"}, el("b",{text:e.label}), e.sub ? el("span",{text:e.sub}) : null))) : [el("div",{class:"cmdk-empty", text:"No matches. Try a dish, a supply, or a supplier's item code."})]));
 }
 function paintSel(){ [...cmdkList.children].forEach((c, i) => { c.classList.toggle("on", i === cmdkSel); c.setAttribute && c.setAttribute("aria-selected", String(i === cmdkSel)); }); const on = cmdkList.children[cmdkSel]; if (on && on.scrollIntoView) on.scrollIntoView({ block:"nearest" }); }
-function cmdkOpen(){ if (!ST || !$("app") || $("app").hidden) return; cmdk.hidden = false; cmdkQ.value = ""; cmdkSel = 0; cmdkRender(); setTimeout(() => cmdkQ.focus(), 0); }
+function cmdkOpen(){ if (!ST || !$("app") || $("app").hidden) return; if (pinLocked()){ toast("Search is in manager mode. Tap Manager mode to unlock."); return; } cmdk.hidden = false; cmdkQ.value = ""; cmdkSel = 0; cmdkRender(); setTimeout(() => cmdkQ.focus(), 0); }
 function cmdkClose(){ cmdk.hidden = true; }
 cmdkQ.oninput = () => { cmdkSel = 0; cmdkRender(); };
 cmdkQ.onkeydown = e => {
