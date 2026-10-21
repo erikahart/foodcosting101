@@ -186,6 +186,11 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
 .rq-st{font-weight:800;border-radius:999px;padding:3px 12px;background:var(--field)}
 .rq.approved .rq-st{background:var(--jade);color:#fff} .rq.denied .rq-st{background:var(--ketchup);color:#fff} .rq.pending .rq-st{background:var(--warn-soft);color:#7a5200}
 .evlist{display:grid;gap:10px;margin-bottom:18px}
+.ev-modes{margin:0 0 14px} .ev-modes button{min-height:52px;padding:0 22px;font-size:1.05rem}
+.ev-monthnav{display:flex;align-items:center;gap:12px;margin:0 0 14px}
+.ev-monthnav h2{margin:0;font-family:var(--head);font-weight:800;font-size:2.1rem;min-width:260px;text-align:center}
+.ev-monthnav .back{min-width:60px;font-size:1.4rem}
+.ev-monthnav .back[disabled]{opacity:.35}
 .evlist.compact{margin:0 0 14px}
 .ev{display:grid;grid-template-columns:160px 1fr;gap:14px;background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:14px;padding:12px 14px;font-size:1.08rem}
 .ev.special{background:color-mix(in srgb,var(--c) 10%,var(--panel))}
@@ -471,14 +476,22 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
     if (R.personId){ R.person = pname(R.personId); what(); } else who();
   }
   // ---------- Events: bookings (through the server, contact details removed), events and specials ----------
-  let FEED = { at: 0, events: [], loading: false };
-  function loadFeed(){
-    if (!BOOK || !BOOK.hasFeeds || FEED.loading || Date.now() - FEED.at < 5 * 60 * 1000) return;
-    FEED.loading = true; const from = addDays(localDay(), -1), to = addDays(localDay(), 21);
+  const FEEDS = new Map();   // "from|to" -> { at, events, loading }
+  function loadRange(from, to){
+    if (!BOOK || !BOOK.hasFeeds) return;
+    const key = from + "|" + to, cur = FEEDS.get(key);
+    if (cur && (cur.loading || Date.now() - cur.at < 5 * 60 * 1000)) return;
+    FEEDS.set(key, { at: cur ? cur.at : 0, events: cur ? cur.events : [], loading: true });
     fetch("/api/calendar?token=" + encodeURIComponent(token) + "&from=" + from + "&to=" + to).then(r2 => r2.ok ? r2.json() : null).then(d => {
-      FEED = { at: Date.now(), events: (d && d.events) || FEED.events, loading: false }; if (/^#(events|sched)/.test(location.hash)) render();
-    }).catch(() => { FEED.loading = false; FEED.at = Date.now(); });
+      FEEDS.set(key, { at: Date.now(), events: (d && d.events) || (cur ? cur.events : []), loading: false }); if (/^#(events|sched)/.test(location.hash)) render();
+    }).catch(() => FEEDS.set(key, { at: Date.now(), events: cur ? cur.events : [], loading: false }));
   }
+  const loadFeed = () => loadRange(addDays(localDay(), -1), addDays(localDay(), 21));
+  function feedEvents(){ const seen = new Set(), out = [];
+    FEEDS.forEach(v => v.events.forEach(e => { const k = e.date + "|" + (e.time || "") + "|" + e.title; if (!seen.has(k)){ seen.add(k); out.push(e); } })); return out; }
+  const FEED = { get events(){ return feedEvents(); } };
+  const isLong = sp => !(sp.days && sp.days.length) && (!sp.end || !sp.start || (Date.parse(sp.end) - Date.parse(sp.start)) / 864e5 > 6);
+  let EV_MODE = "upcoming", EV_MONTH = 0;
   const specialOn = (sp, d) => (!sp.start || d >= sp.start) && (!sp.end || d <= sp.end) && (!sp.days || !sp.days.length || sp.days.includes(new Date(d + "T12:00:00").getDay()));
   function itemsOn(d){
     const out = [];
@@ -497,8 +510,11 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
         item ? h("button", { class:"back", type:"button", style:"margin-top:8px;min-height:44px", text:"Open the recipe card", onclick: () => go({ card: item.id }) }) : null));
   }
   function eventsView(m){
+    const today = localDay();
+    const modes = h("div", { class:"seg ev-modes", role:"group" }, [["upcoming","Coming up"],["month","By month"]].map(([k, l]) => h("button", { type:"button", "aria-pressed": String(EV_MODE === k), text:l, onclick: () => { EV_MODE = k; render(); } })));
+    if (EV_MODE === "month") return monthView(m, today, modes);
     loadFeed();
-    const today = localDay(), parts = [h("div", { class:"day-h" }, h("h2", { text:"Today" }))];
+    const parts = [modes, h("div", { class:"day-h" }, h("h2", { text:"Today" }))];
     const now = itemsOn(today);
     parts.push(now.length ? h("div", { class:"evlist" }, now.map(evRow)) : h("div", { class:"empty", text:"Nothing special on today." }));
     parts.push(h("h2", { class:"ev-h", text:"Coming up" }));
@@ -507,6 +523,27 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
       if (!list.length) continue; any = true; const dd = new Date(d + "T12:00:00");
       parts.push(h("div", { class:"ev-day" }, h("div", { class:"ev-date" }, h("b", { text: i === 1 ? "Tomorrow" : DOWL[dd.getDay()] }), h("span", { text: dd.toLocaleDateString(undefined, { month:"short", day:"numeric" }) })), h("div", { class:"evlist" }, list.map(evRow)))); }
     if (!any) parts.push(h("div", { class:"empty", text:"Nothing on the calendar for the next two weeks." }));
+    m.replaceChildren(...parts, status());
+  }
+  function monthView(m, today, modes){
+    const base = new Date(today.slice(0, 7) + "-01T12:00:00"); base.setMonth(base.getMonth() + EV_MONTH);
+    const first = localDay(base), next = new Date(base); next.setMonth(next.getMonth() + 1); const last = addDays(localDay(next), -1);
+    loadRange(addDays(first, -1), addDays(last, 1));
+    const nav = h("div", { class:"ev-monthnav" },
+      h("button", { class:"back", type:"button", text:"\u2039", "aria-label":"Previous month", disabled: EV_MONTH <= 0 ? "" : null, onclick: () => { EV_MONTH = Math.max(0, EV_MONTH - 1); render(); } }),
+      h("h2", { text: base.toLocaleDateString(undefined, { month:"long", year:"numeric" }) }),
+      h("button", { class:"back", type:"button", text:"\u203a", "aria-label":"Next month", disabled: EV_MONTH >= 11 ? "" : null, onclick: () => { EV_MONTH = Math.min(11, EV_MONTH + 1); render(); } }));
+    const parts = [modes, nav];
+    const running = (BOOK.specials || []).filter(sp => isLong(sp) && (!sp.start || sp.start <= last) && (!sp.end || sp.end >= first));
+    if (running.length) parts.push(h("div", { class:"evlist" }, h("div", { class:"sub-note", style:"font-weight:700", text:"Running this month" }),
+      running.map(sp => evRow({ kind:"special", sp, title: sp.title, desc: sp.desc, price: sp.price, itemId: sp.itemId, color:"#D99A1E" }))));
+    let any = false;
+    for (let d = first < today ? today : first; d <= last; d = addDays(d, 1)){
+      const list = itemsOn(d).filter(x => x.kind !== "special" || !isLong(x.sp));
+      if (!list.length) continue; any = true; const dd = new Date(d + "T12:00:00");
+      parts.push(h("div", { class:"ev-day" }, h("div", { class:"ev-date" }, h("b", { text: d === today ? "Today" : DOWL[dd.getDay()] }), h("span", { text: dd.toLocaleDateString(undefined, { month:"short", day:"numeric" }) })), h("div", { class:"evlist" }, list.map(evRow))));
+    }
+    if (!any) parts.push(h("div", { class:"empty", text: [...FEEDS.values()].some(v => v.loading) ? "Loading\u2026" : "Nothing on the calendar " + (EV_MONTH === 0 ? "for the rest of this month." : "this month.") }));
     m.replaceChildren(...parts, status());
   }
   let CHECKS = new Map(), CHECKS_DAY = "", checkTimer = null;

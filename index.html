@@ -3214,8 +3214,9 @@ function bookSnapshot(r){
     shifts: r.shifts.filter(x => x.date >= from && x.date <= to).map(x => ({ d: x.date, p: x.staff, s: x.start || null, e: x.end || null, r: x.role || "", off: !!x.off, n: x.off ? (x.note || "") : "" })),
     notes: Object.fromEntries(Object.entries(r.dayNotes).filter(([d]) => d >= from && d <= to)) };
   calData(r);
-  const evs = r.events.filter(e => e.date >= from && e.date <= to).map(e => ({ date: e.date, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where || "", guests: e.guests || null, desc: e.notes || "" }));
-  const specials = r.specials.filter(sp => (!sp.end || sp.end >= from) && (!sp.start || sp.start <= to)).map(sp => ({ title: sp.title, kind: sp.kind, price: sp.price || null, desc: sp.desc || "", start: sp.start || null, end: sp.end || null, days: sp.days || null, itemId: sp.itemId || null }));
+  const evTo = addDays(today, 370);   // a year of events and specials for "By month" on the tablet
+  const evs = r.events.filter(e => e.date >= from && e.date <= evTo).map(e => ({ date: e.date, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where || "", guests: e.guests || null, desc: e.notes || "" }));
+  const specials = r.specials.filter(sp => (!sp.end || sp.end >= from) && (!sp.start || sp.start <= evTo)).map(sp => ({ title: sp.title, kind: sp.kind, price: sp.price || null, desc: sp.desc || "", start: sp.start || null, end: sp.end || null, days: sp.days || null, itemId: sp.itemId || null }));
   const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, startAt: l.startAt || null, items: l.items }));
   return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
     brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Kitchen book" } };
