@@ -1337,6 +1337,8 @@ td.desc-cell{white-space:normal !important;min-width:180px}
 .staff-tile{display:flex;flex-direction:column;align-items:flex-start;gap:6px;text-align:left;cursor:pointer;font:inherit;color:var(--ink);min-height:110px}
 .staff-tile b{font-family:var(--brand-font);font-weight:800;font-size:1.5rem}
 .lockctl{width:100%;margin-bottom:8px;justify-content:center}
+.pos-codes{display:grid;grid-template-columns:70px minmax(0,1fr) minmax(0,1.2fr);gap:8px;align-items:center;margin-top:6px}
+.pos-codes .inp{min-height:40px}
 
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
@@ -3521,15 +3523,18 @@ function openPositions(r){
   const codes = [...new Set(r.shifts.map(x => x.role).filter(Boolean))].filter(c => !/^(bar|serve|server)$/i.test(c));
   const sel = (val, guess) => { const s2 = el("select",{class:"inp"}, el("option",{value:"", text: guess ? "Not set (guess: " + guess + ")" : "Not set"}), POSITIONS.map(p => el("option",{value:p, text:p}))); s2.value = val || ""; return s2; };
   const staffRows = r.staff.map(p => ({ p, s: sel(p.pos, guessPos(r, p.id)) }));
-  const codeRows = codes.map(c => ({ c, s: sel(r.rolePos[c], c === "F" ? "Serving" : c === "B" ? "Kitchen" : null) }));
+  const codeRows = codes.map(c => { const lab = el("input",{class:"inp", value: r.roleCodes[c] && r.roleCodes[c] !== c && !POSITIONS.includes(r.roleCodes[c]) ? r.roleCodes[c] : "", placeholder: c === "F" ? "e.g. Front tables" : c === "B" ? "e.g. Back tables" : "What it means"});
+    return { c, s: sel(r.rolePos[c], c === "F" || c === "B" ? "Serving" : null), lab }; });
   openDlg("Positions", [
     el("p",{class:"lead", text:"Where each person usually works. The tablet and Day view group the schedule by these, so everyone can see who's in the kitchen, serving and on the bar."}),
     el("div",{class:"pos-grid"}, staffRows.map(({ p, s: s2 }) => el("label",{class:"pos-row"}, el("b",{text:p.name}), s2))),
     codeRows.length ? el("div",null, el("h3",{style:"margin:16px 0 4px", text:"Shift labels"}), el("p",{class:"mini", text:"A label on a shift moves that person for the day (\u201cBar\u201d and \u201cServe\u201d already do). What do these mean?"}),
-      el("div",{class:"pos-grid"}, codeRows.map(({ c, s: s2 }) => el("label",{class:"pos-row"}, el("b",{text:"\u201c" + c + "\u201d"}), s2)))) : null
+      el("div",{class:"pos-codes"}, el("span",{class:"mini", text:"Label"}), el("span",{class:"mini", text:"Position"}), el("span",{class:"mini", text:"Shows on the schedule as"}),
+        codeRows.flatMap(({ c, s: s2, lab }) => [el("b",{text:"\u201c" + c + "\u201d"}), s2, lab]))) : null
   ], [el("span"), el("button",{class:"btn primary", text:"Save positions", onclick:() => {
     staffRows.forEach(({ p, s: s2 }) => { if (s2.value) p.pos = s2.value; else delete p.pos; });
-    codeRows.forEach(({ c, s: s2 }) => { if (s2.value){ r.rolePos[c] = s2.value; if (!r.roleCodes[c] || r.roleCodes[c] === c) r.roleCodes[c] = s2.value; } else delete r.rolePos[c]; });
+    codeRows.forEach(({ c, s: s2, lab }) => { if (s2.value) r.rolePos[c] = s2.value; else delete r.rolePos[c];
+      const t = lab.value.trim(); if (t) r.roleCodes[c] = t; else if (POSITIONS.includes(r.roleCodes[c])) delete r.roleCodes[c]; });
     save(); dlg.close(); toast("Positions saved"); }})]);
 }
 const canEditSchedule = () => !pinLocked() && !!ACCT && (ACCT.role === "owner" || ACCT.role === "manager" || !!(ST && ST.perms && USER && ST.perms[USER.id] && ST.perms[USER.id].schedule));

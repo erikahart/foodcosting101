@@ -413,7 +413,7 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
         const g = posOf(x); if (g !== last){ const n = new Set(list.filter(y => posOf(y) === g).map(y => y.p)).size;
           rows.push(h("div", { class:"tl-group pos", style:"--pc:" + (POS_COLOR[g] || POS_COLOR.Team) }, h("span", { text: g === "Team" ? "Team" : g }), h("i", { text: n + " on" }))); last = g; }
         const s0 = toMin(x.s), e0 = x.e ? toMin(x.e) : hi, onNow = day === today && nowMin >= s0 && nowMin < e0;
-        const pc = POS_COLOR[g] || POS_COLOR.Team, lbl = x.r && !/^(bar|serve|server)$/i.test(x.r) && !(S().rolePos || {})[x.r] ? roleLabel(x.r) : "";
+        const pc = POS_COLOR[g] || POS_COLOR.Team, rl = x.r ? roleLabel(x.r) : "", lbl = x.r && !/^(bar|serve|server)$/i.test(x.r) && rl !== g ? rl : "";   // e.g. "Front tables" under Serving
         rows.push(h("div", { class:"tl-row" + (onNow ? " now" : "") },
           h("div", { class:"tl-name" }, h("b", { text: pname(x.p) }), lbl ? h("span", { class:"role", text: lbl }) : null),
           h("div", { class:"tl-track", style:"--n:" + (hours.length - 1) }, showNow ? h("i", { class:"tl-nowline", style:"left:" + pct(nowMin) + "%" }) : null, h("div", { class:"tl-bar" + (x.e ? "" : " toclose"), style:"background:" + pc + ";color:" + (g === "Bar" ? "#24221F" : "#fff") + ";left:" + pct(s0) + "%;width:" + Math.max(pct(e0) - pct(s0), 6) + "%" },
