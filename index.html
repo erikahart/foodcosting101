@@ -4810,6 +4810,7 @@ function openDoc(id){
   const opts = Object.values(r.supplies).sort((a,b) => a.name.localeCompare(b.name));
   const body = [el("p",{class:"lead", text: d.supplier + ", " + nice(d.date) + ", via " + d.source + (d.kind === "order" ? ". Arriving " + (d.eta || "soon") + ". The invoice will follow when it's delivered." : ".")})];
   if (d.note) body.push(el("div",{class:"msg bad", text:d.note}));
+  if (d.status === "new" && fillKnownPacks(r, d)) save();
   const { lastIdx, firstIdx } = dupInfo(d);
   const twin = d.status === "new" ? findDuplicateInvoice(r, d) : null;
   if (twin) body.push(el("div",{class:"msg bad"}, "This looks like invoice " + twin.number + " from " + nice(twin.date) + (twin.status === "approved" ? ", which is already approved" : ", already in your inbox") + ". Approving it again won't double-count prices, but you can delete this copy. ",
@@ -4818,6 +4819,17 @@ function openDoc(id){
   if (newer) body.push(el("div",{class:"msg good", text:(isPL ? "These prices are dated " : "This invoice is dated ") + nice(d.date) + ", but " + newer + (newer === 1 ? " item has" : " items have") + " a newer price already. " + (newer === 1 ? "It keeps" : "They keep") + " the newer price; this one goes into the price history."}));
   const tb = el("tbody");
   let shownLines = d.lines;
+  if (d.status === "new" && !isPL){
+    const otherLines = d.lines.filter(l => { const su = l.match && l.match !== "__new" && r.supplies[l.match]; return su && su.supplier && !su.estimated && !sameVendor(su.supplier, d.supplier, r); });
+    if (otherLines.length){
+      const usual = [...new Set(otherLines.map(l => canonVendor(r.supplies[l.match].supplier, r)))].join(" and "), allMoved = otherLines.every(l => l.replaceOther && l.makeUsual);
+      body.push(el("div",{class:"msg", style:"display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"},
+        el("span",{text: otherLines.length + (otherLines.length === 1 ? " item on this invoice is" : " items on this invoice are") + " listed under " + usual + " in your supplies. " +
+          (allMoved ? "They'll switch to " + canonVendor(d.supplier, r) + " and use these prices." : "Their " + canonVendor(d.supplier, r) + " prices will be saved separately, and recipes keep " + usual + "'s prices.")}),
+        el("button",{class:"btn " + (allMoved ? "quiet" : "primary"), type:"button", text: allMoved ? "Keep " + usual + " as usual" : "Make " + canonVendor(d.supplier, r) + " the usual vendor for " + (otherLines.length === 1 ? "it" : "all " + otherLines.length),
+          onclick:() => { otherLines.forEach(l => { l.replaceOther = !allMoved; l.makeUsual = !allMoved; }); save(); openDoc(id); }})));
+    }
+  }
   if (isPL){
     const matched = d.lines.filter(l => l.match), others = d.lines.filter(l => !l.match);
     const pFor = l => priceForSupply(l, r.supplies[l.match]).price;
@@ -4844,7 +4856,7 @@ function openDoc(id){
     sel.onchange = () => { l.match = sel.value || null; save(); openDoc(id); };
     const i = d.lines.indexOf(l), rep2 = l._k && lastIdx[l._k] !== firstIdx[l._k];
     const repNote = !rep2 ? null : lastIdx[l._k] === i ? "Repeated item: this last line's price is used" : "Repeated item: line " + (lastIdx[l._k] + 1) + "'s price is used instead";
-    tb.append(el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:l.desc}), el("div",{class:"mini", text:[l.code ? "#" + l.code : "", isPL && l.how === "similar" && l.match ? "similar name, check it" : ""].filter(Boolean).join(", ")}), repNote ? el("div",{class:"mini", style:"color:var(--warn);font-weight:700", text:repNote}) : null), el("td",{class:"num", text: isPL ? (l.pack || "\u2014") : l.qty}), el("td",{class:"num", text:$$(l.price)}),
+    tb.append(el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:l.desc}), el("div",{class:"mini", text:[l.code ? "#" + l.code : "", l.packFrom ? "pack " + (parsePack(l.pack) ? parsePack(l.pack).size + " " + parsePack(l.pack).unit : "") + " from " + l.packFrom : "", isPL && l.how === "similar" && l.match ? "similar name, check it" : ""].filter(Boolean).join(", ")}), repNote ? el("div",{class:"mini", style:"color:var(--warn);font-weight:700", text:repNote}) : null), el("td",{class:"num", text: isPL ? (l.pack || "\u2014") : l.qty}), el("td",{class:"num", text:$$(l.price)}),
       el("td",null, sel), el("td",{class:"num"}, ch != null && Math.abs(ch) >= 0.005 ? el("span",{class: ch > 0 ? "up" : "down", text:(ch > 0 ? "+" : "") + pc(ch)}) : su ? "same" : "—",
         conv.converted && !other ? el("div",{class:"mini", style:"white-space:normal;max-width:220px;margin-left:auto", text:conv.packText}) : null,
         other ? el("div",{class:"mini", style:"white-space:normal;max-width:240px;margin-left:auto;margin-top:4px"}, l.replaceOther ? "Will replace your " + canonVendor(su.supplier, r) + " price. " : "Saved as " + canonVendor(d.supplier, r) + "'s version; your " + canonVendor(su.supplier, r) + " price stays. ",
@@ -4880,6 +4892,20 @@ function vendorTwin(r, su, vendor, l){
   tw = { id: uid("s"), name: su.name, title: su.title, cat: su.cat, supplier: v, code: (l && l.code) || "", caseQty: okPk ? pk.size * UNITS[pk.unit][1] / UNITS[su.unit][1] : null, unit: su.unit, yield: su.yield || 1, price: null, history: [], altOf: su.id, packUnknown: !okPk };
   r.supplies[tw.id] = tw; return tw;
 }
+// EDI invoices often leave out pack sizes. Reuse the pack from the most recent invoice with the same item number
+// from the same vendor (item numbers don't change), so case prices still convert to your recipe sizes.
+function fillKnownPacks(r, d){
+  let n2 = 0;
+  const others = (r.inbox || []).filter(o => o.id !== d.id && sameVendor(o.supplier, d.supplier, r)).sort((p, q) => String(q.date || "").localeCompare(String(p.date || "")));
+  (d.lines || []).forEach(l => {
+    if (!l.code || parsePack(l.pack) || parsePack(l.desc)) return;
+    for (const o of others){
+      const m = (o.lines || []).find(x => String(x.code || "") === String(l.code) && (parsePack(x.pack) || parsePack(x.desc)));
+      if (m){ l.pack = parsePack(m.pack) ? m.pack : m.desc; l.packFrom = (o.kind === "pricelist" ? "price sheet " : "invoice " + (o.number || "")) + " (" + nice(o.date) + ")"; n2++; break; }
+    }
+  });
+  return n2;
+}
 // Record a price in a supply's history (kept in date order) and set the current price
 // to the most recent one. An older invoice never overwrites a newer price.
 // Prices from documents or typed by hand carry real dates; spreadsheet imports don't, so they sort first.
@@ -4904,6 +4930,7 @@ function dupInfo(d){
 }
 function approve(d){
   const r = R(), before = JSON.parse(JSON.stringify(r.supplies)); let up = 0, older = 0, combined = 0;
+  fillKnownPacks(r, d);
   const isBev = (r.vendors || []).some(v => v.kind === "bev" && v.name.toLowerCase() === (d.supplier || "").toLowerCase());
   let added = 0;
   const { lastIdx } = dupInfo(d);
@@ -4932,6 +4959,7 @@ function approve(d){
     if (seen[sid] > 1) combined += seen[sid] - 1;
     if (!su.supplier && d.supplier && !su.estimated) su.supplier = canonVendor(d.supplier, r);
     // Another vendor's price never overwrites this supply: it goes on that vendor's own version (for Compare vendors).
+    if (l.replaceOther && l.makeUsual && d.supplier) su.supplier = canonVendor(d.supplier, r);
     if (su.supplier && d.supplier && !su.estimated && !sameVendor(su.supplier, d.supplier, r) && !l.replaceOther){
       const tw = vendorTwin(r, su, d.supplier, l); twins++;
       if (l.code && !tw.code) tw.code = l.code;
