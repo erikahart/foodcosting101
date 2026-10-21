@@ -1622,7 +1622,7 @@ function renderUserBox(){
   const out = el("button",{class:"signout", type:"button", "aria-label":"Sign out", title:"Sign out", onclick:signOut});
   out.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l5-5-5-5M15 12H4"/></svg>';
   const pl = pinCfg() && pinCfg().on && (pinCfg().pins || []).length;
-  const lockCtl = !pl ? null : pinLocked() ? el("button",{class:"btn quiet lockctl", type:"button", text:"\ud83d\udd12 Manager mode", onclick:() => { ST.page = STAFF_PAGES.includes(ST.page) ? "coach" : ST.page; render(); }})
+  const lockCtl = !pl ? null : pinLocked() ? el("button",{class:"btn quiet lockctl", type:"button", text:"\ud83d\udd12 Manager mode", onclick:() => { ST.page = STAFF_PAGES.includes(ST.page) || ST.page === "home" ? "coach" : ST.page; render(); }})
     : UNLOCK && UNLOCK.until > Date.now() ? el("button",{class:"btn quiet lockctl", type:"button", title:"Unlocked by " + UNLOCK.name, text:"\ud83d\udd13 Lock (" + UNLOCK.name + ")", onclick: lockNow}) : null;
   fillIn(box, pick, lockCtl, el("div",{class:"ubox"}, el("span",{class:"avatar", text:initials}),
     el("div",{class:"who"}, el("b",{text:USER.email}), el("span",{text:ACCT ? ACCT.name : ""})), themeButton(), out));
@@ -1934,11 +1934,40 @@ function staffHome(m){
   m.append(el("div",{class:"staff-tiles"}, [["book","Kitchen book","Recipe cards and specs"],["sched","Schedule","Who's working and today's checklists"],["events","Events","Bookings, events and specials"]].map(([pg, a, b]) =>
     el("button",{class:"staff-tile card", type:"button", onclick:() => { if (pg === "sched") SCV.tab = "week"; go(pg); }}, navIcon(pg), el("b",{text:a}), el("span",{class:"mini", text:b})))));
 }
+function ensurePinCfg(){ ST.pinLock = ST.pinLock || { on:false, salt: Math.random().toString(36).slice(2) + Date.now().toString(36), pins:[], timeout:15, trusted:[] }; return ST.pinLock; }
+// preset: { userId, name } ties the PIN to a team member's account (shown by their email).
+function openPinDialog(existing, preset){
+  const p = ensurePinCfg(), tied = existing ? existing.userId : preset && preset.userId;
+  const name = el("input",{class:"inp", value: existing ? existing.name : (preset && preset.name) || (USER && USER.email ? USER.email.split("@")[0] : ""), placeholder:"Name"});
+  const a = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"6", placeholder:"4 to 6 digits"}), b = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"6", placeholder:"Same again"});
+  const msg = el("div");
+  openDlg(existing ? "Change PIN for " + existing.name : "Set a manager PIN" + (preset && preset.email ? " for " + preset.email : ""),
+    [fld("Name shown when unlocked", name), el("div",{class:"g2"}, fld("PIN", a), fld("Confirm PIN", b)), msg,
+     el("p",{class:"mini", text:"Use a PIN that isn't a birthday or 1234. Each manager should have their own."})],
+    [existing && ACCT.role === "owner" ? el("button",{class:"btn danger", text:"Remove PIN", onclick:() => {
+        if (p.pins.length === 1 && p.on) return toast("Turn the lock off before removing the last PIN.");
+        if (!confirm("Remove " + existing.name + "'s PIN?")) return; p.pins = p.pins.filter(y => y !== existing); save(); dlg.close(); render(); }}) : el("span"),
+     el("button",{class:"btn primary", text:"Save PIN", onclick: async () => {
+      const v = a.value.trim(); if (!/^\d{4,6}$/.test(v)) return msg.replaceChildren(el("div",{class:"msg bad", text:"The PIN needs 4 to 6 digits."}));
+      if (v !== b.value.trim()) return msg.replaceChildren(el("div",{class:"msg bad", text:"The two PINs don't match."}));
+      if (!name.value.trim()) return name.focus();
+      const h = await pinHash(p.salt, v);
+      if (p.pins.some(x => x.hash === h && x !== existing)) return msg.replaceChildren(el("div",{class:"msg bad", text:"Someone already uses that PIN. Pick another."}));
+      if (existing){ existing.name = name.value.trim(); existing.hash = h; } else p.pins.push({ id: uid("pin"), name: name.value.trim(), hash: h, userId: tied || null, email: preset && preset.email || null });
+      save(); dlg.close(); render(); toast("PIN saved"); }})]);
+}
 function pinLockCard(){
   const can = ACCT && ["owner","manager"].includes(ACCT.role); if (!can) return null;
-  ST.pinLock = ST.pinLock || { on:false, salt: Math.random().toString(36).slice(2) + Date.now().toString(36), pins:[], timeout:15, trusted:[] };
-  const p = ST.pinLock, tok = deviceToken(), trusted = !!(tok && (p.trusted || []).includes(tok));
-  const addPin = (existing) => {
+  const p = ensurePinCfg(), tok = deviceToken(), trusted = !!(tok && (p.trusted || []).includes(tok));
+  // Managers: just their own PIN. Owners: the whole lock.
+  if (ACCT.role !== "owner"){
+    const mine = p.pins.find(x => x.userId && USER && x.userId === USER.id);
+    return el("div",{class:"card feed-card", style:"margin-top:16px"}, el("div",{class:"feed-h"}, el("div",null, el("h3",{text:"Your manager PIN"}),
+        el("p",{class:"mini", style:"margin:2px 0 0", text:"Unlocks the management side on shared devices" + (p.on ? "." : " once the owner turns the PIN lock on.")})), el("span",{class:"pill " + (mine ? "good" : ""), text: mine ? "Set" : "Not set"})),
+      el("button",{class:"btn primary", type:"button", style:"margin-top:10px", text: mine ? "Change my PIN" : "Set my PIN", onclick:() => openPinDialog(mine || null, mine ? null : { userId: USER.id, email: USER.email, name: USER.email.split("@")[0] })}));
+  }
+  const addPin = (existing) => openPinDialog(existing);
+  const addPinOld = (existing) => {
     const name = el("input",{class:"inp", value: existing ? existing.name : (USER && USER.email ? USER.email.split("@")[0] : ""), placeholder:"Name"});
     const a = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"6", placeholder:"4 to 6 digits"}), b = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"6", placeholder:"Same again"});
     const msg = el("div");
@@ -1960,7 +1989,7 @@ function pinLockCard(){
     el("div",{class:"feed-h"}, el("div",null, el("h3",{text:"Manager PIN lock"}), el("p",{class:"mini", style:"margin:2px 0 0", text:"On shared devices, the app opens in staff mode (Kitchen book, Schedule, Events). Costs, prices, invoices and settings need a manager's PIN."})),
       el("span",{class:"pill " + (p.on ? "good" : ""), text: p.on ? "On" : "Off"})),
     el("label",{class:"row", style:"gap:8px;font-weight:600;margin:10px 0"}, on, "Require a manager PIN for the management side"),
-    el("div",{class:"pin-list"}, p.pins.length ? p.pins.map(x => el("div",{class:"feed-row"}, el("b",{style:"flex:1", text:x.name}), el("span",{class:"mini", text:"\u2022\u2022\u2022\u2022"}),
+    el("div",{class:"pin-list"}, p.pins.length ? p.pins.map(x => el("div",{class:"feed-row"}, el("div",{style:"flex:1"}, el("b",{text:x.name}), x.email ? el("div",{class:"mini", text:x.email}) : null), el("span",{class:"mini", text:"\u2022\u2022\u2022\u2022"}),
       el("button",{class:"linkbtn", type:"button", text:"Change", onclick:() => addPin(x)}),
       el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { if (p.pins.length === 1 && p.on) return toast("Turn the lock off before removing the last PIN."); if (!confirm("Remove " + x.name + "'s PIN?")) return; p.pins = p.pins.filter(y => y !== x); save(); render(); }}))) : [el("p",{class:"mini", text:"No PINs yet."})]),
     el("button",{class:"btn quiet", type:"button", style:"margin-top:6px", text:"+ Add a manager PIN", onclick:() => addPin()}),
@@ -4734,6 +4763,11 @@ async function drawTeam(box){
       actions.append(sel, el("button",{class:"btn danger", text:"Remove", onclick: async () => { if (!confirm("Remove " + t.email + " from this kitchen?")) return; const { error } = await sb.rpc("remove_member", { p_account: ACCT.id, p_user: t.user_id }); if (error) toast(plainErr(error)); drawTeam(box); }}));
     }
     if (t.kind === "member" && t.is_me && ACCOUNTS.length > 1) actions.append(el("button",{class:"btn quiet", text:"Leave kitchen", onclick: async () => { if (!confirm("Leave " + ACCT.name + "?")) return; const { error } = await sb.rpc("remove_member", { p_account: ACCT.id, p_user: t.user_id }); if (error) return toast(plainErr(error)); afterLogin(); }}));
+    if (t.kind === "member" && (t.role === "owner" || t.role === "manager") && (isOwner || t.is_me)){
+      const pc = ensurePinCfg(), pin = pc.pins.find(x => x.userId === t.user_id) || (t.is_me ? null : pc.pins.find(x => !x.userId && x.email === t.email));
+      actions.append(pin ? el("span",{class:"pill good", text:"PIN set"}) : null,
+        el("button",{class:"btn quiet", type:"button", text: pin ? "Change PIN" : "Set PIN", onclick:() => openPinDialog(pin || null, pin ? null : { userId: t.user_id, email: t.email, name: (t.email || "").split("@")[0].replace(/[._]+/g, " ").replace(/\b\w/g, c => c.toUpperCase()) })}));
+    }
     if (t.kind === "member" && t.role === "member" && canInvite){
       const cb = el("input",{type:"checkbox"}); cb.checked = !!(ST.perms && ST.perms[t.user_id] && ST.perms[t.user_id].schedule);
       cb.onchange = () => { ST.perms = ST.perms || {}; ST.perms[t.user_id] = Object.assign({}, ST.perms[t.user_id], { schedule: cb.checked }); save(); toast(cb.checked ? t.email + " can now edit the schedule" : t.email + " can no longer edit the schedule"); };
