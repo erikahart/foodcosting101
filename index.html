@@ -1310,6 +1310,14 @@ aside .brandbox b{font-size:1.3rem}
 .cal-running{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
 .cal-running > b{font-weight:800;margin-right:4px}
 .packset{display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-top:6px;padding:6px 8px;border-radius:8px;background:var(--warn-soft)}
+/* Invoice review: the last column stays a set width and wraps, so nothing runs off the edge */
+td.vs-cell{white-space:normal !important;width:250px;min-width:200px;max-width:260px;vertical-align:middle}
+td.vs-cell .mini{max-width:none !important;margin-left:0 !important;white-space:normal !important;text-align:right}
+td.desc-cell{white-space:normal !important;min-width:180px}
+.packset{align-items:stretch;width:100%;box-sizing:border-box;text-align:left}
+.packset .mini{text-align:left !important}
+.packset-in{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center}
+.packset-in .inp{width:100% !important;min-width:0}
 </style>
 </head>
 <body>
@@ -4857,8 +4865,8 @@ function openDoc(id){
     sel.onchange = () => { l.match = sel.value || null; save(); openDoc(id); };
     const i = d.lines.indexOf(l), rep2 = l._k && lastIdx[l._k] !== firstIdx[l._k];
     const repNote = !rep2 ? null : lastIdx[l._k] === i ? "Repeated item: this last line's price is used" : "Repeated item: line " + (lastIdx[l._k] + 1) + "'s price is used instead";
-    tb.append(el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:l.desc}), el("div",{class:"mini", text:[l.code ? "#" + l.code : "", l.packFrom ? "pack " + (parsePack(l.pack) ? parsePack(l.pack).size + " " + parsePack(l.pack).unit : "") + " from " + l.packFrom : "", isPL && l.how === "similar" && l.match ? "similar name, check it" : ""].filter(Boolean).join(", ")}), repNote ? el("div",{class:"mini", style:"color:var(--warn);font-weight:700", text:repNote}) : null), el("td",{class:"num", text: isPL ? (l.pack || "\u2014") : l.qty}), el("td",{class:"num", text:$$(l.price)}),
-      el("td",null, sel), el("td",{class:"num"}, ch != null && Math.abs(ch) >= 0.005 ? el("span",{class: ch > 0 ? "up" : "down", text:(ch > 0 ? "+" : "") + pc(ch)}) : su ? "same" : "—",
+    tb.append(el("tr",{style:"cursor:default"}, el("td",{class:"desc-cell"}, el("b",{text:l.desc}), el("div",{class:"mini", text:[l.code ? "#" + l.code : "", l.packFrom ? "pack " + (parsePack(l.pack) ? parsePack(l.pack).size + " " + parsePack(l.pack).unit : "") + " from " + l.packFrom : "", isPL && l.how === "similar" && l.match ? "similar name, check it" : ""].filter(Boolean).join(", ")}), repNote ? el("div",{class:"mini", style:"color:var(--warn);font-weight:700", text:repNote}) : null), el("td",{class:"num", text: isPL ? (l.pack || "\u2014") : l.qty}), el("td",{class:"num", text:$$(l.price)}),
+      el("td",null, sel), el("td",{class:"num vs-cell"}, ch != null && Math.abs(ch) >= 0.005 ? el("span",{class: ch > 0 ? "up" : "down", text:(ch > 0 ? "+" : "") + pc(ch)}) : su ? "same" : "—",
         conv.converted && !other ? el("div",{class:"mini", style:"white-space:normal;max-width:220px;margin-left:auto", text:conv.packText}) : null,
         other ? el("div",{class:"mini", style:"white-space:normal;max-width:240px;margin-left:auto;margin-top:4px"}, l.replaceOther ? "Will replace your " + canonVendor(su.supplier, r) + " price. " : "Saved as " + canonVendor(d.supplier, r) + "'s version; your " + canonVendor(su.supplier, r) + " price stays. ",
           el("button",{class:"linkbtn", type:"button", text: l.replaceOther ? "Keep separate" : "Replace instead", onclick:() => { l.replaceOther = !l.replaceOther; save(); openDoc(id); }})) : null,
@@ -4898,10 +4906,10 @@ function vendorTwin(r, su, vendor, l){
 // from the same vendor (item numbers don't change), so case prices still convert to your recipe sizes.
 // "Set pack size" on an invoice line: converts this line now and is remembered for that vendor's item number.
 function packSetter(r, d, l, id){
-  const qty = el("input",{class:"inp", type:"number", min:"0", step:"any", inputmode:"decimal", placeholder:"e.g. 400", style:"width:78px;min-height:34px"});
+  const qty = el("input",{class:"inp", type:"number", min:"0", step:"any", inputmode:"decimal", placeholder:"400", style:"width:78px;min-height:34px"});
   const unit = el("select",{class:"inp", style:"min-height:34px;width:auto"}, ["each","lb","oz","fl oz","gal","L"].map(u => el("option",{value:u, text:u})));
   return el("div",{class:"packset"}, el("span",{class:"mini", style:"font-weight:700", text:"What's in the case?"}),
-    el("div",{class:"row", style:"gap:6px;flex-wrap:nowrap"}, qty, unit, el("button",{class:"btn quiet sm", type:"button", text:"Set", onclick:() => {
+    el("div",{class:"packset-in"}, qty, unit, el("button",{class:"btn quiet sm", type:"button", text:"Set", onclick:() => {
       const v = n(qty.value); if (!v) return qty.focus();
       const txt = v + " " + (unit.value === "each" ? "CT" : unit.value === "fl oz" ? "FL OZ" : unit.value.toUpperCase());
       l.pack = txt; l.packFrom = "the size you entered"; delete l.hold;
