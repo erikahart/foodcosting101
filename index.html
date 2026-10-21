@@ -1309,6 +1309,7 @@ aside .brandbox b{font-size:1.3rem}
 @media (max-width:760px){ .cal-d{min-height:64px;padding:4px} .cal-chip{font-size:0;padding:0;height:6px;border-left-width:0;background:var(--c)} .cal-item{grid-template-columns:1fr} }
 .cal-running{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
 .cal-running > b{font-weight:800;margin-right:4px}
+.packset{display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-top:6px;padding:6px 8px;border-radius:8px;background:var(--warn-soft)}
 </style>
 </head>
 <body>
@@ -4861,6 +4862,7 @@ function openDoc(id){
         conv.converted && !other ? el("div",{class:"mini", style:"white-space:normal;max-width:220px;margin-left:auto", text:conv.packText}) : null,
         other ? el("div",{class:"mini", style:"white-space:normal;max-width:240px;margin-left:auto;margin-top:4px"}, l.replaceOther ? "Will replace your " + canonVendor(su.supplier, r) + " price. " : "Saved as " + canonVendor(d.supplier, r) + "'s version; your " + canonVendor(su.supplier, r) + " price stays. ",
           el("button",{class:"linkbtn", type:"button", text: l.replaceOther ? "Keep separate" : "Replace instead", onclick:() => { l.replaceOther = !l.replaceOther; save(); openDoc(id); }})) : null,
+        d.status === "new" && su && l.code && !parsePack(l.pack) && !parsePack(l.desc) && (conv.check || heldNow) ? packSetter(r, d, l, id) : null,
         d.status === "new" && (conv.check || heldNow) && !other ? el("div",{class:"mini", style:"color:var(--warn);font-weight:600;white-space:normal;margin-top:4px"},
           heldNow ? (l.hold == null ? "Held: more than doubled and the pack size couldn't be checked. " : "Held: check the pack size first. ") : "Will update. ",
           el("button",{class:"linkbtn", type:"button", text: heldNow ? "Apply anyway" : "Hold it", onclick:() => { l.hold = heldNow ? false : true; save(); openDoc(id); }})) : null)));
@@ -4894,11 +4896,27 @@ function vendorTwin(r, su, vendor, l){
 }
 // EDI invoices often leave out pack sizes. Reuse the pack from the most recent invoice with the same item number
 // from the same vendor (item numbers don't change), so case prices still convert to your recipe sizes.
+// "Set pack size" on an invoice line: converts this line now and is remembered for that vendor's item number.
+function packSetter(r, d, l, id){
+  const qty = el("input",{class:"inp", type:"number", min:"0", step:"any", inputmode:"decimal", placeholder:"e.g. 400", style:"width:78px;min-height:34px"});
+  const unit = el("select",{class:"inp", style:"min-height:34px;width:auto"}, ["each","lb","oz","fl oz","gal","L"].map(u => el("option",{value:u, text:u})));
+  return el("div",{class:"packset"}, el("span",{class:"mini", style:"font-weight:700", text:"What's in the case?"}),
+    el("div",{class:"row", style:"gap:6px;flex-wrap:nowrap"}, qty, unit, el("button",{class:"btn quiet sm", type:"button", text:"Set", onclick:() => {
+      const v = n(qty.value); if (!v) return qty.focus();
+      const txt = v + " " + (unit.value === "each" ? "CT" : unit.value === "fl oz" ? "FL OZ" : unit.value.toUpperCase());
+      l.pack = txt; l.packFrom = "the size you entered"; delete l.hold;
+      r.packMemory = r.packMemory || {}; r.packMemory[canonVendor(d.supplier, r).toLowerCase() + "|" + String(l.code)] = txt;
+      save(); openDoc(id); }})),
+    el("span",{class:"mini", text:"Check the box or GFS order guide. It's remembered for item #" + l.code + "."}));
+}
 function fillKnownPacks(r, d){
   let n2 = 0;
   const others = (r.inbox || []).filter(o => o.id !== d.id && sameVendor(o.supplier, d.supplier, r)).sort((p, q) => String(q.date || "").localeCompare(String(p.date || "")));
+  const mem = r.packMemory || {};
   (d.lines || []).forEach(l => {
     if (!l.code || parsePack(l.pack) || parsePack(l.desc)) return;
+    const k = canonVendor(d.supplier, r).toLowerCase() + "|" + String(l.code);
+    if (mem[k] && parsePack(mem[k])){ l.pack = mem[k]; l.packFrom = "the size you entered"; n2++; return; }
     for (const o of others){
       const m = (o.lines || []).find(x => String(x.code || "") === String(l.code) && (parsePack(x.pack) || parsePack(x.desc)));
       if (m){ l.pack = parsePack(m.pack) ? m.pack : m.desc; l.packFrom = (o.kind === "pricelist" ? "price sheet " : "invoice " + (o.number || "")) + " (" + nice(o.date) + ")"; n2++; break; }
