@@ -11,6 +11,24 @@
     # Keep this site out of search engines; it's for your team only.
     X-Robots-Tag = "noindex, nofollow, noarchive"
 
+# Always check for a fresh copy of the app's pages, so updates show right away.
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/tablet.html"
+  [headers.values]
+    Cache-Control = "no-cache"
+[[headers]]
+  for = "/tablet/*"
+  [headers.values]
+    Cache-Control = "no-cache"
+
 [[headers]]
   for = "/config.js"
   [headers.values]
