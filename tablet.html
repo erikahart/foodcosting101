@@ -185,6 +185,18 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
 .rq{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
 .rq-st{font-weight:800;border-radius:999px;padding:3px 12px;background:var(--field)}
 .rq.approved .rq-st{background:var(--jade);color:#fff} .rq.denied .rq-st{background:var(--ketchup);color:#fff} .rq.pending .rq-st{background:var(--warn-soft);color:#7a5200}
+.evlist{display:grid;gap:10px;margin-bottom:18px}
+.evlist.compact{margin:0 0 14px}
+.ev{display:grid;grid-template-columns:160px 1fr;gap:14px;background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--c);border-radius:14px;padding:12px 14px;font-size:1.08rem}
+.ev.special{background:color-mix(in srgb,var(--c) 10%,var(--panel))}
+.ev-when{font-weight:800}
+.ev b{font-size:1.15rem}
+.ev .role{margin-left:8px}
+.ev-desc{white-space:pre-line;color:var(--ink-2);font-size:1rem;margin-top:4px}
+.ev-h{font-family:var(--head);font-weight:800;font-size:1.8rem;margin:10px 0 10px}
+.ev-day{display:grid;grid-template-columns:120px 1fr;gap:14px;margin-bottom:6px}
+.ev-date{display:flex;flex-direction:column;padding-top:10px} .ev-date b{font-family:var(--head);font-weight:800;font-size:1.4rem} .ev-date span{color:var(--muted);font-weight:600}
+@media (max-width:820px){ .ev{grid-template-columns:1fr;gap:4px} .ev-day{grid-template-columns:1fr} }
 .tbtn.custom{background:var(--mustard);border-color:var(--mustard);color:#24221F}
 .ask{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px;display:grid;gap:12px;margin-bottom:18px}
 .ask input{font:inherit;font-size:1.2rem;padding:14px 16px;border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--ink);min-height:58px}
@@ -205,7 +217,7 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
 <body>
 <header class="top">
   <div><h1 id="kname">Kitchen book</h1><div class="sub">Kitchen tablet</div></div>
-  <nav class="tabs" aria-label="Sections"><button id="nav-rec" type="button">Recipes</button><button id="nav-sched" type="button">Schedule</button><button id="nav-duty" type="button">Duties</button></nav>
+  <nav class="tabs" aria-label="Sections"><button id="nav-rec" type="button">Recipes</button><button id="nav-sched" type="button">Schedule</button><button id="nav-duty" type="button">Duties</button><button id="nav-ev" type="button">Events</button></nav>
   <div class="grow"></div>
   <input id="q" class="search" type="search" placeholder="Search drinks and dishes" aria-label="Search" autocomplete="off">
   <button id="custom" class="tbtn custom" type="button">Not on the menu?</button>
@@ -351,6 +363,9 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
     const parts = [h("div", { class:"req-cta" }, h("span", { text:"Need a day off, a swap, or can't make a shift?" }), h("button", { class:"go", type:"button", text:"Request a change", onclick: () => requestFlow() })),
       strip, h("div", { class:"day-h" }, h("h2", { text: (day === today ? "Today, " : "") + DOWL[d2.getDay()] + " " + d2.toLocaleDateString(undefined, { month:"long", day:"numeric" }) }),
       sc.notes[day] ? h("span", { class:"daynote", text: sc.notes[day] }) : null)];
+    loadFeed();
+    const happening = itemsOn(day).filter(x => x.kind !== "note");
+    if (happening.length) parts.push(h("div", { class:"evlist compact" }, happening.map(evRow)));
     if (!list.length) parts.push(h("div", { class:"empty", text:"No one is scheduled this day." }));
     else {
       const starts = list.map(x => toMin(x.s)), ends = list.map(x => toMin(x.e)).filter(v => v != null);
@@ -455,6 +470,45 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
     document.body.append(wrap);
     if (R.personId){ R.person = pname(R.personId); what(); } else who();
   }
+  // ---------- Events: bookings (through the server, contact details removed), events and specials ----------
+  let FEED = { at: 0, events: [], loading: false };
+  function loadFeed(){
+    if (!BOOK || !BOOK.hasFeeds || FEED.loading || Date.now() - FEED.at < 5 * 60 * 1000) return;
+    FEED.loading = true; const from = addDays(localDay(), -1), to = addDays(localDay(), 21);
+    fetch("/api/calendar?token=" + encodeURIComponent(token) + "&from=" + from + "&to=" + to).then(r2 => r2.ok ? r2.json() : null).then(d => {
+      FEED = { at: Date.now(), events: (d && d.events) || FEED.events, loading: false }; if (/^#(events|sched)/.test(location.hash)) render();
+    }).catch(() => { FEED.loading = false; FEED.at = Date.now(); });
+  }
+  const specialOn = (sp, d) => (!sp.start || d >= sp.start) && (!sp.end || d <= sp.end) && (!sp.days || !sp.days.length || sp.days.includes(new Date(d + "T12:00:00").getDay()));
+  function itemsOn(d){
+    const out = [];
+    (BOOK.specials || []).filter(sp => specialOn(sp, d)).forEach(sp => out.push({ kind:"special", sp, title: sp.title, desc: sp.desc, price: sp.price, itemId: sp.itemId, color:"#D99A1E" }));
+    FEED.events.filter(e => e.date <= d && e.endDate >= d).forEach(e => out.push({ kind:"event", time: e.date === d ? e.time : null, endTime: e.endTime, title: e.title, where: e.location, desc: e.desc, color: e.color || "#3D6E9E" }));
+    (BOOK.events || []).filter(e => e.date === d).forEach(e => out.push({ kind:"event", time: e.time, endTime: e.endTime, title: e.title, where: e.where, guests: e.guests, desc: e.desc, color:"#1F6F5C" }));
+    const note = (S().notes || {})[d]; if (note) out.push({ kind:"note", title: note, color:"#8A8577" });
+    return out.sort((a, b) => ({ special:0, note:1 }[a.kind] ?? 2) - ({ special:0, note:1 }[b.kind] ?? 2) || (a.time || "00").localeCompare(b.time || "00"));
+  }
+  function evRow(it){
+    const item = it.itemId && BOOK.items.find(x => x.id === it.itemId);
+    return h("div", { class:"ev " + it.kind, style:"--c:" + it.color },
+      h("div", { class:"ev-when", text: it.kind === "special" ? "\u2605 Special" : it.kind === "note" ? "Note" : it.time ? t12(it.time) + (it.endTime ? " \u2013 " + t12(it.endTime) : "") : "All day" }),
+      h("div", null, h("b", { text: it.title }), it.price ? h("span", { class:"role", text: "$" + Number(it.price).toFixed(2) }) : null, it.guests ? h("span", { class:"role", text: it.guests + " guests" }) : null,
+        it.where ? h("div", { class:"sub-note", text: "@ " + it.where }) : null, it.desc ? h("div", { class:"ev-desc", text: it.desc }) : null,
+        item ? h("button", { class:"back", type:"button", style:"margin-top:8px;min-height:44px", text:"Open the recipe card", onclick: () => go({ card: item.id }) }) : null));
+  }
+  function eventsView(m){
+    loadFeed();
+    const today = localDay(), parts = [h("div", { class:"day-h" }, h("h2", { text:"Today" }))];
+    const now = itemsOn(today);
+    parts.push(now.length ? h("div", { class:"evlist" }, now.map(evRow)) : h("div", { class:"empty", text:"Nothing special on today." }));
+    parts.push(h("h2", { class:"ev-h", text:"Coming up" }));
+    let any = false;
+    for (let i = 1; i <= 14; i++){ const d = addDays(today, i), list = itemsOn(d).filter(x => x.kind !== "special" || (x.sp.days && x.sp.days.length) || x.sp.start === d);   // long-running specials show on the day they start
+      if (!list.length) continue; any = true; const dd = new Date(d + "T12:00:00");
+      parts.push(h("div", { class:"ev-day" }, h("div", { class:"ev-date" }, h("b", { text: i === 1 ? "Tomorrow" : DOWL[dd.getDay()] }), h("span", { text: dd.toLocaleDateString(undefined, { month:"short", day:"numeric" }) })), h("div", { class:"evlist" }, list.map(evRow)))); }
+    if (!any) parts.push(h("div", { class:"empty", text:"Nothing on the calendar for the next two weeks." }));
+    m.replaceChildren(...parts, status());
+  }
   let CHECKS = new Map(), CHECKS_DAY = "", checkTimer = null;
   async function loadChecks(){
     const day = localDay(); if (!sb) return;
@@ -521,11 +575,12 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
     m.replaceChildren(...parts, status());
     clearInterval(checkTimer); checkTimer = setInterval(() => { if (location.hash === "#duties") loadChecks(); else clearInterval(checkTimer); }, 60000);
   }
-  function markNav(){ const hsh = location.hash; $("nav-rec").setAttribute("aria-current", hsh === "#sched" || hsh === "#duties" ? "false" : "page"); $("nav-sched").setAttribute("aria-current", hsh === "#sched" ? "page" : "false"); $("nav-duty").setAttribute("aria-current", hsh === "#duties" ? "page" : "false"); }
+  function markNav(){ const hsh = location.hash; $("nav-ev").setAttribute("aria-current", hsh === "#events" ? "page" : "false"); $("nav-rec").setAttribute("aria-current", hsh === "#sched" || hsh === "#duties" || hsh === "#events" ? "false" : "page"); $("nav-sched").setAttribute("aria-current", hsh === "#sched" ? "page" : "false"); $("nav-duty").setAttribute("aria-current", hsh === "#duties" ? "page" : "false"); }
   function render(){
     const m = $("main"); if (!BOOK) return; markNav();
     if (location.hash === "#sched"){ $("kname").textContent = BOOK.name || "Kitchen book"; schedView(m); return; }
     if (location.hash === "#duties"){ $("kname").textContent = BOOK.name || "Kitchen book"; dutiesView(m); return; }
+    if (location.hash === "#events"){ $("kname").textContent = BOOK.name || "Kitchen book"; eventsView(m); return; }
     if (location.hash === "#build"){ $("kname").textContent = BOOK.name || "Kitchen book"; buildView(m); return; }
     $("kname").textContent = BOOK.name || "Kitchen book"; document.title = (BOOK.name || "Kitchen") + " book";
     const v = view(), secs = sections();
@@ -588,6 +643,7 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
   $("nav-rec").onclick = () => { location.hash = ""; };
   $("nav-sched").onclick = () => { location.hash = "sched"; };
   $("nav-duty").onclick = () => { location.hash = "duties"; };
+  $("nav-ev").onclick = () => { location.hash = "events"; };
 
   // Keep the screen awake during service (where the tablet supports it).
   let lock = null, wantWake = false;

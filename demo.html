@@ -1271,6 +1271,43 @@ aside .brandbox b{font-size:1.3rem}
 .lab-top-acts{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .lab-idea .btn{min-height:38px;padding:0 12px;white-space:nowrap}
 
+.os-cmp{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:12px;background:var(--panel)}
+.cmp{margin-top:6px;font-size:.84rem;border-radius:8px;padding:6px 8px;display:flex;flex-direction:column;gap:4px}
+.cmp.save{background:var(--good-soft);color:var(--ink)}
+.cmp.sw{background:var(--jade-pale);display:block}
+.cmp.meh{background:var(--field);color:var(--muted)}
+.cmp.best{background:transparent;color:var(--good);font-weight:700;padding-left:0}
+.cmp-meta{font-size:.75rem;color:var(--muted)}
+.btn.sm{min-height:32px;padding:0 12px;font-size:.85rem}
+
+/* ---------- Events calendar ---------- */
+.cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:14px}
+.cal-h{font-size:.75rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:4px 6px}
+.cal-d{min-height:108px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:6px;display:flex;flex-direction:column;gap:3px;align-items:stretch;text-align:left;font:inherit;color:var(--ink);cursor:pointer;overflow:hidden}
+.cal-d:hover{border-color:var(--line-2)}
+.cal-d.out{opacity:.45}
+.cal-d.today .cal-n{background:var(--jade);color:#fff;border-radius:999px;padding:0 7px}
+.cal-d.sel{outline:3px solid var(--mustard);outline-offset:-2px}
+.cal-n{font-family:var(--brand-font);font-weight:800;font-size:1.1rem;align-self:flex-start}
+.cal-chip{font-size:.72rem;font-weight:700;line-height:1.25;border-radius:6px;padding:2px 5px;background:color-mix(in srgb,var(--c) 16%,var(--panel));border-left:3px solid var(--c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cal-chip.special{background:color-mix(in srgb,var(--c) 22%,var(--panel))}
+.cal-more{font-size:.7rem;color:var(--muted);font-weight:700}
+.cal-legend{display:flex;gap:12px;flex-wrap:wrap;font-size:.8rem;font-weight:600}
+.cal-legend span{display:inline-flex;align-items:center;gap:5px} .cal-legend i{width:12px;height:12px;border-radius:3px;display:inline-block}
+.cal-day{display:grid;gap:10px}
+.cal-list{display:grid;gap:8px}
+.cal-item{display:grid;grid-template-columns:150px 1fr auto;gap:12px;align-items:start;border-left:5px solid var(--c);background:var(--field);border-radius:10px;padding:10px 12px}
+.cal-when{font-weight:800}
+.cal-desc{white-space:pre-line;font-size:.9rem;color:var(--ink-2);margin-top:4px}
+.feed-row{display:flex;gap:10px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
+.feed-row .dot{width:14px;height:14px;border-radius:50%;flex:none}
+.today-strip{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+.today-strip > b{font-family:var(--brand-font);font-weight:800;font-size:1.2rem;margin-right:4px}
+.today-chip{border:1px solid var(--line);border-left:4px solid var(--c);background:var(--panel);border-radius:10px;padding:7px 12px;font:inherit;font-weight:600;color:var(--ink);cursor:pointer}
+@media (max-width:760px){ .cal-d{min-height:64px;padding:4px} .cal-chip{font-size:0;padding:0;height:6px;border-left-width:0;background:var(--c)} .cal-item{grid-template-columns:1fr} }
+.cal-running{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 10px}
+.cal-running > b{font-weight:800;margin-right:4px}
+
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
 .demo-dot{width:8px;height:8px;border-radius:50%;background:#6FC79A;flex:none;box-shadow:0 0 0 4px rgba(111,199,154,.18)}
@@ -1820,10 +1857,11 @@ const isPhone = () => window.matchMedia("(max-width: 700px)").matches;
 const isNarrow = () => window.matchMedia("(max-width: 900px)").matches;
 // Redraw when crossing the phone/desktop line (rotation, resizing a window).
 ["(max-width: 700px)", "(max-width: 900px)"].forEach(q => { const mq = window.matchMedia(q); const fn = () => { if (typeof ST !== "undefined" && ST) render(); }; mq.addEventListener ? mq.addEventListener("change", fn) : mq.addListener(fn); });
-const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["book","Kitchen book"],["lab","Test kitchen"],["sched","Schedule"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Brand & accounts"]];
+const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["book","Kitchen book"],["lab","Test kitchen"],["sched","Schedule"],["events","Events"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Brand & accounts"]];
 const NAV_ICONS = {
   home:'<path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
   coach:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
+  events:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/>',
   sched:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h3M8 17h6"/>',
   lab:'<path d="M9 3h6M10 3v5.5L4.8 18a2 2 0 0 0 1.8 3h10.8a2 2 0 0 0 1.8-3L14 8.5V3"/><path d="M7.5 14h9"/>',
   book:'<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20v-3M9 7h7M9 10.5h5"/>',
@@ -1872,7 +1910,7 @@ function labelTables(root){
     }));
   });
 }
-function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, book, lab, sched, supplies, inbox, suppliers, brand })[ST.page](m); pageHeader(m); labelTables(m); }
+function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren(); ({ home, coach, menu, book, lab, sched, events, supplies, inbox, suppliers, brand })[ST.page](m); pageHeader(m); labelTables(m); }
 // Group each page's title, description and main actions into one header with a fine rule under it.
 function pageHeader(m){
   const first = m.firstElementChild; if (!first) return;
@@ -1921,6 +1959,7 @@ function openMore(){
     item("Kitchen book", "Recipe cards with photos and steps for the line", () => go("book")),
     item("Test kitchen", "Describe something new: recipe, ordering, cost and price", () => go("lab")),
     item("Schedule", "Who's working, plus cleaning and prep duties", () => go("sched")),
+    item("Events", "Bookings, events and specials on a calendar", () => go("events")),
     item("Profit coach", "What to fix first, in dollars per week", () => go("coach")),
     item("Suppliers", "Who you buy from, and notes for reps", () => go("suppliers")),
     item("Brand & accounts", "Logo, colors, cost targets and your team", () => go("brand")),
@@ -1965,6 +2004,9 @@ function home(m){
   const ins = visibleInsights(r);
   m.append(el("h1",{text:r.name}), el("p",{class:"lead", text: ACCT && ACCT.role === "member" ? "What do you need?" : "Here's where your menu stands this " + r.period + "."}));
   if (items.length) m.append(needsYou(r));
+  { calData(r); const t = localDay(new Date()); loadFeedEvents(r, addDays(t, -7), addDays(t, 35)); const today = dayItems(r, t);
+    if (today.length) m.append(el("div",{class:"today-strip"}, el("b",{text:"Today"}), today.slice(0, 5).map(it => el("button",{class:"today-chip " + it.kind, style:"--c:" + it.color, type:"button", onclick:() => { EVV.day = t; EVV.month = t.slice(0, 7) + "-01"; go("events"); }},
+      (it.kind === "special" ? "\u2605 " : it.time ? t12(it.time, true) + " " : "") + it.title + (it.guests ? " (" + it.guests + ")" : ""))), today.length > 5 ? el("span",{class:"mini", text:"+" + (today.length - 5) + " more"}) : null)); }
   if (items.length) m.append(categoryButtons(r));
   if (!items.length && !Object.keys(r.supplies).length){
     m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fill,minmax(240px,1fr))"},
@@ -3259,8 +3301,11 @@ function bookSnapshot(r){
   const schedule = { people: r.staff.map(p => ({ id: p.id, name: p.name, pos: p.pos || guessPos(r, p.id) || null })), codes: r.roleCodes, rolePos: r.rolePos || {},
     shifts: r.shifts.filter(x => x.date >= from && x.date <= to).map(x => ({ d: x.date, p: x.staff, s: x.start || null, e: x.end || null, r: x.role || "", off: !!x.off, n: x.off ? (x.note || "") : "" })),
     notes: Object.fromEntries(Object.entries(r.dayNotes).filter(([d]) => d >= from && d <= to)) };
+  calData(r);
+  const evs = r.events.filter(e => e.date >= from && e.date <= to).map(e => ({ date: e.date, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where || "", guests: e.guests || null, desc: e.notes || "" }));
+  const specials = r.specials.filter(sp => (!sp.end || sp.end >= from) && (!sp.start || sp.start <= to)).map(sp => ({ title: sp.title, kind: sp.kind, price: sp.price || null, desc: sp.desc || "", start: sp.start || null, end: sp.end || null, days: sp.days || null, itemId: sp.itemId || null }));
   const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, startAt: l.startAt || null, items: l.items }));
-  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, made: new Date().toISOString(),
+  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
     brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Kitchen book" } };
 }
 let BOOK_T = null;
@@ -3819,7 +3864,30 @@ function editDutyList(r, l, isNew){
 /* ================= Order summary by vendor (for the purchasing manager) ================= */
 // entries: [{ name, lines, portions, sups, qty, unitWord }]. Adds up every ingredient for the planned amounts, converts to
 // each supply's pack, rounds up to whole cases or bottles, and groups by vendor.
-function orderNeeds(entries, r){
+// Price per pound (weights), per fluid ounce (volumes) or each, so different pack sizes compare fairly.
+function priceBase(su){ const u = su && UNITS[su.unit]; if (!u || !n(su.price) || !n(su.caseQty)) return null; return su.price / (su.caseQty * u[1]); }
+const perUnitLabel = dim => dim === "w" ? "lb" : dim === "v" ? "fl oz" : "each";
+const perUnitPrice = (su) => { const b = priceBase(su), d = UNITS[su.unit][0]; return b == null ? null : b * (d === "w" ? 16 : 1); };
+const priceDate = su => { const h = (su.history || []).slice(-1)[0]; return h && h.date ? nice(h.date) : ""; };
+// The same product from your other vendors: matched by name, same kind of unit, real prices only. Best match per vendor.
+function vendorAlts(su, r){
+  const dim = UNITS[su.unit] && UNITS[su.unit][0]; if (!dim) return [];
+  const myV = String(su.supplier || "").trim().toLowerCase();
+  const nope = new Set((r.notSame || []).filter(p => p.includes(su.id)).map(p => p[0] === su.id ? p[1] : p[0]));
+  const best = {};
+  Object.values(r.supplies).forEach(o => {
+    if (o.id === su.id || o.estimated || !o.supplier || String(o.supplier).trim().toLowerCase() === myV || nope.has(o.id)) return;
+    if (!UNITS[o.unit] || UNITS[o.unit][0] !== dim || priceBase(o) == null) return;
+    const score = Math.max(simScore(supName(su), supName(o)), simScore(su.name || "", o.name || ""));
+    if (score < 0.6) return;
+    const v = String(o.supplier).trim().toLowerCase();
+    if (!best[v] || score > best[v].score + 0.05 || (Math.abs(score - best[v].score) <= 0.05 && priceBase(o) < best[v].base)) best[v] = { o, score, base: priceBase(o) };
+  });
+  return Object.values(best).sort((a, b) => a.base - b.base);
+}
+// What switching one line to another vendor's product would cost for this order (whole cases).
+function altOrderCost(amt, from, to){ const amtTo = amt * UNITS[from.unit][1] / UNITS[to.unit][1], cases = Math.max(1, Math.ceil(amtTo / (n(to.caseQty) || 1) - 1e-9)); return { cases, cost: cases * n(to.price), amt: amtTo }; }
+function orderNeeds(entries, r, swap){
   const need = new Map(), loose = [];
   entries.forEach(e => {
     const per = (n(e.qty) || 0) / (n(e.portions) || 1); if (!per) return;
@@ -3832,9 +3900,12 @@ function orderNeeds(entries, r){
     });
   });
   const groups = {};
-  need.forEach(x => { const v = (x.su.supplier || "").trim() || "No vendor yet"; const caseQty = n(x.su.caseQty) || 1;
-    const cases = Math.max(1, Math.ceil(x.amt / caseQty - 1e-9));
-    (groups[v] = groups[v] || []).push({ su: x.su, amt: x.amt, cases, cost: cases * (n(x.su.price) || 0), recipes: [...x.recipes] }); });
+  need.forEach((x, key) => {
+    const alt = swap && swap[key] && r.supplies[swap[key]];
+    const su = alt || x.su, amt = alt ? x.amt * UNITS[x.su.unit][1] / UNITS[alt.unit][1] : x.amt;
+    const v = (su.supplier || "").trim() || "No vendor yet", caseQty = n(su.caseQty) || 1;
+    const cases = Math.max(1, Math.ceil(amt / caseQty - 1e-9));
+    (groups[v] = groups[v] || []).push({ key, su, orig: x.su, amt, origAmt: x.amt, cases, cost: cases * (n(su.price) || 0), recipes: [...x.recipes], switched: !!alt }); });
   Object.values(groups).forEach(list => list.sort((p, q) => supName(p.su).localeCompare(supName(q.su))));
   const vendors = Object.keys(groups).sort((p, q) => (p === "No vendor yet") - (q === "No vendor yet") || p.localeCompare(q));
   return { groups, vendors, loose };
@@ -3845,12 +3916,26 @@ const packText = su => (n(su.caseQty) ? fmtAmt(n(su.caseQty), su.unit) + " per "
 function openOrderSummary(entries, title){
   const r = R();
   const plan = el("div",{class:"os-plan"}), out = el("div");
-  let res = null;
+  let res = null; const swap = {}; let compare = true;
   const vendorOf = name => (r.vendors || []).find(v => v.name && name && (v.name.toLowerCase() === name.toLowerCase() || simScore(v.name, name) >= 0.85));
   const draw = () => {
-    res = orderNeeds(entries, r);
+    res = orderNeeds(entries, r, swap);
     const total = res.vendors.reduce((t, v) => t + res.groups[v].reduce((u, x) => u + x.cost, 0), 0);
+    // For each line: the cheapest other vendor and what it saves on this order.
+    const offers = new Map(); let canSave = 0;
+    if (compare) res.vendors.forEach(v => res.groups[v].forEach(x => {
+      const base = x.orig, alts = vendorAlts(base, r).filter(a => a.o.id !== x.su.id);
+      const here = priceBase(x.su), cheaper = alts.filter(a => here == null || a.base < here * 0.98);
+      const pick = cheaper.map(a => Object.assign({}, a, altOrderCost(x.amt, x.su, a.o))).map(a => Object.assign(a, { save: x.cost - a.cost })).sort((p, q) => q.save - p.save)[0];
+      offers.set(x.key, { alts, pick, cheapestHere: !cheaper.length && alts.length });
+      if (pick && pick.save > 0.5) canSave += pick.save;
+    }));
+    const cmpBox = el("input",{type:"checkbox"}); cmpBox.checked = compare; cmpBox.onchange = () => { compare = cmpBox.checked; draw(); };
     out.replaceChildren(...[
+      el("div",{class:"os-cmp"}, el("label",{class:"row", style:"gap:8px;font-weight:700"}, cmpBox, "Compare vendors"),
+        compare ? el("span",{class:"mini", text: canSave > 0.5 ? "Buying each item where it's cheapest saves about " + $$(canSave) + " on this order." : Object.keys(swap).length ? "You're on the cheapest options found." : "No cheaper matches found among your vendors' prices."}) : el("span",{class:"mini", text:"Uses the supplier each recipe is linked to."}),
+        compare && canSave > 0.5 ? el("button",{class:"btn quiet", type:"button", text:"Switch all to cheapest", onclick:() => { offers.forEach((o2, key) => { if (o2.pick && o2.pick.save > 0.5) swap[key] = o2.pick.o.id; }); draw(); }}) : null,
+        Object.keys(swap).length ? el("button",{class:"linkbtn", type:"button", text:"Undo all switches", onclick:() => { Object.keys(swap).forEach(k => delete swap[k]); draw(); }}) : null),
       res.vendors.length ? null : el("div",{class:"card empty", text:"Nothing to order yet. Enter how many you plan to make above."}),
       ...res.vendors.map(v => { const list = res.groups[v], sub = list.reduce((t, x) => t + x.cost, 0), vi = vendorOf(v);
         const contact = vi && vi.repContact, mail = contact && /@/.test(contact) ? contact : "";
@@ -3862,7 +3947,8 @@ function openOrderSummary(entries, title){
               el("button",{class:"btn quiet", type:"button", text:"Copy", onclick:() => { navigator.clipboard && navigator.clipboard.writeText(vendorText(v, list, vi)); toast("Copied the " + v + " order"); }}))),
           el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Item"}), el("th",{text:"Code"}), el("th",{text:"Pack"}), el("th",{class:"num", text:"Need"}), el("th",{class:"num", text:"Order"}), el("th",{class:"num", text:"Est. cost"}))),
             el("tbody",null, list.map(x => el("tr",{style:"cursor:default"},
-              el("td",{style:"white-space:normal"}, el("b",{text: supName(x.su)}), x.su.estimated ? el("span",{class:"pill warn", style:"margin-left:6px", text:"AI estimate"}) : null, el("div",{class:"mini", text:"For: " + x.recipes.join(", ")})),
+              el("td",{style:"white-space:normal"}, el("b",{text: supName(x.su)}), x.su.estimated ? el("span",{class:"pill warn", style:"margin-left:6px", text:"AI estimate"}) : null, el("div",{class:"mini", text:"For: " + x.recipes.join(", ") + (perUnitPrice(x.su) != null ? "  |  " + $$(perUnitPrice(x.su)) + "/" + perUnitLabel(UNITS[x.su.unit][0]) + (priceDate(x.su) ? ", price from " + priceDate(x.su) : "") : "")}),
+                compareLine(x, offers.get(x.key))),
               el("td",{text: x.su.code || ""}), el("td",{text: packText(x.su)}), el("td",{class:"num", text: fmtAmt(x.amt, x.su.unit)}),
               el("td",{class:"num"}, el("b",{text: x.cases + " " + packWord(x.su) + (x.cases === 1 ? "" : "s")})),
               el("td",{class:"num", text: (x.su.estimated ? "\u2248" : "") + $$(x.cost)})))))));
@@ -3872,6 +3958,23 @@ function openOrderSummary(entries, title){
       res.vendors.length ? el("div",{class:"os-total"}, el("span",{text:"Estimated total"}), el("b",{text:$$(total)})) : null,
       el("p",{class:"mini", text:"Orders round up to whole cases or bottles. It doesn't know what's already on your shelves, so take off anything you have on hand. \u2248 marks AI-estimated prices."})].filter(Boolean));
   };
+  // The compare note under an item: switched, a cheaper vendor, or best price.
+  function compareLine(x, o2){
+    if (!compare) return null;
+    const unit = perUnitLabel(UNITS[x.su.unit][0]);
+    if (x.switched) return el("div",{class:"cmp sw"}, "Switched from " + (x.orig.supplier || "?") + " (" + $$(perUnitPrice(x.orig)) + "/" + perUnitLabel(UNITS[x.orig.unit][0]) + "). ",
+      el("button",{class:"linkbtn", type:"button", text:"Undo", onclick:() => { delete swap[x.key]; draw(); }}));
+    if (!o2) return null;
+    const p = o2.pick;
+    if (p && p.save > 0.5) return el("div",{class:"cmp save"},
+      el("span",null, el("b",{text:"Also at " + p.o.supplier + ": "}), $$(perUnitPrice(p.o)) + "/" + unit + " vs " + $$(perUnitPrice(x.su)) + " here. Saves " + $$(p.save) + " on this order (" + p.cases + " \u00d7 " + (p.o.name || supName(p.o)) + ")."),
+      el("span",{class:"cmp-meta", text: (p.score >= 0.85 ? "Likely the same product" : "Possible match: check it") + (priceDate(p.o) ? ", price from " + priceDate(p.o) : "")}),
+      el("span",{class:"row", style:"gap:8px"}, el("button",{class:"btn primary sm", type:"button", text:"Switch to " + p.o.supplier, onclick:() => { swap[x.key] = p.o.id; draw(); }}),
+        el("button",{class:"linkbtn", type:"button", text:"Not the same product", onclick:() => { r.notSame = r.notSame || []; r.notSame.push([x.orig.id, p.o.id]); save(); draw(); }})));
+    if (p && p.save <= 0.5) return el("div",{class:"cmp meh", text: p.o.supplier + " is cheaper per " + unit + " (" + $$(perUnitPrice(p.o)) + "), but its bigger pack costs more for this order."});
+    if (o2.cheapestHere) return el("div",{class:"cmp best", text:"\u2713 Best price of " + (o2.alts.length + 1) + " vendors"});
+    return null;
+  }
   plan.replaceChildren(el("div",{class:"os-plan-h"}, el("b",{text:"Plan"}), el("span",{class:"mini", text:"How many of each are you making?"})),
     ...entries.map(e => { const i = el("input",{class:"inp", type:"number", min:"0", step:"1", inputmode:"numeric", value: e.qty || "", "aria-label":"How many " + e.name});
       i.oninput = () => { e.qty = n(i.value) || 0; draw(); };
@@ -3900,6 +4003,132 @@ function printOrderSummary(res, entries){
   document.body.classList.add("printing");
   const fin = () => { document.body.classList.remove("printing"); window.removeEventListener("afterprint", fin); };
   window.addEventListener("afterprint", fin); setTimeout(() => { window.print(); setTimeout(fin, 1500); }, 60);
+}
+
+/* ================= Events calendar: bookings (from your calendars), events and specials ================= */
+const EVV = { month:null, day:null, feed:{ key:"", at:0, events:[], errors:[] }, loading:false };
+const FEED_COLORS = ["#3D6E9E","#B8352A","#6B4E9B","#1F6F5C","#C27C0E","#2E7D8A"];
+function calData(r){ r.calFeeds = r.calFeeds || []; r.events = r.events || []; r.specials = r.specials || []; return r; }
+// A special that runs longer than a week (like a monthly feature) is shown once above the calendar, not in every box.
+const isLongSpecial = sp => !(sp.days && sp.days.length) && (!sp.end || !sp.start || (Date.parse(sp.end) - Date.parse(sp.start)) / 864e5 > 6);
+const specialOn = (sp, d) => (!sp.start || d >= sp.start) && (!sp.end || d <= sp.end) && (!sp.days || !sp.days.length || sp.days.includes(new Date(d + "T12:00:00").getDay()));
+// Everything on one day, in time order: connected calendars, events added here, specials and schedule notes.
+function dayItems(r, d){
+  const out = [];
+  EVV.feed.events.filter(e => e.date <= d && e.endDate >= d).forEach(e => out.push({ kind:"feed", time: e.date === d ? e.time : null, endTime: e.endTime, title: e.title, where: e.location, desc: e.desc, color: e.color || "#3D6E9E", src: e.feedName }));
+  r.events.filter(e => e.date === d).forEach(e => out.push({ kind:"event", ref:e, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where, desc: e.notes, guests: e.guests, color:"#1F6F5C", src:"Added here" }));
+  r.specials.filter(sp => specialOn(sp, d)).forEach(sp => out.push({ kind:"special", ref:sp, long: isLongSpecial(sp), title: sp.title, desc: sp.desc, price: sp.price, color:"#D99A1E", src: (sp.kind === "drink" ? "Drink special" : "Food special") + (isLongSpecial(sp) ? ", " + (sp.start ? nice(sp.start) : "") + (sp.end ? " to " + nice(sp.end) : " on") : "") }));
+  if ((r.dayNotes || {})[d]) out.push({ kind:"note", title: r.dayNotes[d], color:"#8A8577", src:"Schedule note" });
+  return out.sort((a, b) => ({ special:0, note:1 }[a.kind] ?? 2) - ({ special:0, note:1 }[b.kind] ?? 2) || (a.time || "00").localeCompare(b.time || "00"));
+}
+async function loadFeedEvents(r, from, to, force){
+  const key = r.calFeeds.map(f => f.url).join("|") + from + to;
+  if (!r.calFeeds.length){ EVV.feed = { key, at: Date.now(), events: [], errors: [] }; return; }
+  if (!force && EVV.feed.key === key && Date.now() - EVV.feed.at < 5 * 60 * 1000) return;
+  if (EVV.loading) return; EVV.loading = true;
+  try { const d = await apiPost("/api/calendar", { account: ACCT.id, feeds: r.calFeeds.map(f => ({ id: f.id, name: f.name, url: f.url, color: f.color })), from, to }); EVV.feed = { key, at: Date.now(), events: d.events || [], errors: d.errors || [] }; }
+  catch(e){ EVV.feed = { key, at: Date.now(), events: [], errors: [{ name:"Calendars", error: e.code === "unavailable" ? "Upload netlify/functions/calendar.mjs to connect calendars." : (e.message || "Couldn't reach your calendars.") }] }; }
+  EVV.loading = false; if (ST.page === "events" || ST.page === "home") render();
+}
+function events(m){
+  const r = calData(R()), today = localDay(new Date()), edit = canEditSchedule(), boss = ACCT && ["owner","manager"].includes(ACCT.role);
+  EVV.month = EVV.month || today.slice(0, 7) + "-01"; EVV.day = EVV.day || today;
+  const first = EVV.month, firstDt = new Date(first + "T12:00:00"), gridStart = addDays(first, -((firstDt.getDay() + 6) % 7));
+  const days = [...Array(42)].map((_, i) => addDays(gridStart, i)), monthKey = first.slice(0, 7);
+  loadFeedEvents(r, days[0], days[41]);
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Events"}), el("p",{class:"lead", text:"Bookings from your calendars, events and specials. Staff see today's on the tablet."})),
+    el("div",{class:"row"}, edit ? el("button",{class:"btn quiet", type:"button", text:"+ Special", onclick:() => editSpecial(r)}) : null, edit ? el("button",{class:"btn primary", type:"button", text:"+ Event", onclick:() => editEvent(r, null, EVV.day)}) : null,
+      boss ? el("button",{class:"btn quiet", type:"button", text:"Connected calendars" + (r.calFeeds.length ? " (" + r.calFeeds.length + ")" : ""), onclick:() => openCalFeeds(r)}) : null)));
+  if (!r.calFeeds.length && boss) m.append(el("div",{class:"card feed-card", style:"margin-bottom:12px"}, el("div",{class:"spread"}, el("div",null, el("b",{text:"Show your bookings here"}),
+    el("p",{class:"mini", style:"margin:2px 0 0", text:"Connect the calendar your booking page adds reservations to, and they'll show up here and on the tablet automatically."})),
+    el("button",{class:"btn primary", type:"button", text:"Connect a calendar", onclick:() => openCalFeeds(r)}))));
+  EVV.feed.errors.forEach(e => m.append(el("div",{class:"msg bad", style:"margin-bottom:8px", text: e.name + ": " + e.error})));
+  m.append(el("div",{class:"sch-bar"}, el("div",{class:"row"},
+    el("button",{class:"btn quiet", type:"button", text:"\u2039", "aria-label":"Previous month", onclick:() => { const d = new Date(first + "T12:00:00"); d.setMonth(d.getMonth() - 1); EVV.month = localDay(d).slice(0, 7) + "-01"; render(); }}),
+    el("b",{class:"sch-range", text: firstDt.toLocaleDateString(undefined, { month:"long", year:"numeric" })}),
+    el("button",{class:"btn quiet", type:"button", text:"\u203a", "aria-label":"Next month", onclick:() => { const d = new Date(first + "T12:00:00"); d.setMonth(d.getMonth() + 1); EVV.month = localDay(d).slice(0, 7) + "-01"; render(); }}),
+    monthKey !== today.slice(0, 7) ? el("button",{class:"linkbtn", type:"button", text:"Today", onclick:() => { EVV.month = today.slice(0, 7) + "-01"; EVV.day = today; render(); }}) : null),
+    el("div",{class:"cal-legend"}, [["#3D6E9E","Bookings"],["#1F6F5C","Events"],["#D99A1E","Specials"],["#8A8577","Notes"]].map(([c, t]) => el("span",null, el("i",{style:"background:" + c}), t)))));
+  const running = r.specials.filter(sp => isLongSpecial(sp) && days.some(d => d.slice(0, 7) === monthKey && specialOn(sp, d)));
+  if (running.length) m.append(el("div",{class:"cal-running"}, el("b",{text:"Running this month"}), running.map(sp => el("button",{class:"today-chip special", style:"--c:#D99A1E", type:"button", disabled: edit ? null : "", onclick:() => { if (edit) editSpecial(r, sp); }},
+    "\u2605 " + sp.title + (sp.start || sp.end ? "  (" + (sp.start ? nice(sp.start) : "") + (sp.end ? " \u2013 " + nice(sp.end) : " on") + ")" : "")))));
+  m.append(el("div",{class:"cal"}, ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => el("div",{class:"cal-h", text:d})),
+    days.map(d => { const items = dayItems(r, d).filter(it => !it.long), dt = new Date(d + "T12:00:00");
+      return el("button",{type:"button", class:"cal-d" + (d.slice(0, 7) !== monthKey ? " out" : "") + (d === today ? " today" : "") + (d === EVV.day ? " sel" : ""), onclick:() => { EVV.day = d; render(); }},
+        el("span",{class:"cal-n", text: dt.getDate()}),
+        items.slice(0, 3).map(it => el("span",{class:"cal-chip " + it.kind, style:"--c:" + it.color}, (it.kind === "special" ? "\u2605 " : it.time ? t12(it.time, true) + " " : "") + it.title)),
+        items.length > 3 ? el("span",{class:"cal-more", text:"+" + (items.length - 3) + " more"}) : null); })));
+  // The chosen day
+  const d = EVV.day, dt = new Date(d + "T12:00:00"), items = dayItems(r, d);
+  m.append(el("div",{class:"card cal-day"}, el("div",{class:"spread"}, el("h2",{style:"margin:0", text: (d === today ? "Today, " : "") + dt.toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" })}),
+      edit ? el("div",{class:"row"}, el("button",{class:"btn quiet", type:"button", text:"+ Special this day", onclick:() => editSpecial(r, null, d)}), el("button",{class:"btn quiet", type:"button", text:"+ Event this day", onclick:() => editEvent(r, null, d)})) : null),
+    items.length ? el("div",{class:"cal-list"}, items.map(it => el("div",{class:"cal-item", style:"--c:" + it.color},
+      el("div",{class:"cal-when", text: it.kind === "special" ? "\u2605 Special" : it.kind === "note" ? "Note" : it.time ? t12(it.time) + (it.endTime ? " \u2013 " + t12(it.endTime) : "") : "All day"}),
+      el("div",{class:"cal-what"}, el("b",{text: it.title}), it.price ? el("span",{class:"pill", style:"margin-left:8px", text:$$(n(it.price))}) : null, it.guests ? el("span",{class:"pill", style:"margin-left:8px", text: it.guests + " guests"}) : null,
+        it.where ? el("div",{class:"mini", text:"@ " + it.where}) : null, it.desc ? el("div",{class:"cal-desc", text: it.desc}) : null, el("div",{class:"mini", text: it.src})),
+      edit && (it.kind === "event" || it.kind === "special") ? el("button",{class:"btn quiet", type:"button", text:"Edit", onclick:() => it.kind === "event" ? editEvent(r, it.ref) : editSpecial(r, it.ref)}) : null))) : el("p",{class:"mini", text:"Nothing on the calendar."})));
+}
+function editEvent(r, ev, day){
+  const e = Object.assign({ id: uid("ev"), title:"", date: day || localDay(new Date()), start:"", end:"", where:"", guests:"", notes:"" }, ev || {});
+  const f = { title: el("input",{class:"inp", value:e.title, placeholder:"e.g. Smith birthday party, Live music, Closing at 2"}), date: el("input",{class:"inp", type:"date", value:e.date}),
+    start: el("input",{class:"inp", type:"time", value:e.start || ""}), end: el("input",{class:"inp", type:"time", value:e.end || ""}), where: el("input",{class:"inp", value:e.where || "", placeholder:"e.g. Back room"}),
+    guests: el("input",{class:"inp", type:"number", min:"0", value:e.guests || ""}), notes: el("textarea",{class:"inp", rows:"3", placeholder:"What the staff should know"}) }; f.notes.value = e.notes || "";
+  openDlg(ev ? "Edit event" : "New event", [fld("What", f.title), el("div",{class:"g3"}, fld("Day", f.date), fld("Starts", f.start), fld("Ends", f.end)), el("div",{class:"g2"}, fld("Where", f.where), fld("Guests", f.guests)), fld("Notes for staff", f.notes)],
+    [ev ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (!confirm("Delete this event?")) return; r.events = r.events.filter(x => x.id !== e.id); save(); dlg.close(); }}) : el("span"),
+     el("button",{class:"btn primary", text:"Save", onclick:() => { if (!f.title.value.trim()) return f.title.focus();
+       Object.assign(e, { title: f.title.value.trim(), date: f.date.value || e.date, start: f.start.value || null, end: f.end.value || null, where: f.where.value.trim(), guests: n(f.guests.value) || null, notes: f.notes.value.trim() });
+       r.events = r.events.filter(x => x.id !== e.id).concat([e]); EVV.day = e.date; save(); dlg.close(); }})]);
+}
+function editSpecial(r, sp, day){
+  const x = Object.assign({ id: uid("sp"), title:"", kind:"food", price:"", desc:"", itemId:"", start: day || localDay(new Date()), end: day || "", days: null }, sp || {});
+  const mode = x.days && x.days.length ? "weekly" : x.start && x.end && x.start === x.end ? "day" : "range";
+  const title = el("input",{class:"inp", value:x.title, placeholder:"e.g. Soup of the day: chicken noodle"});
+  const kind = el("select",{class:"inp"}, el("option",{value:"food", text:"Food"}), el("option",{value:"drink", text:"Drink"})); kind.value = x.kind;
+  const price = el("input",{class:"inp", type:"number", min:"0", step:"0.25", value: x.price || ""});
+  const item = el("select",{class:"inp"}, el("option",{value:"", text:"Not linked"}), Object.values(r.items).sort((a, b) => a.name.localeCompare(b.name)).map(it => el("option",{value:it.id, text:it.name}))); item.value = x.itemId || "";
+  item.onchange = () => { const it = r.items[item.value]; if (it){ if (!title.value.trim()) title.value = it.name; if (!price.value) price.value = n(it.price) || ""; kind.value = isDrink(it) ? "drink" : "food"; } };
+  const desc = el("textarea",{class:"inp", rows:"2", placeholder:"What to tell guests"}); desc.value = x.desc || "";
+  const how = el("select",{class:"inp"}, [["day","One day"],["range","From a date to a date"],["weekly","Every week on certain days"]].map(([v, t]) => el("option",{value:v, text:t}))); how.value = mode;
+  const start = el("input",{class:"inp", type:"date", value:x.start || ""}), end = el("input",{class:"inp", type:"date", value:x.end || ""});
+  const wd = el("div",{class:"kb-al-pick"}, [2,3,4,5,6,0,1].map(dn => { const cb = el("input",{type:"checkbox"}); cb.checked = !!(x.days && x.days.includes(dn)); cb.dataset.d = dn; return el("label",null, cb, DOW[dn]); }));
+  const whenBox = el("div");
+  const drawWhen = () => whenBox.replaceChildren(how.value === "day" ? fld("Day", start) : how.value === "range" ? el("div",{class:"g2"}, fld("From", start), fld("To (leave empty for no end)", end))
+    : el("div",null, el("div",{class:"field"}, el("span",{class:"q", text:"Days"}), wd), el("div",{class:"g2"}, fld("Starting (optional)", start), fld("Until (optional)", end))));
+  how.onchange = drawWhen; drawWhen();
+  openDlg(sp ? "Edit special" : "New special", [el("div",{class:"g2"}, fld("Menu item (optional)", item), fld("Food or drink", kind)), fld("Special", title), el("div",{class:"g2"}, fld("Price ($)", price), fld("When", how)), whenBox, fld("Description", desc)],
+    [sp ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (!confirm("Delete this special?")) return; r.specials = r.specials.filter(y => y.id !== x.id); save(); dlg.close(); }}) : el("span"),
+     el("button",{class:"btn primary", text:"Save", onclick:() => { if (!title.value.trim()) return title.focus();
+       const days = [...wd.querySelectorAll("input")].filter(cb => cb.checked).map(cb => +cb.dataset.d);
+       if (how.value === "weekly" && !days.length) return toast("Pick at least one day.");
+       Object.assign(x, { title: title.value.trim(), kind: kind.value, price: n(price.value) || null, desc: desc.value.trim(), itemId: item.value || null,
+         start: start.value || null, end: how.value === "day" ? (start.value || null) : (end.value || null), days: how.value === "weekly" ? days : null });
+       r.specials = r.specials.filter(y => y.id !== x.id).concat([x]); save(); dlg.close(); }})]);
+}
+function openCalFeeds(r){
+  calData(r);
+  const list = el("div"), msg = el("div");
+  const draw = () => list.replaceChildren(...(r.calFeeds.length ? r.calFeeds.map(f => el("div",{class:"feed-row"}, el("i",{class:"dot", style:"background:" + f.color}),
+    el("div",{style:"flex:1;min-width:0"}, el("b",{text:f.name}), el("div",{class:"mini", style:"overflow:hidden;text-overflow:ellipsis;white-space:nowrap", text: f.url.replace(/(private-)[a-f0-9]{8,}/i, "$1\u2026")}),
+      el("label",{class:"row mini", style:"gap:6px"}, (() => { const cb = el("input",{type:"checkbox"}); cb.checked = f.tablet !== false; cb.onchange = () => { f.tablet = cb.checked; save(); }; return cb; })(), "Show on the tablet (names and times only)")),
+    el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { r.calFeeds = r.calFeeds.filter(x => x !== f); save(); EVV.feed.key = ""; draw(); }}))) : [el("p",{class:"mini", text:"No calendars connected yet."})]));
+  const name = el("input",{class:"inp", placeholder:"e.g. Bookings"}), url = el("input",{class:"inp", placeholder:"https://calendar.google.com/calendar/ical/\u2026/basic.ics"});
+  draw();
+  openDlg("Connected calendars", [
+    el("p",{class:"lead", text:"Connect the calendar your booking page adds reservations to. The app checks it every few minutes, so new bookings show up on their own."}),
+    list,
+    el("details",{class:"resp-box", open:""}, el("summary",{text:"Where to find the address in Google Calendar"}),
+      el("ol",{class:"mini", style:"margin:6px 0;padding-left:18px"}, el("li",{text:"On a computer, open Google Calendar. Under My calendars, point at the bookings calendar, click the three dots, then Settings and sharing."}),
+        el("li",{text:"Scroll down to Integrate calendar and copy \u201cSecret address in iCal format\u201d (it ends in basic.ics)."}), el("li",{text:"Paste it below. Keep it private: anyone with it can see that calendar."}))),
+    el("div",{class:"g2"}, fld("Name", name), fld("Calendar address (iCal)", url)), msg],
+    [el("span"), el("button",{class:"btn primary", text:"Test and connect", onclick: async () => {
+      const u = url.value.trim(); if (!/^(https|webcals?):\/\//i.test(u)) return msg.replaceChildren(el("div",{class:"msg bad", text:"Paste the full address, starting with https://"}));
+      msg.replaceChildren(el("div",{class:"spin"}));
+      const f = { id: uid("cf"), name: name.value.trim() || "Bookings", url: u, color: FEED_COLORS[r.calFeeds.length % FEED_COLORS.length], tablet: true };
+      try { const t = localDay(new Date()), d = await apiPost("/api/calendar", { account: ACCT.id, feeds:[f], from: addDays(t, -30), to: addDays(t, 90) });
+        if (d.errors && d.errors.length) throw { message: d.errors[0].error };
+        r.calFeeds.push(f); save(); EVV.feed.key = ""; draw(); url.value = ""; name.value = "";
+        msg.replaceChildren(el("div",{class:"msg good", text:"Connected. " + (d.events || []).length + " events in the next few months."}));
+      } catch(e){ msg.replaceChildren(el("div",{class:"msg bad", text: e.code === "unavailable" ? "Upload netlify/functions/calendar.mjs first." : (e.message || "Couldn't read that calendar.")})); } }})]);
 }
 /* ================= Backup & restore ================= */
 async function downloadBackup(){
