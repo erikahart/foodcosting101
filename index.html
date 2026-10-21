@@ -1351,6 +1351,26 @@ td.desc-cell{white-space:normal !important;min-width:180px}
 .kstrip .n.good{color:var(--good)}
 @media (max-width:700px){ .oreq-ent{grid-template-columns:1fr 80px 60px 40px} .oreq-ent .pill{display:none} .oreq-add{grid-template-columns:1fr 80px} .oreq-add .btn{grid-column:1/-1} }
 .appver{font-size:.68rem;color:#8d8a84;padding:2px 16px 8px;opacity:.8}
+
+.os-money{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:12px;background:var(--panel)}
+.os-money > div{padding:10px 14px;display:flex;flex-direction:column;gap:2px;border-left:1px solid var(--line)}
+.os-money > div:first-child{border-left:0}
+.os-money span{font-size:.78rem;font-weight:700;color:var(--muted)}
+.os-money b{font-family:var(--brand-font);font-weight:800;font-size:1.7rem;line-height:1.1}
+.os-money .main{background:color-mix(in srgb,var(--jade) 8%,var(--panel))} .os-money .main b{color:var(--jade)}
+.os-money small{font-size:.75rem;color:var(--muted)}
+.have-it{display:inline-flex;align-items:center;gap:5px;font-size:.78rem;font-weight:700;color:var(--muted);margin-right:10px;cursor:pointer;vertical-align:middle}
+tr.have-row td{background:var(--field)} tr.have-row td b{color:var(--muted)}
+@media (max-width:700px){ .os-money{grid-template-columns:1fr} .os-money > div{border-left:0;border-top:1px solid var(--line)} .os-money > div:first-child{border-top:0} }
+/* Saved ideas and tablet builds: photo and name on top, buttons underneath */
+.lab-saved{grid-template-columns:repeat(auto-fill,minmax(300px,1fr)) !important}
+.lab-idea{flex-wrap:wrap;align-items:center;gap:6px 10px;padding:10px 12px !important}
+.lab-idea-img{width:60px !important;height:60px !important;margin-left:0 !important;border-radius:10px !important;flex:none}
+.lab-idea-main{flex:1 1 calc(100% - 80px) !important;min-width:0;padding:4px 2px !important}
+.lab-idea > .lab-idea-main:first-child{flex-basis:100% !important}
+.lab-idea-main b{font-size:1.05rem;line-height:1.25}
+.lab-idea > .btn{margin-left:0}
+.lab-idea > .linkbtn{margin-left:4px}
 </style>
 </head>
 <body>
@@ -1801,7 +1821,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 21, 2026 \u00b7 Ordering";
+const APP_VERSION = "Oct 21, 2026 \u00b7 Idea cards";
 function applyBrand(){
   const av = $("appver"); if (av) av.textContent = "Version: " + APP_VERSION;
   const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
@@ -4037,7 +4057,8 @@ function orderNeeds(entries, r, swap){
     const su = alt || x.su, amt = alt ? x.amt * UNITS[x.su.unit][1] / UNITS[alt.unit][1] : x.amt;
     const v = canonVendor(su.supplier, r) || "No vendor yet", caseQty = n(su.caseQty) || 1;
     const cases = Math.max(1, Math.ceil(amt / caseQty - 1e-9));
-    (groups[v] = groups[v] || []).push({ key, su, orig: x.su, amt, origAmt: x.amt, cases, cost: cases * (n(su.price) || 0), recipes: [...x.recipes], switched: !!alt }); });
+    const used = n(su.price) && n(su.caseQty) ? amt * su.price / su.caseQty : 0, have = !!((r.haveIt || {})[key]);
+    (groups[v] = groups[v] || []).push({ key, su, orig: x.su, amt, origAmt: x.amt, cases, cost: cases * (n(su.price) || 0), used, have, recipes: [...x.recipes], switched: !!alt }); });
   Object.values(groups).forEach(list => list.sort((p, q) => supName(p.su).localeCompare(supName(q.su))));
   const vendors = Object.keys(groups).sort((p, q) => (p === "No vendor yet") - (q === "No vendor yet") || p.localeCompare(q));
   return { groups, vendors, loose };
@@ -4045,6 +4066,11 @@ function orderNeeds(entries, r, swap){
 const fmtAmt = (v, unit) => (v >= 100 ? Math.round(v) : Math.round(v * 10) / 10) + " " + unit;
 const packWord = su => /keg|bbl/i.test(su.name || "") ? "keg" : /liquor|wine/i.test(su.cat || "") || /\b\d+(\.\d+)?\s*(ml|l)\b/i.test(su.name || "") ? "bottle" : "case";
 const packText = su => (n(su.caseQty) ? fmtAmt(n(su.caseQty), su.unit) + " per " + packWord(su) : "");
+// Only what needs ordering: lines ticked "Have it" are left out (vendors with nothing left drop off).
+function orderOnly(res){ const groups = {}; res.vendors.forEach(v => { const l = res.groups[v].filter(x => !x.have); if (l.length) groups[v] = l; }); return { vendors: res.vendors.filter(v => groups[v]), groups, loose: res.loose }; }
+function haveBox(r, x, after){ const cb = el("input",{type:"checkbox", "aria-label":"Already have " + supName(x.su)}); cb.checked = !!x.have;
+  cb.onchange = () => { r.haveIt = r.haveIt || {}; if (cb.checked) r.haveIt[x.key] = true; else delete r.haveIt[x.key]; save(); after(); };
+  return el("label",{class:"have-it"}, cb, "Have it"); }
 function openOrderSummary(entries, title){
   const r = R();
   const plan = el("div",{class:"os-plan"}), out = el("div");
@@ -4052,7 +4078,8 @@ function openOrderSummary(entries, title){
   const vendorOf = name => (r.vendors || []).find(v => v.name && name && (v.name.toLowerCase() === name.toLowerCase() || simScore(v.name, name) >= 0.85));
   const draw = () => {
     res = orderNeeds(entries, r, swap);
-    const total = res.vendors.reduce((t, v) => t + res.groups[v].reduce((u, x) => u + x.cost, 0), 0);
+    const all = res.vendors.flatMap(v => res.groups[v]);
+    const total = all.filter(x => !x.have).reduce((t, x) => t + x.cost, 0), fullCases = all.reduce((t, x) => t + x.cost, 0), usedCost = all.reduce((t, x) => t + x.used, 0);
     // For each line: the cheapest other vendor and what it saves on this order.
     const offers = new Map(); let canSave = 0;
     if (compare) res.vendors.forEach(v => res.groups[v].forEach(x => {
@@ -4068,26 +4095,29 @@ function openOrderSummary(entries, title){
         compare ? el("span",{class:"mini", text: canSave > 0.5 ? "Buying each item where it's cheapest saves about " + $$(canSave) + " on this order." : Object.keys(swap).length ? "You're on the cheapest options found." : "No cheaper matches found among your vendors' prices."}) : el("span",{class:"mini", text:"Uses the supplier each recipe is linked to."}),
         compare && canSave > 0.5 ? el("button",{class:"btn quiet", type:"button", text:"Switch all to cheapest", onclick:() => { offers.forEach((o2, key) => { if (o2.pick && o2.pick.save > 0.5) swap[key] = o2.pick.o.id; }); draw(); }}) : null,
         Object.keys(swap).length ? el("button",{class:"linkbtn", type:"button", text:"Undo all switches", onclick:() => { Object.keys(swap).forEach(k => delete swap[k]); draw(); }}) : null),
-      res.vendors.length ? null : el("div",{class:"card empty", text:"Nothing to order yet. Enter how many you plan to make above."}),
-      ...res.vendors.map(v => { const list = res.groups[v], sub = list.reduce((t, x) => t + x.cost, 0), vi = vendorOf(v);
+      res.vendors.length ? el("div",{class:"os-money"},
+        el("div",null, el("span",{text:"What this uses"}), el("b",{text:$$(usedCost)}), el("small",{text: entries.filter(e => n(e.qty)).length === 1 && n(entries[0].qty) ? $$(usedCost / n(entries[0].qty)) + " per " + (entries[0].unitWord || "serving").replace(/s$/, "") : "ingredients actually used"})),
+        el("div",{class:"main"}, el("span",{text:"To order"}), el("b",{text:$$(total)}), el("small",{text: all.some(x => x.have) ? "leaving out what you have" : "tick \u201cHave it\u201d on what's on your shelves"})),
+        el("div",null, el("span",{text:"Full cases of everything"}), el("b",{text:$$(fullCases)}), el("small",{text:"if you had none of it"}))) : el("div",{class:"card empty", text:"Nothing to order yet. Enter how many you plan to make above."}),
+      ...res.vendors.map(v => { const list = res.groups[v], sub = list.filter(x => !x.have).reduce((t, x) => t + x.cost, 0), vi = vendorOf(v), toOrder = list.filter(x => !x.have);
         const contact = vi && vi.repContact, mail = contact && /@/.test(contact) ? contact : "";
         return el("section",{class:"os-vendor card"},
           el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:v}),
               el("span",{class:"mini", text: [vi && vi.rep ? "Rep: " + vi.rep : "", contact || "", vi && vi.account ? "Account " + vi.account : "", vi && vi.order ? (ORDER_HOW[vi.order] || "") : ""].filter(Boolean).join("  |  ") || (v === "No vendor yet" ? "Pick a supplier for these on the Supplies page" : "")})),
             el("div",{class:"row"}, el("b",{text:$$(sub)}),
-              mail ? el("a",{class:"btn quiet", href:"mailto:" + encodeURIComponent(mail) + "?subject=" + encodeURIComponent("Order from " + ((ACCT && ACCT.name) || "us")) + "&body=" + encodeURIComponent(vendorText(v, list, vi)), text:"Email order"}) : null,
-              el("button",{class:"btn quiet", type:"button", text:"Copy", onclick:() => { navigator.clipboard && navigator.clipboard.writeText(vendorText(v, list, vi)); toast("Copied the " + v + " order"); }}))),
+              mail && toOrder.length ? el("a",{class:"btn quiet", href:"mailto:" + encodeURIComponent(mail) + "?subject=" + encodeURIComponent("Order from " + ((ACCT && ACCT.name) || "us")) + "&body=" + encodeURIComponent(vendorText(v, toOrder, vi)), text:"Email order"}) : null,
+              toOrder.length ? el("button",{class:"btn quiet", type:"button", text:"Copy", onclick:() => { navigator.clipboard && navigator.clipboard.writeText(vendorText(v, toOrder, vi)); toast("Copied the " + v + " order"); }}) : el("span",{class:"mini", text:"Nothing to order"}))),
           el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Item"}), el("th",{text:"Code"}), el("th",{text:"Pack"}), el("th",{class:"num", text:"Need"}), el("th",{class:"num", text:"Order"}), el("th",{class:"num", text:"Est. cost"}))),
-            el("tbody",null, list.map(x => el("tr",{style:"cursor:default"},
-              el("td",{style:"white-space:normal"}, el("b",{text: supName(x.su)}), x.su.estimated ? el("span",{class:"pill warn", style:"margin-left:6px", text:"AI estimate"}) : null, el("div",{class:"mini", text:"For: " + x.recipes.join(", ") + (perUnitPrice(x.su) != null ? "  |  " + $$(perUnitPrice(x.su)) + "/" + perUnitLabel(UNITS[x.su.unit][0]) + (priceDate(x.su) ? ", price from " + priceDate(x.su) : "") : "")}),
+            el("tbody",null, list.map(x => el("tr",{style:"cursor:default", class: x.have ? "have-row" : ""},
+              el("td",{style:"white-space:normal"}, haveBox(r, x, draw), el("b",{text: supName(x.su)}), x.su.estimated ? el("span",{class:"pill warn", style:"margin-left:6px", text:"AI estimate"}) : null, el("div",{class:"mini", text:"For: " + x.recipes.join(", ") + (perUnitPrice(x.su) != null ? "  |  " + $$(perUnitPrice(x.su)) + "/" + perUnitLabel(UNITS[x.su.unit][0]) + (priceDate(x.su) ? ", price from " + priceDate(x.su) : "") : "")}),
                 compareLine(x, offers.get(x.key))),
               el("td",{text: x.su.code || ""}), el("td",{text: packText(x.su)}), el("td",{class:"num", text: fmtAmt(x.amt, x.su.unit)}),
-              el("td",{class:"num"}, el("b",{text: x.cases + " " + packWord(x.su) + (x.cases === 1 ? "" : "s")})),
-              el("td",{class:"num", text: (x.su.estimated ? "\u2248" : "") + $$(x.cost)})))))));
+              el("td",{class:"num"}, x.have ? el("span",{class:"mini", text:"On hand"}) : el("b",{text: x.cases + " " + packWord(x.su) + (x.cases === 1 ? "" : "s")})),
+              el("td",{class:"num"}, x.have ? el("s",{class:"mini", text:$$(x.cost)}) : (x.su.estimated ? "\u2248" : "") + $$(x.cost), el("div",{class:"mini", text:"uses " + $$(x.used)}))))))));
       }),
       res.loose.length ? el("section",{class:"os-vendor card"}, el("h3",{style:"margin:0 0 6px", text:"Not linked to a supply yet"}), el("p",{class:"mini", text:"These have no supply or a unit that doesn't match, so they're not in a vendor's order. Link them on the recipe to include them."}),
         el("ul",{class:"duty-items"}, res.loose.map(x => el("li",{text: x.name + ": " + fmtAmt(x.qty, x.unit) + " (" + x.recipe + ")"})))) : null,
-      res.vendors.length ? el("div",{class:"os-total"}, el("span",{text:"Estimated total"}), el("b",{text:$$(total)})) : null,
+      res.vendors.length ? el("div",{class:"os-total"}, el("span",{text:"Estimated order"}), el("b",{text:$$(total)})) : null,
       el("p",{class:"mini", text:"Orders round up to whole cases or bottles. It doesn't know what's already on your shelves, so take off anything you have on hand. \u2248 marks AI-estimated prices."})].filter(Boolean));
   };
   // The compare note under an item: switched, a cheaper vendor, or best price.
@@ -4114,13 +4144,13 @@ function openOrderSummary(entries, title){
   const vendorText = (v, list, vi) => [((ACCT && ACCT.name) || "Our kitchen") + " order for " + v + (vi && vi.account ? " (account " + vi.account + ")" : ""), ""]
     .concat(list.map(x => "- " + x.cases + " x " + (x.su.code ? x.su.code + "  " : "") + x.su.name + (packText(x.su) ? " (" + packText(x.su) + ")" : ""))).concat(["", "Thank you!"]).join("\n");
   const csv = () => { const rows = [["Vendor","Item","Code","Pack","Need","Unit","Order","Est. cost","For"]];
-    res.vendors.forEach(v => res.groups[v].forEach(x => rows.push([v, x.su.name, x.su.code || "", packText(x.su), Math.round(x.amt * 100) / 100, x.su.unit, x.cases, (Math.round(x.cost * 100) / 100).toFixed(2), x.recipes.join("; ")])));
+    const ro = orderOnly(res); ro.vendors.forEach(v => ro.groups[v].forEach(x => rows.push([v, x.su.name, x.su.code || "", packText(x.su), Math.round(x.amt * 100) / 100, x.su.unit, x.cases, (Math.round(x.cost * 100) / 100).toFixed(2), x.recipes.join("; ")])));
     const text = rows.map(r2 => r2.map(c => /[",\n]/.test(String(c)) ? '"' + String(c).replace(/"/g, '""') + '"' : c).join(",")).join("\n");
     const a = el("a",{href: URL.createObjectURL(new Blob([text], { type:"text/csv" })), download: "order-summary-" + localDay(new Date()) + ".csv"}); document.body.append(a); a.click(); a.remove(); };
   draw();
   openDlg(title || "Order summary by vendor", [plan, out], [
     el("button",{class:"btn quiet", text:"Download spreadsheet", onclick: csv}),
-    el("button",{class:"btn primary", text:"Print", onclick:() => printOrderSummary(res, entries)})]);
+    el("button",{class:"btn primary", text:"Print", onclick:() => printOrderSummary(orderOnly(res), entries)})]);
 }
 function printOrderSummary(res, entries){
   const area = $("printArea"); area.className = "pa-order";
@@ -4377,13 +4407,15 @@ function consolidated(m, r, boss){
     return el("label",{class:"row", style:"gap:6px"}, cb, el("span",null, el("b",{text:q.title}), el("span",{class:"mini", text:" " + (q.by || "") + (q.neededBy ? ", needed " + nice(q.neededBy) : "")}))); }))));
   if (!entries.length){ m.append(el("div",{class:"card empty", text:"Pick at least one request."})); return; }
   const plan = bestVendorPlan(entries, r), res = plan.res;
-  const total = res.vendors.reduce((t, v) => t + res.groups[v].reduce((u, x) => u + x.cost, 0), 0);
-  const usual = Object.values(plan.choice).reduce((t, c) => t + c.usualCost, 0), saved = usual - total;
+  const total = res.vendors.reduce((t, v) => t + res.groups[v].filter(x => !x.have).reduce((u, x) => u + x.cost, 0), 0);
+  const usedAll = res.vendors.reduce((t, v) => t + res.groups[v].reduce((u, x) => u + x.used, 0), 0);
+  const haveCost = res.vendors.reduce((t, v) => t + res.groups[v].filter(x => x.have).reduce((u, x) => u + x.cost, 0), 0);
+  const usual = Object.values(plan.choice).reduce((t, c) => t + c.usualCost, 0) - haveCost, saved = usual - total;
   const separate = chosen.reduce((t, q) => t + reqCost(r, q), 0), savedCombining = Math.max(0, separate - usual);
   const cover = servingsCover(entries, r, plan);
   const earliest = chosen.map(q => q.neededBy).filter(Boolean).sort()[0];
   m.append(el("div",{class:"kstrip", style:"margin-top:12px"},
-    el("div",null, el("div",{class:"n", text:$$(total)}), el("div",{class:"l", text:"Estimated order"})),
+    el("div",null, el("div",{class:"n", text:$$(total)}), el("div",{class:"l", text:"To order (uses " + $$(usedAll) + " in ingredients)"})),
     el("div",null, el("div",{class:"n", text: res.vendors.filter(v => v !== "No vendor yet").length}), el("div",{class:"l", text:"Vendors"})),
     el("div",null, el("div",{class:"n" + (saved + savedCombining > 0.5 ? " good" : ""), text: saved + savedCombining > 0.5 ? $$(saved + savedCombining) : "\u2014"}),
       el("div",{class:"l", text: chosen.length > 1 ? "Saved: " + $$(savedCombining) + " by combining, " + $$(Math.max(0, saved)) + " by best vendor" : "Saved by best vendor"})),
@@ -4399,7 +4431,8 @@ function consolidated(m, r, boss){
     PV.aiBusy = true; drawAI();
     const facts = { requests: chosen.map(q => ({ title: q.title, by: q.by, neededBy: q.neededBy, note: q.note, recipes: (q.entries || []).map(e => e.qty + " x " + (e.name || (r.items[e.refId] || {}).name)) })),
       totalCost: Math.round(total), savedByBestVendor: Math.round(saved), savedByCombiningRequests: Math.round(savedCombining), costIfOrderedSeparately: Math.round(separate),
-      vendors: res.vendors.map(v => ({ vendor: v, cost: Math.round(res.groups[v].reduce((t, x) => t + x.cost, 0)), items: res.groups[v].map(x => x.cases + " " + packWord(x.su) + (x.cases === 1 ? "" : "s") + " " + supName(x.su) + (x.switched ? " (cheaper than " + canonVendor(x.orig.supplier, r) + ")" : "")) })),
+      alreadyOnHand: res.vendors.flatMap(v => res.groups[v].filter(x => x.have).map(x => supName(x.su))), ingredientsUsedCost: Math.round(usedAll),
+      vendors: orderOnly(res).vendors.map(v => ({ vendor: v, cost: Math.round(orderOnly(res).groups[v].reduce((t, x) => t + x.cost, 0)), items: orderOnly(res).groups[v].map(x => x.cases + " " + packWord(x.su) + (x.cases === 1 ? "" : "s") + " " + supName(x.su) + (x.switched ? " (cheaper than " + canonVendor(x.orig.supplier, r) + ")" : "")) })),
       servings: cover.map(c => ({ recipe: c.name, requested: c.qty, extraFromCaseRounding: c.extra, limitedBy: c.limit })), notLinked: res.loose.map(x => x.name + " for " + x.recipe) };
     try { const d = await aiJSON("You help the purchasing manager of a small-town diner and bar. Here is this week's consolidated order, already calculated (don't change any numbers):\n" + JSON.stringify(facts) +
         "\nWrite a short, plain-English brief: one paragraph summary (totals, vendor split, savings), then 3 to 6 practical tips (deadlines, split deliveries vs. one vendor, leftovers from case rounding and how to use them, anything missing a price or link). Return ONLY JSON: {\"summary\": string, \"tips\": [string]}", null, { maxTokens: 1500 });
@@ -4418,14 +4451,14 @@ function consolidated(m, r, boss){
     el("div",{class:"row"}, Object.keys(PV.override).length ? el("button",{class:"linkbtn", type:"button", text:"Reset vendor choices", onclick:() => { PV.override = {}; render(); }}) : null,
       el("button",{class:"btn quiet", type:"button", text:"Print, download or email", onclick:() => openOrderSummaryFixed(entries, plan.swap, "Consolidated order")}))));
   res.vendors.forEach(v => { const list = res.groups[v];
-    m.append(el("div",{class:"card os-vendor"}, el("div",{class:"spread"}, el("h3",{style:"margin:0", text:v}), el("b",{text:$$(list.reduce((t, x) => t + x.cost, 0))})),
+    m.append(el("div",{class:"card os-vendor"}, el("div",{class:"spread"}, el("h3",{style:"margin:0", text:v}), el("b",{text:$$(list.filter(x => !x.have).reduce((t, x) => t + x.cost, 0))})),
       el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ["Item","Order","Est. cost","Vendor"].map((h, i) => el("th",{class: i === 1 || i === 2 ? "num" : "", text:h})))),
         el("tbody",null, list.map(x => { const c = plan.choice[x.key];
           const sel = el("select",{class:"inp", style:"min-height:36px;min-width:250px;max-width:300px"}, (c ? c.all : []).map(o => el("option",{value:o.id, text: canonVendor(o.su.supplier, r) + ": " + $$(o.cost) + (o.usual ? " (usual)" : "")})));
           sel.value = x.su.id; sel.onchange = () => { PV.override[x.key] = sel.value; render(); };
-          return el("tr",{style:"cursor:default"}, el("td",{style:"white-space:normal"}, el("b",{text:supName(x.su)}), el("div",{class:"mini", text:"For: " + x.recipes.join(", ")}),
+          return el("tr",{style:"cursor:default", class: x.have ? "have-row" : ""}, el("td",{style:"white-space:normal"}, haveBox(r, x, () => render()), el("b",{text:supName(x.su)}), el("div",{class:"mini", text:"For: " + x.recipes.join(", ")}),
               c && c.pick.id === c.best.id && c.all.length > 1 ? el("div",{class:"mini", style:"color:var(--good);font-weight:700", text:"Best of " + c.all.length + " vendors" + (x.switched ? ", saves " + $$(c.usualCost - x.cost) : "")}) : null),
-            el("td",{class:"num"}, el("b",{text: x.cases + " " + packWord(x.su) + (x.cases === 1 ? "" : "s")})), el("td",{class:"num", text:(x.su.estimated ? "\u2248" : "") + $$(x.cost)}),
+            el("td",{class:"num"}, x.have ? el("span",{class:"mini", text:"On hand"}) : el("b",{text: x.cases + " " + packWord(x.su) + (x.cases === 1 ? "" : "s")})), el("td",{class:"num"}, x.have ? el("s",{class:"mini", text:$$(x.cost)}) : (x.su.estimated ? "\u2248" : "") + $$(x.cost)),
             el("td",null, c && c.all.length > 1 ? sel : el("span",{class:"mini", text: c && c.all.length === 1 ? "Only vendor with a price" : ""}))); }))))));
   });
   if (res.loose.length) m.append(el("div",{class:"card"}, el("h3",{style:"margin:0 0 6px", text:"Not linked to a supply"}), el("ul",{class:"duty-items"}, res.loose.map(x => el("li",{text: x.name + " for " + x.recipe})))));
