@@ -1318,6 +1318,10 @@ td.desc-cell{white-space:normal !important;min-width:180px}
 .packset .mini{text-align:left !important}
 .packset-in{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:6px;align-items:center}
 .packset-in .inp{width:100% !important;min-width:0}
+.ck.excused{background:var(--field);border-style:dashed;color:var(--muted)}
+.ck.excused .ck-box{border-color:var(--muted);color:var(--muted);background:transparent}
+.ck.excused .ck-tx{text-decoration:line-through}
+.ck.excused .ck-by{white-space:normal;text-align:right}
 
 /* Live demo bar */
 .demo-bar{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:40;display:flex;align-items:center;gap:10px;background:#18211D;color:#E6ECE9;border:1px solid #2B3631;border-radius:14px;padding:8px 8px 8px 14px;box-shadow:0 14px 40px rgba(0,0,0,.28);font-size:.88rem;max-width:calc(100% - 24px)}
@@ -1420,6 +1424,7 @@ window.APP_CONFIG = { supabaseUrl: "https://demo.local", supabaseAnonKey: "demo"
       schedule_requests_list(){ return []; },
       duty_set(){ throw ["demo","Checking off duties works on your own site. It's switched off in the demo."]; },
       duty_mark(){ throw ["demo","Checking off duties works on your own site. It's switched off in the demo."]; },
+      duty_excuse(){ throw ["demo","Clearing duties works on your own site. It's switched off in the demo."]; },
       book_share_enable(){ throw ["demo","Tablet links work on your own site. They're switched off in the demo."]; },
       inbound_recent(){ return []; },
       inbound_waiting(){ return []; },
@@ -3704,14 +3709,19 @@ function schedChecklists(m, r, today){
   SCV.logDay = SCV.logDay || today;
   const day = SCV.logDay, lists = dutiesFor(r, day).slice().sort((a, b) => ({ open:0, mid:1, daily:2, close:3 })[a.when] - ({ open:0, mid:1, daily:2, close:3 })[b.when] || a.area.localeCompare(b.area));
   const canCheck = day >= addDays(today, -1) && day <= today;
+  const canClear = canEditSchedule() && day >= addDays(today, -90) && day <= today;
   const pick = el("input",{class:"inp", type:"date", value:day, max:today, style:"max-width:190px"}); pick.onchange = () => { SCV.logDay = pick.value || today; render(); };
   const box = el("div",null, el("div",{class:"spin"}));
   const dn = new Date(day + "T12:00:00");
   m.append(el("div",{class:"sch-bar"},
     el("div",{class:"row"}, el("b",{class:"sch-range", text: (day === today ? "Today, " : "") + DOW[dn.getDay()] + " " + nice(day)}), pick, day !== today ? el("button",{class:"linkbtn", type:"button", text:"Today", onclick:() => { SCV.logDay = today; render(); }}) : null),
-    el("div",{class:"row"}, canEditSchedule() ? el("button",{class:"btn quiet", type:"button", text:"Import checklists", onclick:() => openChecklistImport(r)}) : null,
+    el("div",{class:"row"}, canClear ? el("button",{class:"btn quiet", type:"button", text:"Clear everything not done", onclick:() => {
+        const done = box._done || new Map(), todo = lists.map(l => [l, l.items.filter(x => { const c = done.get(l.id + "|" + x.id); return !c || c.status === "skipped"; }).map(x => x.id)]).filter(([, ids]) => ids.length);
+        if (!todo.length) return toast("Everything on this day is done or cleared.");
+        clearReason("everything not done on " + nice(day), async t => { for (const [l, ids] of todo) await excuseDuties(day, l, ids, t); toast("Cleared " + todo.reduce((n3, [, ids]) => n3 + ids.length, 0) + " duties"); render(); }); }}) : null,
+      canEditSchedule() ? el("button",{class:"btn quiet", type:"button", text:"Import checklists", onclick:() => openChecklistImport(r)}) : null,
       el("button",{class:"btn quiet", type:"button", text:"Print checklists", onclick:() => printChecklists(r, day, lists, box._done || new Map())}))), box);
-  if (!canCheck) m.append(el("p",{class:"mini", text:"Past days are a record: duties can only be checked off today or yesterday (for late closes)."}));
+  if (!canCheck) m.append(el("p",{class:"mini", text:"Past days are a record: duties can only be checked off today or yesterday (for late closes)." + (canClear ? " Managers can still clear ones that weren't needed." : "")}));
   (async () => {
     const { data, error } = await sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: day, p_to: day });
     if (error){ box.replaceChildren(el("div",{class:"msg bad", text: /function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "One-time setup: run supabase/007_duties.sql and 008_duties_app.sql in Supabase's SQL Editor." : plainErr(error)})); return; }
@@ -3721,22 +3731,45 @@ function schedChecklists(m, r, today){
       const { data: ok, error: e2 } = await sb.rpc("duty_mark", { p_account: ACCT.id, p_day: day, p_list: l.id, p_item: x.id, p_by: by, p_status: status, p_note: note || null });
       if (e2 || ok !== true) toast(e2 && /function|PGRST202|schema cache/i.test((e2.code || "") + (e2.message || "")) ? "One-time setup: run supabase/009_duty_alerts.sql in Supabase." : "That didn't save. Try again."); render();
     };
-    box.replaceChildren(el("div",{class:"duty-grid"}, lists.map(l => { const n2 = l.items.filter(x => { const c = done.get(l.id + "|" + x.id); return c && c.status !== "skipped"; }).length;
+    box.replaceChildren(el("div",{class:"duty-grid"}, lists.map(l => { const n2 = l.items.filter(x => { const c = done.get(l.id + "|" + x.id); return c && c.status === "done"; }).length;
+      const nx = l.items.filter(x => { const c = done.get(l.id + "|" + x.id); return c && c.status === "excused"; }).length;
+      const rest = l.items.filter(x => { const c = done.get(l.id + "|" + x.id); return !c || c.status === "skipped"; }).map(x => x.id);
       const resp = responsibleFor(r, l, day);
       return el("div",{class:"card duty-card"},
         el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:l.name}), el("span",{class:"mini", text: l.area + ", " + (l.startAt ? "starts around " + t12(l.startAt) : ({ open:"opening", mid:"mid-shift", close:"closing", daily:"any time" })[l.when]) + (resp.length ? ". Responsible: " + resp.join(", ") : l.startAt ? ". No one starts near then today" : "")})),
-          el("span",{class:"pill " + (n2 === l.items.length ? "good" : n2 ? "warn" : day < today ? "bad" : ""), text: n2 + " of " + l.items.length})),
-        el("div",{class:"ck-list"}, l.items.map(x => { const c = done.get(l.id + "|" + x.id), sk = c && c.status === "skipped";
-          const sub = sk ? "Couldn't: " + (c.note || "no reason") + " (" + (c.done_by || "?") + ")" : c ? (c.done_by || "Someone") + ", " + new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) : day < today ? "Missed" + (resp.length ? ": " + resp.join(", ") : "") : "";
-          return el("button",{class:"ck" + (sk ? " skipped" : c ? " done" : "") + (!c && day < today ? " missed" : ""), type:"button", disabled: canCheck ? null : "", "aria-pressed": String(!!c && !sk),
-            onclick:() => dutyAction(r, day, x.text, c, (by, status, note) => mark(l, x, by, status, note))},
-            el("span",{class:"ck-box", "aria-hidden":"true", text: sk ? "!" : c ? "\u2713" : ""}), el("span",{class:"ck-tx", text:x.text}),
+          el("div",{class:"row", style:"gap:6px;flex-wrap:nowrap"}, el("span",{class:"pill " + (n2 + nx === l.items.length ? "good" : n2 ? "warn" : day < today ? "bad" : ""), text: n2 + " of " + l.items.length + (nx ? ", " + nx + " cleared" : "")}),
+            canClear && rest.length ? el("button",{class:"linkbtn", type:"button", text:"Clear the rest", onclick:() => clearReason("the rest of " + l.name, async t => { await excuseDuties(day, l, rest, t); toast("Cleared " + rest.length); render(); })}) : null)),
+        el("div",{class:"ck-list"}, l.items.map(x => { const c = done.get(l.id + "|" + x.id), sk = c && c.status === "skipped", ex = c && c.status === "excused";
+          const sub = ex ? "Cleared: " + (c.note || "not needed") + (c.done_by ? " (" + c.done_by + ")" : "") : sk ? "Couldn't: " + (c.note || "no reason") + " (" + (c.done_by || "?") + ")" : c ? (c.done_by || "Someone") + ", " + new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) : day < today ? "Missed" + (resp.length ? ": " + resp.join(", ") : "") : "";
+          const excuse = canClear ? (note, undo) => excuseDuties(day, l, [x.id], note, undo).then(() => render()) : null;
+          return el("button",{class:"ck" + (ex ? " excused" : sk ? " skipped" : c ? " done" : "") + (!c && day < today ? " missed" : ""), type:"button", disabled: canCheck || (canClear && (!c || sk || ex)) ? null : "", "aria-pressed": String(!!c && !sk && !ex),
+            onclick:() => canCheck ? dutyAction(r, day, x.text, c, (by, status, note) => mark(l, x, by, status, note), excuse)
+              : ex ? dutyAction(r, day, x.text, c, null, excuse) : clearReason(x.text, t => excuse(t))},
+            el("span",{class:"ck-box", "aria-hidden":"true", text: ex ? "\u2013" : sk ? "!" : c ? "\u2713" : ""}), el("span",{class:"ck-tx", text:x.text}),
             el("span",{class:"ck-by", text: sub})); })));
     })));
   })();
 }
+// Clearing duties that weren't done: pick a reason (closed, not needed...).
+const CLEAR_REASONS = ["Closed", "Closed early", "Not needed today", "Slow day"];
+function clearReason(what, onPick){
+  const other = el("input",{class:"inp", placeholder:"Or type a reason"});
+  openDlg("Clear: " + what, [el("p",{class:"lead", text:"Cleared duties don't count as missed, and they're left out of Needs you and the morning email."}),
+    el("div",{class:"who-pick"}, CLEAR_REASONS.map(t => el("button",{class:"btn quiet", type:"button", text:t, onclick:() => { dlg.close(); onPick(t); }}))), fld("Other reason", other)],
+    [el("span"), el("button",{class:"btn primary", text:"Clear", onclick:() => { const t = other.value.trim(); if (!t) return other.focus(); dlg.close(); onPick(t); }})]);
+}
+async function excuseDuties(day, list, itemIds, note, undo){
+  if (!itemIds.length) return;
+  const me = USER && USER.email ? USER.email.split("@")[0] : "manager";
+  const { error } = await sb.rpc("duty_excuse", { p_account: ACCT.id, p_day: day, p_list: list.id, p_items: itemIds, p_by: me, p_note: note || null, p_clear: !!undo });
+  if (error) toast(/function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "One-time setup: run supabase/012_duty_clear.sql in Supabase." : plainErr(error));
+}
 // Tap a duty: Done, or Can't do it (with a reason). Tap a marked one to change or clear it.
-function dutyAction(r, day, what, cur, apply){
+function dutyAction(r, day, what, cur, apply, excuse){
+  if (cur && cur.status === "excused"){
+    openDlg(what, [el("p",{class:"lead", text:"Cleared" + (cur.note ? ": " + cur.note : "") + (cur.done_by ? " (" + cur.done_by + ")" : "") + "."})],
+      [el("span"), excuse ? el("button",{class:"btn primary", text:"Undo: put it back on the list", onclick:() => { dlg.close(); excuse(null, true); }}) : el("span")]); return;
+  }
   const cant = () => {
     const other = el("textarea",{class:"inp", rows:"2", placeholder:"Or say what happened"});
     openDlg("Can't do it", [el("p",{class:"lead", text:what}),
@@ -3746,6 +3779,7 @@ function dutyAction(r, day, what, cur, apply){
   openDlg(what, [el("div",{class:"who-pick two"},
       el("button",{class:"btn primary big", type:"button", text: cur && cur.status !== "skipped" ? "\u2713 Done (keep)" : "\u2713 Done", onclick:() => whoDidIt(r, day, what, nm => apply(nm, "done"))}),
       el("button",{class:"btn quiet big warnb", type:"button", text:"Can't do it", onclick: cant})),
+    excuse ? el("button",{class:"btn quiet", type:"button", style:"margin-top:12px;width:100%", text:"Not needed today (clear it)", onclick:() => { dlg.close(); clearReason(what, t => excuse(t)); }}) : null,
     cur ? el("button",{class:"linkbtn", type:"button", style:"margin-top:12px", text:"Clear it (not done yet)", onclick:() => { dlg.close(); apply(null, null); }}) : null], []);
 }
 function whoDidIt(r, day, what, onPick){
@@ -3764,8 +3798,8 @@ function printChecklists(r, day, lists, done){
     lists.map(l => el("section",{class:"pd-list"}, el("h2",{text:l.name}),
       el("table",null, el("thead",null, el("tr",null, el("th",{text:""}), el("th",{text:"Duty"}), el("th",{text:"Done by"}), el("th",{text:"Time"}))),
         el("tbody",null, l.items.map(x => { const c = done.get(l.id + "|" + x.id);
-          const sk = c && c.status === "skipped";
-          return el("tr",null, el("td",{class:"pd-box", text: sk ? "!" : c ? "\u2713" : ""}), el("td",null, x.text, sk ? el("div",{class:"pd-why", text:"Couldn't: " + (c.note || "")}) : null), el("td",{text: c ? (c.done_by || "") : ""}), el("td",{text: c ? new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) : ""})); })))))));
+          const sk = c && c.status === "skipped", ex = c && c.status === "excused";
+          return el("tr",null, el("td",{class:"pd-box", text: ex ? "\u2013" : sk ? "!" : c ? "\u2713" : ""}), el("td",null, x.text, sk ? el("div",{class:"pd-why", text:"Couldn't: " + (c.note || "")}) : ex ? el("div",{class:"pd-why", text:"Cleared: " + (c.note || "")}) : null), el("td",{text: c ? (c.done_by || "") : ""}), el("td",{text: c ? new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) : ""})); })))))));
   let ps = $("printPageStyle"); if (!ps){ ps = document.createElement("style"); ps.id = "printPageStyle"; document.head.append(ps); }
   ps.textContent = "@media print{@page{size:letter;margin:0.5in}}";
   document.body.classList.add("printing");

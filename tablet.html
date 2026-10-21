@@ -129,6 +129,7 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
 .pick .names .okb{background:var(--jade);color:#fff;border-color:var(--jade);min-height:78px;font-size:1.2rem}
 .pick .names .cantb{background:var(--warn-soft);border-color:var(--mustard);min-height:78px;font-size:1.2rem}
 .why-in{width:100%;font:inherit;font-size:1.1rem;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--field);color:var(--ink);min-height:54px}
+.chk.excused{background:var(--field);border-style:dashed;color:var(--muted)} .chk.excused .tx{text-decoration:line-through} .chk.excused .box{color:var(--muted)}
 .chk.skipped{background:var(--warn-soft);border-color:transparent}
 .chk.skipped .box{background:var(--mustard);border-color:var(--mustard)}
 .chk.skipped .by{color:#9A6A0B;white-space:normal;text-align:right;max-width:45%}
@@ -651,12 +652,12 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
         onclick: () => { try { localStorage.setItem("kb-duty-area", a); } catch(e){} render(); } }))) : null];
     const shown = area ? lists.filter(l => l.area === area) : lists;
     if (!lists.length) parts.push(h("div", { class:"empty", text:"No checklists set up for today. Managers add them in the app under Schedule \u2192 Duties." }));
-    shown.forEach(l => { const n = l.items.filter(x => { const c = CHECKS.get(l.id + "|" + x.id); return c && c.status !== "skipped"; }).length;
-      parts.push(h("section", { class:"duty" }, h("div", { class:"duty-h" }, h("h3", { text: l.name }), h("span", { class:"prog" + (n === l.items.length && n ? " all" : ""), text: n + " of " + l.items.length })),
-        l.items.map(x => { const c = CHECKS.get(l.id + "|" + x.id), sk = c && c.status === "skipped";
-          return h("button", { class:"chk" + (sk ? " skipped" : c ? " done" : ""), type:"button", onclick: () => dutySheet(l, x, c) },
-            h("span", { class:"box", text: sk ? "!" : c ? "\u2713" : "" }), h("span", { class:"tx", text: x.text }),
-            c ? h("span", { class:"by", text: sk ? "Couldn't: " + (c.note || "") + " (" + (c.done_by || "") + ")" : (c.done_by || "") + " " + new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) }) : null); }))); });
+    shown.forEach(l => { const n = l.items.filter(x => { const c = CHECKS.get(l.id + "|" + x.id); return c && c.status === "done"; }).length, nx = l.items.filter(x => { const c = CHECKS.get(l.id + "|" + x.id); return c && c.status === "excused"; }).length;
+      parts.push(h("section", { class:"duty" }, h("div", { class:"duty-h" }, h("h3", { text: l.name }), h("span", { class:"prog" + (n + nx === l.items.length && n + nx ? " all" : ""), text: n + " of " + l.items.length + (nx ? ", " + nx + " cleared" : "") })),
+        l.items.map(x => { const c = CHECKS.get(l.id + "|" + x.id), sk = c && c.status === "skipped", ex = c && c.status === "excused";
+          return h("button", { class:"chk" + (ex ? " excused" : sk ? " skipped" : c ? " done" : ""), type:"button", onclick: () => { if (ex) return; dutySheet(l, x, c); } },
+            h("span", { class:"box", text: ex ? "\u2013" : sk ? "!" : c ? "\u2713" : "" }), h("span", { class:"tx", text: x.text }),
+            c ? h("span", { class:"by", text: ex ? "Cleared: " + (c.note || "not needed") : sk ? "Couldn't: " + (c.note || "") + " (" + (c.done_by || "") + ")" : (c.done_by || "") + " " + new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) }) : null); }))); });
     m.replaceChildren(...parts, status());
     clearInterval(checkTimer); checkTimer = setInterval(() => { if (location.hash === "#duties") loadChecks(); else clearInterval(checkTimer); }, 60000);
   }
