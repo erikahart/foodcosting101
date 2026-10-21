@@ -1339,6 +1339,17 @@ td.desc-cell{white-space:normal !important;min-width:180px}
 .lockctl{width:100%;margin-bottom:8px;justify-content:center}
 .pos-codes{display:grid;grid-template-columns:70px minmax(0,1fr) minmax(0,1.2fr);gap:8px;align-items:center;margin-top:6px}
 .pos-codes .inp{min-height:40px}
+.oreq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
+.oreq{border-left:4px solid var(--line-2)} .oreq.submitted{border-left-color:var(--mustard)} .oreq.ordered{border-left-color:var(--jade);opacity:.85}
+.oreq-list{margin:8px 0 0;padding-left:18px;display:grid;gap:3px}
+.oreq-ents{display:grid;gap:6px}
+.oreq-ent{display:grid;grid-template-columns:minmax(0,1fr) auto 110px 70px 44px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:6px 8px}
+.oreq-add{display:grid;grid-template-columns:minmax(0,1fr) 110px auto;gap:8px;margin-top:8px}
+.oreq-pick{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
+.ai-sum{border-left:4px solid var(--jade);margin-top:12px}
+.ai-text{white-space:pre-line;margin:8px 0}
+.kstrip .n.good{color:var(--good)}
+@media (max-width:700px){ .oreq-ent{grid-template-columns:1fr 80px 60px 40px} .oreq-ent .pill{display:none} .oreq-add{grid-template-columns:1fr 80px} .oreq-add .btn{grid-column:1/-1} }
 </style>
 </head>
 <body>
@@ -1808,12 +1819,13 @@ const isPhone = () => window.matchMedia("(max-width: 700px)").matches;
 const isNarrow = () => window.matchMedia("(max-width: 900px)").matches;
 // Redraw when crossing the phone/desktop line (rotation, resizing a window).
 ["(max-width: 700px)", "(max-width: 900px)"].forEach(q => { const mq = window.matchMedia(q); const fn = () => { if (typeof ST !== "undefined" && ST) render(); }; mq.addEventListener ? mq.addEventListener("change", fn) : mq.addListener(fn); });
-const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["book","Kitchen book"],["lab","Test kitchen"],["sched","Schedule"],["events","Events"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Brand & accounts"]];
+const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["book","Kitchen book"],["lab","Test kitchen"],["purch","Ordering"],["sched","Schedule"],["events","Events"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Brand & accounts"]];
 const NAV_ICONS = {
   home:'<path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
   coach:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
   events:'<path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z"/>',
   sched:'<rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4M8 14h3M8 17h6"/>',
+  purch:'<path d="M3.5 4.5h2.2l2 10.5h10.6l1.9-7.5H7"/><circle cx="9.5" cy="19" r="1.4"/><circle cx="17" cy="19" r="1.4"/>',
   lab:'<path d="M9 3h6M10 3v5.5L4.8 18a2 2 0 0 0 1.8 3h10.8a2 2 0 0 0 1.8-3L14 8.5V3"/><path d="M7.5 14h9"/>',
   book:'<path d="M4 4.5A1.5 1.5 0 0 1 5.5 3H20v15H5.5A1.5 1.5 0 0 0 4 19.5z"/><path d="M4 19.5A1.5 1.5 0 0 0 5.5 21H20v-3M9 7h7M9 10.5h5"/>',
   menu:'<path d="M5 3v8a2 2 0 0 0 2 2v8M9 3v8a2 2 0 0 1-2 2M7 3v6M17 21V3c-2 1-3 3.5-3 7v3h3"/>',
@@ -1867,7 +1879,7 @@ function labelTables(root){
 }
 function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); const m = $("main"); m.replaceChildren();
   if (pinLocked() && !STAFF_PAGES.includes(ST.page)){ if (ST.page === "home") staffHome(m); else pinScreen(m, ST.page); pageHeader(m); return; }
-  ({ home, coach, menu, book, lab, sched, events, supplies, inbox, suppliers, brand })[ST.page](m);
+  ({ home, coach, menu, book, lab, purch, sched, events, supplies, inbox, suppliers, brand })[ST.page](m);
   if (ST.page === "brand"){ const pc = pinLockCard(); if (pc) m.append(pc); } pageHeader(m); labelTables(m); }
 // Group each page's title, description and main actions into one header with a fine rule under it.
 function pageHeader(m){
@@ -2039,6 +2051,7 @@ function openMore(){
     item("Search", "Dishes, supplies, suppliers and actions", () => cmdkOpen()),
     item("Kitchen book", "Recipe cards with photos and steps for the line", () => go("book")),
     item("Test kitchen", "Describe something new: recipe, ordering, cost and price", () => go("lab")),
+    item("Ordering", "Order requests, combined into one order by best vendor", () => go("purch")),
     item("Schedule", "Who's working, plus cleaning and prep duties", () => go("sched")),
     item("Events", "Bookings, events and specials on a calendar", () => go("events")),
     item("Profit coach", "What to fix first, in dollars per week", () => go("coach")),
@@ -4030,7 +4043,7 @@ const packText = su => (n(su.caseQty) ? fmtAmt(n(su.caseQty), su.unit) + " per "
 function openOrderSummary(entries, title){
   const r = R();
   const plan = el("div",{class:"os-plan"}), out = el("div");
-  let res = null; const swap = {}; let compare = true;
+  let res = null; const swap = Object.assign({}, PV.fixedSwap || {}); let compare = true;
   const vendorOf = name => (r.vendors || []).find(v => v.name && name && (v.name.toLowerCase() === name.toLowerCase() || simScore(v.name, name) >= 0.85));
   const draw = () => {
     res = orderNeeds(entries, r, swap);
@@ -4244,6 +4257,180 @@ function openCalFeeds(r){
         r.calFeeds.push(f); save(); EVV.feed.key = ""; draw(); url.value = ""; name.value = "";
         msg.replaceChildren(el("div",{class:"msg good", text:"Connected. " + (d.events || []).length + " events in the next few months."}));
       } catch(e){ msg.replaceChildren(el("div",{class:"msg bad", text: e.code === "unavailable" ? "Upload netlify/functions/calendar.mjs first." : (e.message || "Couldn't read that calendar.")})); } }})]);
+}
+
+/* ================= Ordering: order requests from managers, consolidated by best vendor ================= */
+const PV = { tab:"requests", sel:null, override:{}, ai:null, aiBusy:false, aiKey:"" };
+const reqCost = (r, req) => { const res = orderNeeds(reqEntries(r, [req]), r, {}); return res.vendors.reduce((t, v) => t + res.groups[v].reduce((u, x) => u + x.cost, 0), 0); };
+// What a request needs: menu items use their live recipes; Test kitchen ideas use the recipe saved with the request.
+function reqEntries(r, reqs){
+  const out = [];
+  reqs.forEach(req => (req.entries || []).forEach(e => {
+    if (!(n(e.qty) > 0)) return;
+    if (e.type === "item"){ const it = r.items[e.refId]; if (it && (it.lines || []).length) out.push({ key: "i:" + it.id, name: it.name, lines: it.lines, portions: n(it.portions) || 1, sups: r.supplies, qty: n(e.qty), unitWord: isDrink(it) ? "drinks" : "servings", req: req.title }); }
+    else if (e.type === "idea" && e.lines) out.push({ key: "d:" + e.refId, name: e.name, lines: e.lines, portions: n(e.portions) || 1, sups: Object.assign({}, r.supplies, e.est || {}), qty: n(e.qty), unitWord: e.unitWord || "servings", req: req.title });
+  }));
+  return out;
+}
+// Snapshot of a saved Test kitchen idea, with its estimated supplies renamed so ideas never collide.
+function ideaEntry(idea, qty){
+  const dr = idea.draft, pre = "x" + idea.id + "-", est = {};
+  Object.values(dr.est || {}).forEach(e => { est[pre + e.id] = Object.assign({}, e, { id: pre + e.id }); });
+  const lines = dr.lines.filter(l => l.s).map(l => Object.assign({}, l, { s: dr.est && dr.est[l.s] ? pre + l.s : l.s }));
+  return { type:"idea", refId: idea.id, name: dr.name, qty, portions: dr.servings || 1, lines, est, unitWord: dr.kind === "food" ? "servings" : "drinks" };
+}
+function purch(m){
+  const r = R(); r.orderReqs = r.orderReqs || [];
+  const boss = ACCT && ["owner","manager"].includes(ACCT.role);
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Ordering"}), el("p",{class:"lead", text:"Managers submit what they're making. It's combined into one order, by the best vendor for each item."})),
+    el("div",{class:"row"}, el("div",{class:"seg", role:"tablist"}, [["requests","Order requests"],["combined","Consolidated order"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String(PV.tab === k), text:t, onclick:() => { PV.tab = k; render(); }}))),
+      el("button",{class:"btn primary", type:"button", text:"+ New order request", onclick:() => editOrderReq(r, null)}))));
+  if (PV.tab === "combined") return consolidated(m, r, boss);
+  const open = r.orderReqs.filter(q => q.status !== "ordered").sort((a, b) => String(a.neededBy || "9").localeCompare(String(b.neededBy || "9")));
+  const done = r.orderReqs.filter(q => q.status === "ordered").sort((a, b) => String(b.orderedAt || "").localeCompare(String(a.orderedAt || ""))).slice(0, 10);
+  if (!r.orderReqs.length){ m.append(el("div",{class:"card empty", text:"No order requests yet. Start one with + New order request: pick the recipes you're making and how many."})); return; }
+  const card = q => { const ents = (q.entries || []), cost = reqCost(r, q);
+    return el("div",{class:"card oreq " + q.status},
+      el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:q.title}), el("span",{class:"mini", text:[q.by ? "By " + q.by : "", q.neededBy ? "Needed by " + nice(q.neededBy) : "", q.submittedAt ? "submitted " + nice(q.submittedAt.slice(0, 10)) : ""].filter(Boolean).join("  |  ")})),
+        el("span",{class:"pill " + (q.status === "submitted" ? "warn" : q.status === "ordered" ? "good" : ""), text: q.status === "submitted" ? "Submitted" : q.status === "ordered" ? "Ordered" : "Draft"})),
+      el("ul",{class:"oreq-list"}, ents.map(e => el("li",null, el("b",{text: e.qty + " \u00d7 "}), e.name || (r.items[e.refId] || {}).name || "Recipe", e.type === "idea" ? el("span",{class:"pill", style:"margin-left:6px", text:"Test kitchen"}) : null))),
+      q.note ? el("p",{class:"mini", style:"margin:4px 0 0", text:"\u201c" + q.note + "\u201d"}) : null,
+      el("div",{class:"spread", style:"margin-top:8px"}, el("b",{text:"About " + $$(cost)}),
+        el("div",{class:"row"}, q.status !== "ordered" ? el("button",{class:"btn quiet", type:"button", text:"Edit", onclick:() => editOrderReq(r, q)}) : null,
+          el("button",{class:"btn quiet", type:"button", text:"Order summary", onclick:() => openOrderSummary(reqEntries(r, [q]), "Order summary: " + q.title)}),
+          q.status === "draft" ? el("button",{class:"btn primary", type:"button", text:"Submit", onclick:() => { q.status = "submitted"; q.submittedAt = new Date().toISOString(); save(); render(); toast("Submitted"); }}) : null))); };
+  if (open.length) m.append(el("div",{class:"oreq-grid"}, open.map(card)));
+  if (done.length) m.append(el("h2",{class:"sect-h", text:"Recently ordered"}), el("div",{class:"oreq-grid"}, done.map(card)));
+}
+function editOrderReq(r, q){
+  const req = q ? JSON.parse(JSON.stringify(q)) : { id: uid("oq"), title:"", by: (USER && USER.email || "").split("@")[0], neededBy:"", note:"", status:"draft", entries:[] };
+  const title = el("input",{class:"inp", value:req.title, placeholder:"e.g. Friday catering, Weekend specials"}), need = el("input",{class:"inp", type:"date", value:req.neededBy || ""}), note = el("input",{class:"inp", value:req.note || "", placeholder:"Anything purchasing should know"});
+  const list = el("div",{class:"oreq-ents"});
+  const opts = [...Object.values(r.items).filter(it => (it.lines || []).length && !SUMMARY_SECTION.test(it.section || "")).sort((a, b) => a.name.localeCompare(b.name)).map(it => ({ v: "i:" + it.id, t: it.name + " (" + (it.section || "Menu") + ")" })),
+    ...(r.ideas || []).map(i => ({ v: "d:" + i.id, t: i.draft.name + " (Test kitchen idea)" }))];
+  const draw = () => list.replaceChildren(...req.entries.map((e, i) => { const qn = el("input",{class:"inp", type:"number", min:"0", step:"1", value:e.qty, style:"max-width:110px"}); qn.oninput = () => e.qty = n(qn.value) || 0;
+      return el("div",{class:"oreq-ent"}, el("b",{text: e.name || (r.items[e.refId] || {}).name || "Recipe"}), e.type === "idea" ? el("span",{class:"pill", text:"Test kitchen"}) : el("span"), qn, el("span",{class:"mini", text: e.unitWord || "servings"}),
+        el("button",{class:"btn quiet lab-x", type:"button", text:"\u00d7", "aria-label":"Remove", onclick:() => { req.entries.splice(i, 1); draw(); }})); }),
+    req.entries.length ? el("span") : el("p",{class:"mini", text:"No recipes yet. Add one below."}));
+  const pick = el("select",{class:"inp"}, el("option",{value:"", text:"Add a recipe\u2026"}), opts.map(o => el("option",{value:o.v, text:o.t})));
+  const qty = el("input",{class:"inp", type:"number", min:"1", step:"1", value:"10", style:"max-width:110px"});
+  const add = () => { const v = pick.value; if (!v) return; const q2 = n(qty.value) || 1;
+    if (v.startsWith("i:")){ const it = r.items[v.slice(2)]; req.entries.push({ type:"item", refId: it.id, name: it.name, qty: q2, unitWord: isDrink(it) ? "drinks" : "servings" }); }
+    else { const idea = (r.ideas || []).find(i => i.id === v.slice(2)); if (idea) req.entries.push(ideaEntry(idea, q2)); }
+    pick.value = ""; draw(); };
+  pick.onchange = add;
+  draw();
+  openDlg(q ? "Edit order request" : "New order request", [el("div",{class:"g2"}, fld("Name", title), fld("Needed by", need)), fld("Note", note),
+    el("h3",{style:"margin:12px 0 6px", text:"What you're making"}), list,
+    el("div",{class:"oreq-add"}, pick, qty, el("button",{class:"btn quiet", type:"button", text:"Add", onclick: add})),
+    el("p",{class:"mini"}, "Making something new? ", el("button",{class:"linkbtn", type:"button", text:"Build it in the Test kitchen", onclick:() => { dlg.close(); go("lab"); }}), ", save it as an idea, and it shows up here.")],
+    [q ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (!confirm("Delete this order request?")) return; r.orderReqs = r.orderReqs.filter(x => x.id !== req.id); save(); dlg.close(); }}) : el("span"),
+     el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Save draft", onclick:() => saveIt(false)}), el("button",{class:"btn primary", text:"Submit", onclick:() => saveIt(true)}))]);
+  function saveIt(submit){
+    if (!title.value.trim()) return title.focus();
+    if (!req.entries.length) return toast("Add at least one recipe.");
+    Object.assign(req, { title: title.value.trim(), neededBy: need.value || null, note: note.value.trim() });
+    if (submit && req.status !== "ordered"){ req.status = "submitted"; req.submittedAt = req.submittedAt || new Date().toISOString(); }
+    r.orderReqs = r.orderReqs.filter(x => x.id !== req.id).concat([req]); save(); dlg.close(); toast(submit ? "Submitted" : "Saved as a draft");
+  }
+}
+// Pick the vendor whose whole-case cost is lowest for each item (likely matches only), unless overridden.
+function bestVendorPlan(entries, r){
+  const base = orderNeeds(entries, r, {}), swap = {}, choice = {};
+  base.vendors.forEach(v => base.groups[v].forEach(x => {
+    const alts = vendorAlts(x.su, r).filter(a => a.score >= 0.85).map(a => Object.assign({ id: a.o.id, su: a.o, score: a.score }, altOrderCost(x.amt, x.su, a.o)));
+    const all = [{ id: x.su.id, su: x.su, cost: x.cost, cases: x.cases, usual: true }].concat(alts);
+    const best = all.filter(c => n(c.su.price) > 0).sort((p, q) => p.cost - q.cost)[0] || all[0];
+    const ov = PV.override[x.key], pickC = ov ? all.find(c => c.id === ov) || best : best;
+    if (pickC.id !== x.su.id) swap[x.key] = pickC.id;
+    choice[x.key] = { all, pick: pickC, best, usualCost: x.cost };
+  }));
+  return { res: orderNeeds(entries, r, swap), swap, choice };
+}
+// How far the rounded-up order stretches for each recipe, and which ingredient runs out first.
+function servingsCover(entries, r, plan){
+  const ordered = {}, needed = {};
+  plan.res.vendors.forEach(v => plan.res.groups[v].forEach(x => { ordered[x.key] = x.cases * (n(x.su.caseQty) || 1); needed[x.key] = x.amt; }));
+  const byRecipe = {};
+  entries.forEach(e => { const k = e.key, rec = byRecipe[k] = byRecipe[k] || { name: e.name, qty: 0, unitWord: e.unitWord, per: {} };
+    rec.qty += e.qty;
+    activeLines({ lines: e.lines }).forEach(l => { const su = l.s && e.sups[l.s]; if (!su) return; const key = su.id || l.s, chosen = plan.swap[key] ? r.supplies[plan.swap[key]] : su;
+      const a = UNITS[l.unit || su.unit], b = UNITS[chosen.unit]; if (!a || !b || a[0] !== b[0]) return;
+      rec.per[key] = (rec.per[key] || 0) + n(l.qty) * a[1] / b[1] / (n(e.portions) || 1); }); });
+  return Object.values(byRecipe).map(rec => { let extra = Infinity, limit = null;
+    Object.entries(rec.per).forEach(([key, per]) => { if (!(per > 0) || ordered[key] == null) return; const ex = Math.floor((ordered[key] - needed[key]) / per + 1e-9);
+      if (ex < extra){ extra = ex; const x = plan.res.vendors.flatMap(v => plan.res.groups[v]).find(y => y.key === key); limit = x ? supName(x.su) : null; } });
+    return Object.assign(rec, { extra: isFinite(extra) ? Math.max(0, extra) : 0, limit }); });
+}
+function consolidated(m, r, boss){
+  const subs = r.orderReqs.filter(q => q.status === "submitted");
+  if (!subs.length){ m.append(el("div",{class:"card empty", text:"No submitted order requests to combine. Submit one under Order requests."})); return; }
+  PV.sel = PV.sel && PV.sel.every(id => subs.some(q => q.id === id)) ? PV.sel : subs.map(q => q.id);
+  const chosen = subs.filter(q => PV.sel.includes(q.id)), entries = reqEntries(r, chosen);
+  m.append(el("div",{class:"card"}, el("b",{text:"Combine these requests"}), el("div",{class:"oreq-pick"}, subs.map(q => { const cb = el("input",{type:"checkbox"}); cb.checked = PV.sel.includes(q.id);
+    cb.onchange = () => { PV.sel = cb.checked ? PV.sel.concat([q.id]) : PV.sel.filter(x => x !== q.id); PV.ai = null; render(); };
+    return el("label",{class:"row", style:"gap:6px"}, cb, el("span",null, el("b",{text:q.title}), el("span",{class:"mini", text:" " + (q.by || "") + (q.neededBy ? ", needed " + nice(q.neededBy) : "")}))); }))));
+  if (!entries.length){ m.append(el("div",{class:"card empty", text:"Pick at least one request."})); return; }
+  const plan = bestVendorPlan(entries, r), res = plan.res;
+  const total = res.vendors.reduce((t, v) => t + res.groups[v].reduce((u, x) => u + x.cost, 0), 0);
+  const usual = Object.values(plan.choice).reduce((t, c) => t + c.usualCost, 0), saved = usual - total;
+  const separate = chosen.reduce((t, q) => t + reqCost(r, q), 0), savedCombining = Math.max(0, separate - usual);
+  const cover = servingsCover(entries, r, plan);
+  const earliest = chosen.map(q => q.neededBy).filter(Boolean).sort()[0];
+  m.append(el("div",{class:"kstrip", style:"margin-top:12px"},
+    el("div",null, el("div",{class:"n", text:$$(total)}), el("div",{class:"l", text:"Estimated order"})),
+    el("div",null, el("div",{class:"n", text: res.vendors.filter(v => v !== "No vendor yet").length}), el("div",{class:"l", text:"Vendors"})),
+    el("div",null, el("div",{class:"n" + (saved + savedCombining > 0.5 ? " good" : ""), text: saved + savedCombining > 0.5 ? $$(saved + savedCombining) : "\u2014"}),
+      el("div",{class:"l", text: chosen.length > 1 ? "Saved: " + $$(savedCombining) + " by combining, " + $$(Math.max(0, saved)) + " by best vendor" : "Saved by best vendor"})),
+    el("div",null, el("div",{class:"n", text: earliest ? nice(earliest) : "\u2014"}), el("div",{class:"l", text:"Earliest needed by"}))));
+  // AI summary
+  const aiBox = el("div",{class:"card ai-sum"});
+  const aiKey = JSON.stringify([PV.sel, PV.override, Math.round(total)]);
+  const drawAI = () => aiBox.replaceChildren(el("div",{class:"spread"}, el("h3",{style:"margin:0", text:"Summary for purchasing"}),
+      el("button",{class:"btn " + (PV.ai && PV.aiKey === aiKey ? "quiet" : "primary"), type:"button", disabled: PV.aiBusy ? "" : null, text: PV.aiBusy ? "Writing\u2026" : PV.ai && PV.aiKey === aiKey ? "Rewrite" : "Summarize with AI", onclick: runAI})),
+    PV.ai && PV.aiKey === aiKey ? el("div",null, el("p",{class:"ai-text", text: PV.ai.summary}), (PV.ai.tips || []).length ? el("ul",{class:"duty-items"}, PV.ai.tips.map(t => el("li",{text:t}))) : null, el("p",{class:"mini", text:"Written by AI from the numbers below. Check before ordering."}))
+      : el("p",{class:"mini", text:"A short brief: totals, which vendor gets what and why, savings, what each recipe yields, and anything to watch."}));
+  async function runAI(){
+    PV.aiBusy = true; drawAI();
+    const facts = { requests: chosen.map(q => ({ title: q.title, by: q.by, neededBy: q.neededBy, note: q.note, recipes: (q.entries || []).map(e => e.qty + " x " + (e.name || (r.items[e.refId] || {}).name)) })),
+      totalCost: Math.round(total), savedByBestVendor: Math.round(saved), savedByCombiningRequests: Math.round(savedCombining), costIfOrderedSeparately: Math.round(separate),
+      vendors: res.vendors.map(v => ({ vendor: v, cost: Math.round(res.groups[v].reduce((t, x) => t + x.cost, 0)), items: res.groups[v].map(x => x.cases + " " + packWord(x.su) + (x.cases === 1 ? "" : "s") + " " + supName(x.su) + (x.switched ? " (cheaper than " + canonVendor(x.orig.supplier, r) + ")" : "")) })),
+      servings: cover.map(c => ({ recipe: c.name, requested: c.qty, extraFromCaseRounding: c.extra, limitedBy: c.limit })), notLinked: res.loose.map(x => x.name + " for " + x.recipe) };
+    try { const d = await aiJSON("You help the purchasing manager of a small-town diner and bar. Here is this week's consolidated order, already calculated (don't change any numbers):\n" + JSON.stringify(facts) +
+        "\nWrite a short, plain-English brief: one paragraph summary (totals, vendor split, savings), then 3 to 6 practical tips (deadlines, split deliveries vs. one vendor, leftovers from case rounding and how to use them, anything missing a price or link). Return ONLY JSON: {\"summary\": string, \"tips\": [string]}", null, { maxTokens: 1500 });
+      PV.ai = { summary: String(d.summary || ""), tips: (d.tips || []).map(String).slice(0, 6) }; PV.aiKey = aiKey; }
+    catch(e){ toast(aiProblem(e) || "Couldn't write the summary right now."); }
+    PV.aiBusy = false; drawAI();
+  }
+  drawAI(); m.append(aiBox);
+  // Servings per recipe
+  m.append(el("div",{class:"card"}, el("h3",{style:"margin:0 0 8px", text:"What this makes"}), el("div",{class:"tw"}, el("table",null,
+    el("thead",null, el("tr",null, ["Recipe","Requested","Extra from full cases","Runs out first"].map((h, i) => el("th",{class: i === 1 || i === 2 ? "num" : "", text:h})))),
+    el("tbody",null, cover.map(c => el("tr",{style:"cursor:default"}, el("td",null, el("b",{text:c.name})), el("td",{class:"num", text: c.qty + " " + c.unitWord}),
+      el("td",{class:"num", text: c.extra ? "+" + c.extra + " " + c.unitWord : "none"}), el("td",{text: c.limit || "\u2014"}))))))));
+  // The order, by vendor, with the vendor choice on each line
+  m.append(el("div",{class:"sect-h"}, el("h2",{text:"The order, by vendor"}),
+    el("div",{class:"row"}, Object.keys(PV.override).length ? el("button",{class:"linkbtn", type:"button", text:"Reset vendor choices", onclick:() => { PV.override = {}; render(); }}) : null,
+      el("button",{class:"btn quiet", type:"button", text:"Print, download or email", onclick:() => openOrderSummaryFixed(entries, plan.swap, "Consolidated order")}))));
+  res.vendors.forEach(v => { const list = res.groups[v];
+    m.append(el("div",{class:"card os-vendor"}, el("div",{class:"spread"}, el("h3",{style:"margin:0", text:v}), el("b",{text:$$(list.reduce((t, x) => t + x.cost, 0))})),
+      el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ["Item","Order","Est. cost","Vendor"].map((h, i) => el("th",{class: i === 1 || i === 2 ? "num" : "", text:h})))),
+        el("tbody",null, list.map(x => { const c = plan.choice[x.key];
+          const sel = el("select",{class:"inp", style:"min-height:36px;min-width:250px;max-width:300px"}, (c ? c.all : []).map(o => el("option",{value:o.id, text: canonVendor(o.su.supplier, r) + ": " + $$(o.cost) + (o.usual ? " (usual)" : "")})));
+          sel.value = x.su.id; sel.onchange = () => { PV.override[x.key] = sel.value; render(); };
+          return el("tr",{style:"cursor:default"}, el("td",{style:"white-space:normal"}, el("b",{text:supName(x.su)}), el("div",{class:"mini", text:"For: " + x.recipes.join(", ")}),
+              c && c.pick.id === c.best.id && c.all.length > 1 ? el("div",{class:"mini", style:"color:var(--good);font-weight:700", text:"Best of " + c.all.length + " vendors" + (x.switched ? ", saves " + $$(c.usualCost - x.cost) : "")}) : null),
+            el("td",{class:"num"}, el("b",{text: x.cases + " " + packWord(x.su) + (x.cases === 1 ? "" : "s")})), el("td",{class:"num", text:(x.su.estimated ? "\u2248" : "") + $$(x.cost)}),
+            el("td",null, c && c.all.length > 1 ? sel : el("span",{class:"mini", text: c && c.all.length === 1 ? "Only vendor with a price" : ""}))); }))))));
+  });
+  if (res.loose.length) m.append(el("div",{class:"card"}, el("h3",{style:"margin:0 0 6px", text:"Not linked to a supply"}), el("ul",{class:"duty-items"}, res.loose.map(x => el("li",{text: x.name + " for " + x.recipe})))));
+  if (boss) m.append(el("div",{class:"row", style:"justify-content:flex-end;margin-top:12px"}, el("button",{class:"btn primary", type:"button", text:"Mark these requests as ordered", onclick:() => {
+    if (!confirm("Mark " + chosen.length + (chosen.length === 1 ? " request" : " requests") + " as ordered?")) return;
+    chosen.forEach(q => { q.status = "ordered"; q.orderedAt = new Date().toISOString(); q.orderedTotal = Math.round(total * 100) / 100; }); PV.sel = null; PV.ai = null; save(); render(); toast("Marked as ordered"); }})));
+}
+// The printable/emailable order with the vendor choices already applied.
+function openOrderSummaryFixed(entries, swap, title){
+  const before = PV.fixedSwap; PV.fixedSwap = swap; openOrderSummary(entries.map(e => Object.assign({}, e)), title); PV.fixedSwap = before;
 }
 /* ================= Backup & restore ================= */
 async function downloadBackup(){
