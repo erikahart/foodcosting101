@@ -1350,6 +1350,7 @@ td.desc-cell{white-space:normal !important;min-width:180px}
 .ai-text{white-space:pre-line;margin:8px 0}
 .kstrip .n.good{color:var(--good)}
 @media (max-width:700px){ .oreq-ent{grid-template-columns:1fr 80px 60px 40px} .oreq-ent .pill{display:none} .oreq-add{grid-template-columns:1fr 80px} .oreq-add .btn{grid-column:1/-1} }
+.appver{font-size:.68rem;color:#8d8a84;padding:2px 16px 8px;opacity:.8}
 </style>
 </head>
 <body>
@@ -1365,6 +1366,7 @@ td.desc-cell{white-space:normal !important;min-width:180px}
     <nav id="nav"></nav>
     <div class="userbox" id="userbox"></div>
     <div class="powered" id="powered"></div>
+    <div class="appver" id="appver"></div>
   </aside>
   <main id="main"></main>
   <div id="printArea" aria-hidden="true"></div>
@@ -1798,7 +1800,10 @@ function paintLogo(box){ box.replaceChildren(); if (ST.brand.logo) box.append(el
 function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return 21; const v = parseInt(m[1], 16), L = c => { c /= 255; return c <= .03928 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4); };
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
+// Shown at the bottom of the sidebar, so it's easy to see which version is live.
+const APP_VERSION = "Oct 21, 2026 \u00b7 Ordering";
 function applyBrand(){
+  const av = $("appver"); if (av) av.textContent = "Version: " + APP_VERSION;
   const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
   document.documentElement.style.setProperty("--brand", c); document.documentElement.style.setProperty("--on-brand", onColor(c));
   $("prod-name").textContent = b.product || "PlateMargin"; $("prod-tag").textContent = b.tagline || "";
