@@ -187,6 +187,30 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
 .rq.approved .rq-st{background:var(--jade);color:#fff} .rq.denied .rq-st{background:var(--ketchup);color:#fff} .rq.pending .rq-st{background:var(--warn-soft);color:#7a5200}
 .evlist{display:grid;gap:10px;margin-bottom:18px}
 .ev-modes{margin:0 0 14px} .ev-modes button{min-height:52px;padding:0 22px;font-size:1.05rem}
+.ev-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+.ev-left{position:sticky;top:96px}
+.mcal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:8px}
+.mcal-h{text-align:center;font-size:.75rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;padding:4px 0}
+.mcal-d{min-height:78px;border:1px solid var(--line);border-radius:10px;background:var(--field);display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:5px;cursor:pointer;text-align:left;overflow:hidden;color:var(--ink)}
+.mcal-d.out{visibility:hidden}
+.mcal-d.past{opacity:.5}
+.mcal-d.today{border-color:var(--jade);border-width:2px}
+.mcal-d.today .mcal-n{background:var(--jade);color:#fff;border-radius:999px;padding:0 7px}
+.mcal-d.sel{background:var(--char);border-color:var(--char);color:#fff}
+.mcal-d.sel .mcal-first{color:#D8DCD6}
+.mcal-n{font-family:var(--head);font-weight:800;font-size:1.2rem;line-height:1.1}
+.mcal-dots{display:flex;align-items:center;gap:3px}
+.mcal-dots i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.mcal-dots em{font-style:normal;font-size:.7rem;font-weight:800;margin-left:2px}
+.mcal-first{font-size:.68rem;font-weight:700;line-height:1.2;color:var(--ink-2);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;word-break:break-word}
+.mcal-legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px;font-size:.8rem;font-weight:600;color:var(--ink-2)}
+.mcal-legend span{display:inline-flex;align-items:center;gap:5px} .mcal-legend i{width:10px;height:10px;border-radius:50%;display:inline-block}
+.ev-righth{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 10px}
+.ev-righth h3{margin:0;font-family:var(--head);font-weight:800;font-size:1.6rem}
+.ev-right .ev-day{grid-template-columns:96px 1fr;gap:10px}
+.ev-right .ev{grid-template-columns:1fr;gap:4px;font-size:1rem}
+button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;color:inherit;font:inherit;padding-top:10px}
+@media (max-width:900px){ .ev-split{grid-template-columns:1fr} .ev-left{position:static} }
 .ev-monthnav{display:flex;align-items:center;gap:12px;margin:0 0 14px}
 .ev-monthnav h2{margin:0;font-family:var(--head);font-weight:800;font-size:2.1rem;min-width:260px;text-align:center}
 .ev-monthnav .back{min-width:60px;font-size:1.4rem}
@@ -491,7 +515,7 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
     FEEDS.forEach(v => v.events.forEach(e => { const k = e.date + "|" + (e.time || "") + "|" + e.title; if (!seen.has(k)){ seen.add(k); out.push(e); } })); return out; }
   const FEED = { get events(){ return feedEvents(); } };
   const isLong = sp => !(sp.days && sp.days.length) && (!sp.end || !sp.start || (Date.parse(sp.end) - Date.parse(sp.start)) / 864e5 > 6);
-  let EV_MODE = "upcoming", EV_MONTH = 0;
+  let EV_MODE = "upcoming", EV_MONTH = 0, EV_DAY = "";
   const specialOn = (sp, d) => (!sp.start || d >= sp.start) && (!sp.end || d <= sp.end) && (!sp.days || !sp.days.length || sp.days.includes(new Date(d + "T12:00:00").getDay()));
   function itemsOn(d){
     const out = [];
@@ -525,26 +549,50 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
     if (!any) parts.push(h("div", { class:"empty", text:"Nothing on the calendar for the next two weeks." }));
     m.replaceChildren(...parts, status());
   }
+  // By month: calendar on the left, the list on the right (the whole month, or the day you tap).
   function monthView(m, today, modes){
     const base = new Date(today.slice(0, 7) + "-01T12:00:00"); base.setMonth(base.getMonth() + EV_MONTH);
     const first = localDay(base), next = new Date(base); next.setMonth(next.getMonth() + 1); const last = addDays(localDay(next), -1);
-    loadRange(addDays(first, -1), addDays(last, 1));
+    if (EV_DAY && (EV_DAY < first || EV_DAY > last)) EV_DAY = "";
+    const gridStart = addDays(first, -((new Date(first + "T12:00:00").getDay() + 6) % 7));
+    const weeks = Math.ceil((((new Date(first + "T12:00:00").getDay() + 6) % 7) + (Math.round((Date.parse(last) - Date.parse(first)) / 864e5) + 1)) / 7);
+    loadRange(addDays(gridStart, -1), addDays(gridStart, weeks * 7 + 1));
+    const goMonth = k => { EV_MONTH = Math.max(0, Math.min(11, EV_MONTH + k)); EV_DAY = ""; render(); };
     const nav = h("div", { class:"ev-monthnav" },
-      h("button", { class:"back", type:"button", text:"\u2039", "aria-label":"Previous month", disabled: EV_MONTH <= 0 ? "" : null, onclick: () => { EV_MONTH = Math.max(0, EV_MONTH - 1); render(); } }),
+      h("button", { class:"back", type:"button", text:"\u2039", "aria-label":"Previous month", disabled: EV_MONTH <= 0 ? "" : null, onclick: () => goMonth(-1) }),
       h("h2", { text: base.toLocaleDateString(undefined, { month:"long", year:"numeric" }) }),
-      h("button", { class:"back", type:"button", text:"\u203a", "aria-label":"Next month", disabled: EV_MONTH >= 11 ? "" : null, onclick: () => { EV_MONTH = Math.min(11, EV_MONTH + 1); render(); } }));
-    const parts = [modes, nav];
+      h("button", { class:"back", type:"button", text:"\u203a", "aria-label":"Next month", disabled: EV_MONTH >= 11 ? "" : null, onclick: () => goMonth(1) }));
+    const dayList = d => itemsOn(d).filter(x => x.kind !== "special" || !isLong(x.sp));
+    // Left: the calendar
+    const cal = h("div", { class:"mcal" }, ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(w => h("div", { class:"mcal-h", text:w })),
+      [...Array(weeks * 7)].map((_, i) => { const d = addDays(gridStart, i), inMonth = d >= first && d <= last, list = inMonth ? dayList(d) : [];
+        const kinds = [...new Set(list.map(x => x.kind === "event" ? x.color : x.color))].slice(0, 4);
+        return h("button", { type:"button", class:"mcal-d" + (inMonth ? "" : " out") + (d === today ? " today" : "") + (d === EV_DAY ? " sel" : "") + (d < today ? " past" : ""), disabled: inMonth ? null : "",
+            "aria-label": d + (list.length ? ", " + list.length + " on" : ""), onclick: () => { EV_DAY = EV_DAY === d ? "" : d; render(); } },
+          h("span", { class:"mcal-n", text: new Date(d + "T12:00:00").getDate() }),
+          list.length ? h("span", { class:"mcal-dots" }, kinds.map(c => h("i", { style:"background:" + c })), list.length > 1 ? h("em", { text: list.length }) : null) : null,
+          list[0] ? h("span", { class:"mcal-first", text: (list[0].kind === "special" ? "\u2605 " : list[0].time ? t12(list[0].time, true) + " " : "") + list[0].title }) : null); }));
+    const legend = h("div", { class:"mcal-legend" }, [["#3D6E9E","Bookings"],["#1F6F5C","Events"],["#D99A1E","Specials"],["#8A8577","Notes"]].map(([c, l]) => h("span", null, h("i", { style:"background:" + c }), l)));
+    // Right: the list
+    const right = [];
     const running = (BOOK.specials || []).filter(sp => isLong(sp) && (!sp.start || sp.start <= last) && (!sp.end || sp.end >= first));
-    if (running.length) parts.push(h("div", { class:"evlist" }, h("div", { class:"sub-note", style:"font-weight:700", text:"Running this month" }),
-      running.map(sp => evRow({ kind:"special", sp, title: sp.title, desc: sp.desc, price: sp.price, itemId: sp.itemId, color:"#D99A1E" }))));
-    let any = false;
-    for (let d = first < today ? today : first; d <= last; d = addDays(d, 1)){
-      const list = itemsOn(d).filter(x => x.kind !== "special" || !isLong(x.sp));
-      if (!list.length) continue; any = true; const dd = new Date(d + "T12:00:00");
-      parts.push(h("div", { class:"ev-day" }, h("div", { class:"ev-date" }, h("b", { text: d === today ? "Today" : DOWL[dd.getDay()] }), h("span", { text: dd.toLocaleDateString(undefined, { month:"short", day:"numeric" }) })), h("div", { class:"evlist" }, list.map(evRow))));
+    if (EV_DAY){
+      const dd = new Date(EV_DAY + "T12:00:00"), list = itemsOn(EV_DAY);
+      right.push(h("div", { class:"ev-righth" }, h("h3", { text: (EV_DAY === today ? "Today, " : "") + DOWL[dd.getDay()] + " " + dd.toLocaleDateString(undefined, { month:"long", day:"numeric" }) }),
+        h("button", { class:"back", type:"button", text:"Whole month", onclick: () => { EV_DAY = ""; render(); } })));
+      right.push(list.length ? h("div", { class:"evlist" }, list.map(evRow)) : h("div", { class:"empty", text:"Nothing on the calendar this day." }));
+    } else {
+      right.push(h("div", { class:"ev-righth" }, h("h3", { text: EV_MONTH === 0 ? "The rest of this month" : "All month" })));
+      if (running.length) right.push(h("div", { class:"evlist" }, h("div", { class:"sub-note", style:"font-weight:700", text:"Running this month" }),
+        running.map(sp => evRow({ kind:"special", sp, title: sp.title, desc: sp.desc, price: sp.price, itemId: sp.itemId, color:"#D99A1E" }))));
+      let any = false;
+      for (let d = first < today ? today : first; d <= last; d = addDays(d, 1)){
+        const list = dayList(d); if (!list.length) continue; any = true; const dd = new Date(d + "T12:00:00");
+        right.push(h("div", { class:"ev-day" }, h("button", { class:"ev-date", type:"button", onclick: () => { EV_DAY = d; render(); } }, h("b", { text: d === today ? "Today" : DOWL[dd.getDay()] }), h("span", { text: dd.toLocaleDateString(undefined, { month:"short", day:"numeric" }) })), h("div", { class:"evlist" }, list.map(evRow))));
+      }
+      if (!any) right.push(h("div", { class:"empty", text: [...FEEDS.values()].some(v => v.loading) ? "Loading\u2026" : "Nothing on the calendar " + (EV_MONTH === 0 ? "for the rest of this month." : "this month.") }));
     }
-    if (!any) parts.push(h("div", { class:"empty", text: [...FEEDS.values()].some(v => v.loading) ? "Loading\u2026" : "Nothing on the calendar " + (EV_MONTH === 0 ? "for the rest of this month." : "this month.") }));
-    m.replaceChildren(...parts, status());
+    m.replaceChildren(modes, nav, h("div", { class:"ev-split" }, h("div", { class:"ev-left" }, cal, legend), h("div", { class:"ev-right" }, right)), status());
   }
   let CHECKS = new Map(), CHECKS_DAY = "", checkTimer = null;
   async function loadChecks(){

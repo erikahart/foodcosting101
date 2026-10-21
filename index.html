@@ -1282,6 +1282,8 @@ aside .brandbox b{font-size:1.3rem}
 
 /* ---------- Events calendar ---------- */
 .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px;margin-bottom:14px}
+.cal-split{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;align-items:start}
+@media (min-width:1280px){ .cal-split{grid-template-columns:minmax(0,1.35fr) minmax(320px,1fr)} .cal-split .cal{margin-bottom:0} .cal-split .cal-d{min-height:96px} .cal-split .cal-day{position:sticky;top:16px} .cal-split .cal-item{grid-template-columns:1fr auto} .cal-split .cal-when{grid-column:1/-1} }
 .cal-h{font-size:.75rem;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:4px 6px}
 .cal-d{min-height:108px;border:1px solid var(--line);border-radius:10px;background:var(--panel);padding:6px;display:flex;flex-direction:column;gap:3px;align-items:stretch;text-align:left;font:inherit;color:var(--ink);cursor:pointer;overflow:hidden}
 .cal-d:hover{border-color:var(--line-2)}
@@ -3965,7 +3967,8 @@ function events(m){
   const running = r.specials.filter(sp => isLongSpecial(sp) && days.some(d => d.slice(0, 7) === monthKey && specialOn(sp, d)));
   if (running.length) m.append(el("div",{class:"cal-running"}, el("b",{text:"Running this month"}), running.map(sp => el("button",{class:"today-chip special", style:"--c:#D99A1E", type:"button", disabled: edit ? null : "", onclick:() => { if (edit) editSpecial(r, sp); }},
     "\u2605 " + sp.title + (sp.start || sp.end ? "  (" + (sp.start ? nice(sp.start) : "") + (sp.end ? " \u2013 " + nice(sp.end) : " on") + ")" : "")))));
-  m.append(el("div",{class:"cal"}, ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => el("div",{class:"cal-h", text:d})),
+  const split = el("div",{class:"cal-split"}); m.append(split);
+  split.append(el("div",{class:"cal"}, ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d => el("div",{class:"cal-h", text:d})),
     days.map(d => { const items = dayItems(r, d).filter(it => !it.long), dt = new Date(d + "T12:00:00");
       return el("button",{type:"button", class:"cal-d" + (d.slice(0, 7) !== monthKey ? " out" : "") + (d === today ? " today" : "") + (d === EVV.day ? " sel" : ""), onclick:() => { EVV.day = d; render(); }},
         el("span",{class:"cal-n", text: dt.getDate()}),
@@ -3973,7 +3976,7 @@ function events(m){
         items.length > 3 ? el("span",{class:"cal-more", text:"+" + (items.length - 3) + " more"}) : null); })));
   // The chosen day
   const d = EVV.day, dt = new Date(d + "T12:00:00"), items = dayItems(r, d);
-  m.append(el("div",{class:"card cal-day"}, el("div",{class:"spread"}, el("h2",{style:"margin:0", text: (d === today ? "Today, " : "") + dt.toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" })}),
+  split.append(el("div",{class:"card cal-day"}, el("div",{class:"spread"}, el("h2",{style:"margin:0", text: (d === today ? "Today, " : "") + dt.toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" })}),
       edit ? el("div",{class:"row"}, el("button",{class:"btn quiet", type:"button", text:"+ Special this day", onclick:() => editSpecial(r, null, d)}), el("button",{class:"btn quiet", type:"button", text:"+ Event this day", onclick:() => editEvent(r, null, d)})) : null),
     items.length ? el("div",{class:"cal-list"}, items.map(it => el("div",{class:"cal-item", style:"--c:" + it.color},
       el("div",{class:"cal-when", text: it.kind === "special" ? "\u2605 Special" : it.kind === "note" ? "Note" : it.time ? t12(it.time) + (it.endTime ? " \u2013 " + t12(it.endTime) : "") : "All day"}),
