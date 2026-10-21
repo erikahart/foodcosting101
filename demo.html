@@ -1872,8 +1872,12 @@ const aiProblem = e => window.PM_DEMO ? "Reading photos and PDFs with AI is swit
 function onColor(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return "#fff"; const v = parseInt(m[1],16), L = c => c <= .03928 ? c/12.92 : Math.pow((c+.055)/1.055, 2.4); const lum = .2126*L((v>>16)/255) + .7152*L((v>>8&255)/255) + .0722*L((v&255)/255); return lum > .45 ? "#14213D" : "#FFFFFF"; }
 function initials(s){ const w = (s || "PM").trim().split(/\s+/); return ((w[0]||"P")[0] + (w[1] ? w[1][0] : (w[0]||"M")[1] || "")).toUpperCase(); }
 function paintLogo(box){ box.replaceChildren(); if (ST.brand.logo) box.append(el("img",{src:ST.brand.logo,alt:""})); else box.textContent = initials(ST.brand.product); }
+// Contrast of a color against white (1 to 21). Brand colors under 3 are too light for buttons with white text.
+function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || ""); if (!m) return 21; const v = parseInt(m[1], 16), L = c => { c /= 255; return c <= .03928 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4); };
+  const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
+const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 function applyBrand(){
-  const b = ST.brand, c = /^#[0-9a-f]{6}$/i.test(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
+  const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
   document.documentElement.style.setProperty("--brand", c); document.documentElement.style.setProperty("--on-brand", onColor(c));
   $("prod-name").textContent = b.product || "PlateMargin"; $("prod-tag").textContent = b.tagline || "";
   document.title = b.product || "PlateMargin"; paintLogo($("logo"));
@@ -4760,20 +4764,21 @@ function brand(m){
   const name = el("input",{class:"inp"}); name.value = b.product; name.oninput = () => { b.product = name.value; save(); applyBrand(); prev(); };
   const tag = el("input",{class:"inp"}); tag.value = b.tagline; tag.oninput = () => { b.tagline = tag.value; save(); applyBrand(); prev(); };
   const dom = el("input",{class:"inp", placeholder:"app.yourbrand.com"}); dom.value = b.domain || ""; dom.oninput = () => { b.domain = dom.value; save(); prev(); };
-  const col = el("input",{type:"color", style:"width:60px;height:44px;border:2px solid var(--line);border-radius:10px;padding:2px;background:var(--field)"}); col.value = b.color; col.oninput = () => { b.color = col.value; save(); applyBrand(); prev(); };
-  const sw = el("div",{class:"swatches"}, ["#1D7A5F","#1F4E99","#6B3FA0","#B42318","#C25E00","#14213D","#4A5D23","#0E7490"].map(c => el("button",{class:"sw", style:"background:" + c, "aria-label":"Use " + c, onclick:() => { b.color = c; col.value = c; save(); applyBrand(); prev(); }})));
+  const col = el("input",{type:"color", style:"width:60px;height:44px;border:2px solid var(--line);border-radius:10px;padding:2px;background:var(--field)"}); col.value = b.color; col.onchange = () => { if (!usableBrand(col.value) !== !!document.querySelector(".msg.bad.brand-light")) render(); }; col.oninput = () => { b.color = col.value; save(); applyBrand(); prev(); };
+  const sw = el("div",{class:"swatches"}, ["#1D7A5F","#1F4E99","#6B3FA0","#B42318","#C25E00","#14213D","#4A5D23","#0E7490"].map(c => el("button",{class:"sw", style:"background:" + c, "aria-label":"Use " + c, onclick:() => { const was = usableBrand(b.color); b.color = c; col.value = c; save(); applyBrand(); prev(); if (was !== usableBrand(c)) render(); }})));
   const file = el("input",{type:"file", accept:"image/*", hidden:""});
   file.onchange = e => { const f = e.target.files[0]; if (!f) return; const img = new Image(), u = URL.createObjectURL(f); img.onload = () => { const s = Math.min(1, 160 / Math.max(img.width, img.height)), c = document.createElement("canvas"); c.width = img.width * s; c.height = img.height * s; c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); b.logo = c.toDataURL("image/png"); URL.revokeObjectURL(u); save(); applyBrand(); prev(); }; img.src = u; };
   const pw = el("input",{type:"checkbox"}); pw.checked = !!b.powered; pw.onchange = () => { b.powered = pw.checked; save(); applyBrand(); };
   const pv = el("div",{class:"preview"});
-  function prev(){ const lg = el("div",{class:"logo"}); paintLogo(lg); pv.replaceChildren(el("div",{class:"ph"}, lg, el("div",null, el("b",{text:b.product || "Your product"}), el("div",{class:"mini", style:"color:inherit;opacity:.85", text:b.domain || ""}))), el("div",{class:"pb"}, el("p",{style:"margin:0 0 10px", text:"Good morning! 2 items are priced too low and Sysco raised bacon 10%."}), el("button",{class:"btn primary", text:"See what to fix"}))); }
+  function prev(){ const lg = el("div",{class:"logo"}); paintLogo(lg); pv.replaceChildren(el("div",{class:"ph"}, lg, el("div",null, el("b",{text:b.product || "Your product"}), el("div",{class:"mini", style:"color:inherit;opacity:.85", text:b.domain || ""}))), el("div",{class:"pb"}, el("p",{style:"margin:0 0 10px", text: previewLine()}), el("button",{class:"btn primary", text:"See what to fix", onclick:() => go("coach")}))); }
   prev();
   m.append(brandKitCard());
   m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))"},
     el("div",{class:"card"},
       el("div",{class:"field"}, el("label",{text:"Product name"}), name), el("div",{class:"field"}, el("label",{text:"Tagline"}), tag),
       el("div",{class:"field"}, el("span",{class:"q", text:"Logo"}), el("div",{class:"row"}, el("label",{class:"btn quiet"}, "Upload logo", file), b.logo ? el("button",{class:"btn quiet", text:"Remove", onclick:() => { b.logo = ""; save(); render(); }}) : null)),
-      el("div",{class:"field"}, el("span",{class:"q", text:"Brand color"}), el("div",{class:"row"}, col, sw)),
+      el("div",{class:"field"}, el("span",{class:"q", text:"Brand color"}), el("div",{class:"row"}, col, sw),
+        usableBrand(b.color) ? null : el("div",{class:"msg bad brand-light", style:"margin-top:8px", text:"That color is too light for buttons, so the app is using green instead. Pick one of the darker swatches, or a darker shade in the color box."})),
       el("div",{class:"field"}, el("label",{text:"Your web address"}), el("span",{class:"hint", text:"Customers log in here. Set up once with your host."}), dom),
       el("label",{class:"row", style:"font-weight:700"}, pw, "Show \u201cPowered by\u201d in the menu")),
     el("div",null, el("div",{class:"mini", style:"margin-bottom:6px", text:"What your customers see"}), pv)));
@@ -6233,6 +6238,16 @@ async function readBrandKit(f){
   return found;
 }
 let LAST_KIT = null;
+// The brand preview's message, from this kitchen's real numbers.
+function previewLine(){
+  const r = R(), low = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || "") && stats(it).status === "bad").length;
+  const recent = d => d && (Date.now() - new Date(d + "T12:00:00")) < 30 * 864e5;
+  const ups = Object.values(r.supplies).map(su => ({ su, ch: lastChange(su) || 0, at: ((su.history || []).slice(-1)[0] || {}).date })).filter(x => x.ch > 0.03 && recent(x.at) && x.su.supplier).sort((a, b) => b.ch - a.ch);
+  const parts = [];
+  if (low) parts.push(low + (low === 1 ? " item is" : " items are") + " priced too low");
+  if (ups[0]) parts.push(canonVendor(ups[0].su.supplier, r) + " raised " + supName(ups[0].su).toLowerCase() + " " + Math.round(ups[0].ch * 100) + "%");
+  return "Good morning! " + (parts.length ? parts.join(" and ") + "." : "Your menu is on target this week.");
+}
 function brandKitCard(){
   const b = ST.brand;
   const file = el("input",{type:"file", accept:"image/*,.svg,.pdf,.zip", hidden:""});
@@ -6246,7 +6261,7 @@ function brandKitCard(){
     result.replaceChildren(el("div",{class:"spin"}), el("p",{style:"text-align:center", text:"Reading " + f.name + "…"}));
     let k; try { k = await readBrandKit(f); } catch(e){ result.replaceChildren(el("div",{class:"msg bad", text: e && e.code === "lib" ? "Couldn't load the ZIP reader. Check your connection." : (e && e.message) || "Couldn't read that file."})); return; }
     if (k.logo){ b.logo = k.logo; }
-    const main = k.colors.find(c => c.role === "primary") || k.colors[0];
+    const main = [k.colors.find(c => c.role === "primary"), ...k.colors].find(c => c && usableBrand(c.hex));
     if (main) b.color = main.hex;
     save(); LAST_KIT = k; render();
   }
