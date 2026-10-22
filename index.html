@@ -1821,7 +1821,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 21, 2026 \u00b7 Idea cards";
+const APP_VERSION = "Oct 22, 2026 \u00b7 Today strip";
 function applyBrand(){
   const av = $("appver"); if (av) av.textContent = "Version: " + APP_VERSION;
   const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
@@ -2123,7 +2123,8 @@ function home(m){
   const ins = visibleInsights(r);
   m.append(el("h1",{text:r.name}), el("p",{class:"lead", text: ACCT && ACCT.role === "member" ? "What do you need?" : "Here's where your menu stands this " + r.period + "."}));
   if (items.length) m.append(needsYou(r));
-  { calData(r); const t = localDay(new Date()); loadFeedEvents(r, addDays(t, -7), addDays(t, 35)); const today = dayItems(r, t);
+  { const ts = todayStrip(r); if (ts) m.append(ts); }
+  if (false){ const t = "", today = [];
     if (today.length) m.append(el("div",{class:"today-strip"}, el("b",{text:"Today"}), today.slice(0, 5).map(it => el("button",{class:"today-chip " + it.kind, style:"--c:" + it.color, type:"button", onclick:() => { EVV.day = t; EVV.month = t.slice(0, 7) + "-01"; go("events"); }},
       (it.kind === "special" ? "\u2605 " : it.time ? t12(it.time, true) + " " : "") + it.title + (it.guests ? " (" + it.guests + ")" : ""))), today.length > 5 ? el("span",{class:"mini", text:"+" + (today.length - 5) + " more"}) : null)); }
   if (items.length) m.append(categoryButtons(r));
@@ -2485,12 +2486,21 @@ function ingredientRows(it, r){
   });
 }
 const BKV = { q:"", cat:"all" };
+// Today's specials and events, as chips that open the Events page.
+function todayStrip(r){
+  calData(r); const t = localDay(new Date()); loadFeedEvents(r, addDays(t, -7), addDays(t, 35)); const today = dayItems(r, t);
+  if (!today.length) return null;
+  return el("div",{class:"today-strip"}, el("b",{text:"Today"}), today.slice(0, 6).map(it => el("button",{class:"today-chip " + it.kind, style:"--c:" + it.color, type:"button",
+      onclick:() => { if (it.kind === "special" && it.ref && it.ref.itemId && r.items[it.ref.itemId] && ST.page === "book") return openCard(it.ref.itemId); EVV.day = t; EVV.month = t.slice(0, 7) + "-01"; go("events"); }},
+    (it.kind === "special" ? "\u2605 " : it.time ? t12(it.time, true) + " " : "") + it.title + (it.guests ? " (" + it.guests + ")" : ""))), today.length > 6 ? el("span",{class:"mini", text:"+" + (today.length - 6) + " more"}) : null);
+}
 function book(m){
   const r = R(); loadPhotos();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Kitchen book"}), el("p",{class:"lead", text:"Recipe cards for the line: what it looks like, what goes on it, and how to make it."})),
     el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Tablet link", title:"A no-login Kitchen book for a tablet at the bar or on the line", onclick:() => openTabletLink()}), el("button",{class:"btn quiet", text:"Import recipes", title:"Add drinks or dishes from a recipe pack file", onclick:() => pickRecipePack()}), el("button",{class:"btn quiet", text:"Photos from website", onclick:() => openSitePhotos()}), el("button",{class:"btn quiet", text:"Create AI images", onclick:() => openAIImages()}), el("button",{class:"btn primary", text:"Print cards", onclick:() => openPrintCards()}))));
   if (!PHOTOS_READY) m.append(el("div",{class:"card banner"}, el("div",null, el("b",{text:"Photos need a one-time setup."}), " Whoever manages the app runs supabase/002_recipe_photos.sql in Supabase (SQL Editor). Recipe cards work without it; only photos wait."),
     el("button",{class:"btn quiet", text:"Check again", onclick:() => { PHOTOS_READY = true; loadPhotos(true); }})));
+  { const ts = todayStrip(r); if (ts){ ts.style.margin = "4px 0 14px"; m.append(ts); } }
   const all = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
   if (!all.length){ m.append(el("div",{class:"card empty", text:"No menu items yet. Add recipes on Menu & recipes and they appear here as cards."})); return; }
   const order = sectionOrder(r).filter(c => all.some(it => (it.section || "Menu") === c));

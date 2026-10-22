@@ -187,6 +187,9 @@ main{padding:20px 18px 40px;max-width:1400px;margin:0 auto}
 .rq-st{font-weight:800;border-radius:999px;padding:3px 12px;background:var(--field)}
 .rq.approved .rq-st{background:var(--jade);color:#fff} .rq.denied .rq-st{background:var(--ketchup);color:#fff} .rq.pending .rq-st{background:var(--warn-soft);color:#7a5200}
 .evlist{display:grid;gap:10px;margin-bottom:18px}
+.today-box{margin:0 0 22px}
+.today-box .spread-t{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.today-box h2{margin:0;font-family:var(--head);font-weight:800;font-size:2rem}
 .ev-modes{margin:0 0 14px} .ev-modes button{min-height:52px;padding:0 22px;font-size:1.05rem}
 .ev-split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
 .ev-left{position:sticky;top:96px}
@@ -693,7 +696,12 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
           pics.length ? h("div", { class:"cat-pics" }, pics.map(it => { const u = PH.get(it.id); return u ? h("img", { src: u, alt: "" }) : h("span", { class:"cat-pic-wait" }); }))
             : anyPics ? h("div", { class:"cat-pics none" }, h("span", { text: sec.name.slice(0, 1).toUpperCase() })) : null,
           h("b", { text: sec.name }), h("span", { text: sec.items.length + (sec.bar ? (sec.items.length === 1 ? " drink" : " drinks") : (sec.items.length === 1 ? " item" : " items")) })); }); })())) : null;
-    m.replaceChildren(...[side("Bar", secs.filter(x => x.bar)), side("Kitchen", secs.filter(x => !x.bar)), BOOK.items.length ? null : h("div", { class:"empty", text:"No recipe cards yet." }), status()].filter(Boolean));
+    // Today's specials and events, right at the top of the recipes screen.
+    loadFeed();
+    const now = itemsOn(localDay()).filter(x => x.kind !== "note");
+    const todayBox = now.length ? h("section", { class:"today-box" }, h("div", { class:"spread-t" }, h("h2", { text:"Today" }), h("button", { class:"back", type:"button", text:"All events", onclick: () => { location.hash = "events"; } })),
+      h("div", { class:"evlist compact" }, now.slice(0, 4).map(evRow)), now.length > 4 ? h("p", { class:"sub-note", text:"+" + (now.length - 4) + " more on the Events tab" }) : null) : null;
+    m.replaceChildren(...[todayBox, side("Bar", secs.filter(x => x.bar)), side("Kitchen", secs.filter(x => !x.bar)), BOOK.items.length ? null : h("div", { class:"empty", text:"No recipe cards yet." }), status()].filter(Boolean));
     needPhotos(secs.flatMap(sec => sec.items.filter(it => it.photo).slice(0, 4)));
   }
   function status(){ return h("p", { class:"status", text: UPDATED ? "Updated " + new Date(UPDATED).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) + (navigator.onLine ? "" : "  ·  offline, showing the last copy") : "" }); }
