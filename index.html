@@ -1807,7 +1807,7 @@ const AI_REASONS = {
   imagesafety: "The image service declined this dish's description. Try again, or add a real photo instead.",
   imagekeyformat: "The OPENAI_API_KEY in Netlify isn't an OpenAI API key. It should start with sk- and come from platform.openai.com > API keys (a ChatGPT subscription doesn't include one).",
   imageverify: "OpenAI needs your organization verified before it will make images. Do it at platform.openai.com > Settings > Organization > General (Verify), then try again.",
-  imagemodel: "Your OpenAI account can't use the image model yet. Check platform.openai.com > Settings > Limits, or set OPENAI_IMAGE_MODEL in Netlify to a model your account can use."
+  imagemodel: "OpenAI didn't accept any of the image models the app tried (gpt-image-2 and older). Check platform.openai.com > Settings > Limits that your account can use image models, or set OPENAI_IMAGE_MODEL in Netlify to one it can."
 };
 const aiProblem = e => e && e.code === "unreadable" ? "The AI's answer came back too long or incomplete to read. Try again, or describe it a little more simply." : e && e.reason && AI_REASONS[e.reason] ? AI_REASONS[e.reason] : e && e.code === "unavailable" ? "AI isn't switched on for this site yet. Whoever runs it needs to add an ANTHROPIC_API_KEY in Netlify."
   : e && e.code === "signin" ? "Please sign out and back in, then try again." : e && e.code === "not_granted" ? "This needs your OK to use Claude. Try again and allow it." : null;
@@ -1821,7 +1821,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 22, 2026 \u00b7 Today strip";
+const APP_VERSION = "Oct 23, 2026 \u00b7 Recipe sheets";
 function applyBrand(){
   const av = $("appver"); if (av) av.textContent = "Version: " + APP_VERSION;
   const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
@@ -3149,6 +3149,87 @@ async function labPhoto(dr){
   } catch(e){ dr.photoErr = (e && e.reason && AI_REASONS[e.reason]) || (e && e.message) || "Couldn't create a sample photo right now."; if (dr.photo) toast(dr.photoErr); }
   dr.photoBusy = false; if (LAB.draft === dr) render();
 }
+
+/* ---------- Test kitchen idea as a printable JPG recipe sheet ---------- */
+async function ideaSheet(dr, r, mode, photo){
+  const x = labStats(dr, r), sups = x.sups, st = x.st, drink = dr.kind !== "food";
+  const HF = '"Big Shoulders Display","Arial Narrow",sans-serif', BF = '"Atkinson Hyperlegible Next","Atkinson Hyperlegible",Arial,sans-serif';
+  try { await Promise.all(['800 60px "Big Shoulders Display"', '400 20px "Atkinson Hyperlegible Next"', '700 20px "Atkinson Hyperlegible Next"'].map(f => document.fonts.load(f))); } catch(e){}
+  const W = 1600, P = 64, C = { char:"#24221F", jade:"#1F6F5C", must:"#D99A1E", ink:"#24221F", ink2:"#4A4842", muted:"#6E6C66", paper:"#F3F7F2", line:"#DCE4DA", pale:"#F6E7C8", field:"#F7F9F6" };
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = 9000; const g = cv.getContext("2d");
+  const font = (w, px, fam) => (w + " " + px + "px " + (fam || BF));
+  const lines = (text, f, maxW) => { g.font = f; const out = []; String(text || "").split("\n").forEach(par => { let cur = ""; par.split(/\s+/).filter(Boolean).forEach(wd => { const t = cur ? cur + " " + wd : wd; if (g.measureText(t).width > maxW && cur){ out.push(cur); cur = wd; } else cur = t; }); if (cur) out.push(cur); }); return out; };
+  const text = (t, x0, y0, f, col, align) => { g.font = f; g.fillStyle = col; g.textAlign = align || "left"; g.textBaseline = "alphabetic"; g.fillText(t, x0, y0); g.textAlign = "left"; };
+  const para = (t, x0, y0, f, col, maxW, lh) => { const ls = lines(t, f, maxW); ls.forEach((l, i) => text(l, x0, y0 + i * lh, f, col)); return y0 + ls.length * lh; };
+  const rrect = (x0, y0, w, h, rad, fill, stroke) => { g.beginPath(); g.moveTo(x0 + rad, y0); g.arcTo(x0 + w, y0, x0 + w, y0 + h, rad); g.arcTo(x0 + w, y0 + h, x0, y0 + h, rad); g.arcTo(x0, y0 + h, x0, y0, rad); g.arcTo(x0, y0, x0 + w, y0, rad); g.closePath(); if (fill){ g.fillStyle = fill; g.fill(); } if (stroke){ g.strokeStyle = stroke; g.lineWidth = 2; g.stroke(); } };
+  g.fillStyle = C.paper; g.fillRect(0, 0, W, cv.height);
+  // Header
+  g.fillStyle = C.char; g.fillRect(0, 0, W, 120);
+  text(r.name || (ACCT && ACCT.name) || "Test kitchen", P, 76, font(800, 52, HF), "#fff");
+  text("Test kitchen idea  |  " + new Date().toLocaleDateString(undefined, { month:"long", day:"numeric", year:"numeric" }), W - P, 72, font(400, 24), "#C8D0CB", "right");
+  let y = 168;
+  // Photo
+  const img = photo || dr.photo; let px = P, right = P;
+  if (img){ const im = await new Promise(res => { const i = new Image(); i.onload = () => res(i); i.onerror = () => res(null); i.src = img; });
+    if (im){ const S = 540, sc = Math.max(S / im.width, S / im.height), sw = S / sc, sh = S / sc;
+      g.save(); rrect(P, y, S, S, 24); g.clip(); g.drawImage(im, (im.width - sw) / 2, (im.height - sh) / 2, sw, sh, P, y, S, S); g.restore();
+      g.font = font(700, 18); const lw = g.measureText("AI sample photo").width + 28; rrect(P + 14, y + S - 50, lw, 36, 18, "rgba(20,20,18,.72)");
+      text("AI sample photo", P + 28, y + S - 26, font(700, 18), "#fff"); right = P + S + 52; } }
+  const rw = W - P - right;
+  // Name, description, facts
+  let ty = para(dr.name, right, y + 64, font(800, 80, HF), C.ink, rw, 80);
+  ty = para(dr.desc || "", right, ty + 18, font(400, 28), C.ink2, rw, 40);
+  const meta = [dr.section, "Makes " + (dr.servings || 1), dr.card && dr.card.prepMin ? "Prep " + dr.card.prepMin + " min" : "", dr.card && dr.card.cookMin ? (drink ? "Build " : "Cook ") + dr.card.cookMin + " min" : "", dr.card && dr.card.station].filter(Boolean).join("  |  ");
+  ty = para(meta, right, ty + 14, font(700, 22), C.muted, rw, 32);
+  const tiles = [[drink ? "Pour cost" : "Plate cost", $$(st.plate)], ["Charge", $$(x.price)], [drink ? "Pour cost %" : "Food cost", x.pct != null ? Math.round(x.pct * 100) + "%" : "\u2014"], ["Profit each", $$(x.profit)]];
+  const tw = (rw - 3 * 16) / 4; ty += 24;
+  tiles.forEach(([l, v], i) => { const tx = right + i * (tw + 16); rrect(tx, ty, tw, 120, 16, "#fff", C.line); g.fillStyle = i === 3 ? C.jade : C.must; g.fillRect(tx, ty + 16, 6, 88);
+    text(l, tx + 22, ty + 40, font(700, 20), C.muted); text(v, tx + 22, ty + 98, font(800, 54, HF), i === 3 ? C.jade : C.ink); });
+  y = Math.max(y + (img ? 540 : 0), ty + 120) + 92;
+  // Ingredients
+  text("Ingredients", P, y, font(800, 44, HF), C.ink); y += 22;
+  const cols = [P + 18, P + 560, P + 760, W - P - 18];
+  rrect(P, y, W - 2 * P, 54, 12, C.char);
+  text("Ingredient", cols[0], y + 36, font(700, 21), "#fff"); text("Amount", cols[1], y + 36, font(700, 21), "#fff"); text("Where it comes from", cols[2], y + 36, font(700, 21), "#fff"); text("Cost / serving", cols[3], y + 36, font(700, 21), "#fff", "right");
+  y += 54;
+  dr.lines.forEach((l, i) => {
+    const su = l.s && sups[l.s], c = l.s ? lineCost(l, r, sups) : null;
+    const where = l.have && su ? (canonVendor(su.supplier, r) || "Your supplies") + ": " + supName(su) : (l.from || l.order) ? "To order" + (l.from ? " from " + l.from : "") + (su ? ": " + su.name : "") : "No price yet";
+    const nm = lines(l.label + (l.choice ? " (" + l.choice + " choice" + (n(l.extra) ? ", +" + $$(n(l.extra)) : "") + ")" : ""), font(700, 23), 520), wh = lines(where, font(400, 21), cols[3] - cols[2] - 170);
+    const h = Math.max(nm.length, wh.length) * 30 + 26;
+    g.fillStyle = i % 2 ? C.field : "#fff"; g.fillRect(P, y, W - 2 * P, h);
+    nm.forEach((t, k) => text(t, cols[0], y + 36 + k * 30, font(700, 23), C.ink));
+    text((Math.round(n(l.qty) * 100) / 100) + " " + (l.unit || ""), cols[1], y + 36, font(400, 23), C.ink);
+    wh.forEach((t, k) => text(t, cols[2], y + 36 + k * 30, font(400, 21), l.have ? C.ink2 : C.muted));
+    text(c != null ? (l.have ? "" : "\u2248") + $$(c / (dr.servings || 1)) : "\u2014", cols[3], y + 36, font(700, 23), C.ink, "right");
+    y += h;
+  });
+  y += 56;
+  // Steps, plating, storage, allergens
+  const cw = (W - 2 * P - 48) * 0.58, rx = P + cw + 48, rcw = W - P - rx;
+  text(drink ? "How to build it" : "How to make it", P, y, font(800, 44, HF), C.ink);
+  let ly = y + 24;
+  ((dr.card && dr.card.steps) || []).forEach((t, i) => { g.fillStyle = C.jade; g.beginPath(); g.arc(P + 20, ly + 22, 20, 0, Math.PI * 2); g.fill(); text(String(i + 1), P + 20, ly + 30, font(700, 21), "#fff", "center");
+    ly = para(t, P + 56, ly + 30, font(400, 24), C.ink, cw - 56, 34) + 16; });
+  let ry = y;
+  const block = (h, t) => { if (!t) return; text(h, rx, ry, font(800, 34, HF), C.ink); ry = para(t, rx, ry + 40, font(400, 23), C.ink2, rcw, 33) + 34; };
+  block("Plating", dr.card && dr.card.plating); block(drink ? "Notes" : "Storage and reheating", dr.card && dr.card.notes);
+  const al = (dr.card && dr.card.allergens) || [];
+  if (al.length){ const ls2 = lines("Contains: " + al.join(", "), font(700, 23), rcw - 40); rrect(rx, ry - 6, rcw, ls2.length * 32 + 36, 14, C.pale); ls2.forEach((t, k) => text(t, rx + 20, ry + 30 + k * 32, font(700, 23), "#7A5200")); ry += ls2.length * 32 + 56; }
+  y = Math.max(ly, ry) + 30;
+  g.strokeStyle = C.line; g.beginPath(); g.moveTo(P, y); g.lineTo(W - P, y); g.stroke();
+  para("AI-made recipe from the Test kitchen: check amounts and steps before using. Costs come from your supplies; \u2248 marks estimated prices.", P, y + 40, font(400, 20), C.muted, W - 2 * P, 28);
+  y += 80;
+  const out = document.createElement("canvas"); out.width = W; out.height = Math.ceil(y + 20); out.getContext("2d").drawImage(cv, 0, 0);
+  const blob = await new Promise(res => out.toBlob(res, "image/jpeg", 0.92));
+  const url = URL.createObjectURL(blob), file = (dr.name || "recipe").replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() + ".jpg";
+  if (mode === "print"){
+    const fr = document.createElement("iframe"); fr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0"; document.body.append(fr);
+    fr.contentDocument.write('<!doctype html><title>' + (dr.name || "Recipe") + '</title><style>@page{margin:10mm}html,body{margin:0}img{width:100%;display:block}</style><img src="' + url + '">');
+    fr.contentDocument.close(); const im = fr.contentDocument.querySelector("img");
+    im.onload = () => { fr.contentWindow.focus(); fr.contentWindow.print(); setTimeout(() => { fr.remove(); URL.revokeObjectURL(url); }, 60000); };
+  } else { const a = el("a",{href:url, download:file}); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000); toast("Saved " + file); }
+}
 function labStats(dr, r){
   const sups = Object.assign({}, r.supplies, dr.est);
   const it = { name: dr.name, section: dr.section, drinkType: dr.kind === "food" ? "food" : dr.kind, lines: dr.lines.filter(l => l.s), portions: dr.servings, price: 0 };
@@ -3185,6 +3266,7 @@ function lab(m){
         if (ph){ LAB.draft.photo = ph; labKeepPhoto(LAB.draft); } labPersist(true); render(); window.scrollTo({ top: 0, behavior:"smooth" }); }},
           el("b",{text:idea.draft.name}), el("span",{class:"mini", text: "Cost " + $$(x.st.plate) + ", charge " + $$(x.price) + ", saved " + nice(idea.saved)})),
         el("button",{class:"btn quiet", type:"button", text:"Order summary", onclick:() => labOrder(idea.draft, r)}),
+        el("button",{class:"btn quiet", type:"button", text:"Image", title:"Save as a JPG recipe sheet", onclick:() => ideaSheet(idea.draft, r, "save", ph)}),
         el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { r.ideas = r.ideas.filter(i => i !== idea); save(); render(); if (idea.hasPhoto){ sb.rpc("delete_photo", { p_account: ACCT.id, p_item: "idea_" + idea.id }); PHOTOS.delete("idea_" + idea.id); } }})); })));
   }
 }
@@ -3313,6 +3395,8 @@ function labResult(dr, r){
         el("button",{class:"btn quiet", type:"button", text:"Start over", onclick:() => { if (confirm("Clear this recipe and the prompt? " + (dr.ideaId ? "The saved idea stays in your list." : "It isn't saved."))) labReset(); }}),
         el("button",{class:"btn quiet", type:"button", text:"Make it cheaper", onclick:() => labBuild("Make it cheaper to produce: lower-cost ingredients or smaller portions, same idea")}),
         el("button",{class:"btn quiet", type:"button", text:"Make it fancier", onclick:() => labBuild("Make it a more premium version worth a higher price")}),
+        el("button",{class:"btn quiet", type:"button", text:"Save as image", onclick:() => ideaSheet(dr, r, "save")}),
+        el("button",{class:"btn quiet", type:"button", text:"Print", onclick:() => ideaSheet(dr, r, "print")}),
         el("button",{class:"btn quiet", type:"button", text:"Save idea", onclick: async () => { r.ideas = r.ideas || []; dr.price = n(priceIn.value) || x.price;
           const keep = JSON.parse(JSON.stringify(Object.assign({}, dr, { photo: undefined, photoBusy: undefined, photoErr: undefined, editing: undefined })));
           const old = dr.ideaId && r.ideas.find(i => i.id === dr.ideaId), id = old ? old.id : uid("i"); dr.ideaId = id; keep.ideaId = id;
