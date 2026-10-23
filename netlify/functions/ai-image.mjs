@@ -27,19 +27,30 @@ export default async (req) => {
   const prompt = `Realistic, appetizing food photo of "${dish}" as served in a casual American small-town diner and bar. ${details} ` +
     "Plated simply on a white diner plate or basket as appropriate, natural window light, photographed at a 45-degree angle, shallow depth of field, " +
     "on a wooden or laminate table. No text, no logos, no hands, no people.";
-  const res = await fetch("https://api.openai.com/v1/images/generations", {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
-    body: JSON.stringify({ model: process.env.OPENAI_IMAGE_MODEL || "gpt-image-1", prompt, size: "1024x1024", quality: "low", n: 1 }),
-  });
-  if (!res.ok) {
-    const detail = (await res.text().catch(() => "")).slice(0, 600);
-    console.error("OpenAI image error", res.status, detail);
-    const reason = /billing|quota|insufficient|credit/i.test(detail) ? "imagecredit" : res.status === 401 ? "imagekey"
+  // OpenAI retires image models from time to time (gpt-image-1 was removed Oct 23, 2026), so try the newest first
+  // and fall back to the next one if a model is rejected. OPENAI_IMAGE_MODEL in Netlify, if set, is tried first.
+  const models = [...new Set([process.env.OPENAI_IMAGE_MODEL, "gpt-image-2", "gpt-image-1.5", "gpt-image-1-mini"].map(m => String(m || "").trim()).filter(Boolean))];
+  let res = null, detail = "", lastReason = "other";
+  for (const model of models) {
+    for (const withQuality of [true, false]) {   // if a model doesn't take "quality: low", ask again without it
+      res = await fetch("https://api.openai.com/v1/images/generations", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
+        body: JSON.stringify(Object.assign({ model, prompt, size: "1024x1024", n: 1 }, withQuality ? { quality: "low" } : {})),
+      });
+      if (res.ok) break;
+      detail = (await res.text().catch(() => "")).slice(0, 600);
+      console.error("OpenAI image error", model, res.status, detail);
+      if (withQuality && res.status === 400 && /quality/i.test(detail)) continue;
+      break;
+    }
+    if (res.ok) break;
+    lastReason = /billing|quota|insufficient|credit/i.test(detail) ? "imagecredit" : res.status === 401 ? "imagekey"
       : /verif/i.test(detail) && res.status === 403 ? "imageverify" : /safety|content_policy|moderation/i.test(detail) ? "imagesafety"
       : /model/i.test(detail) && (res.status === 404 || res.status === 400 || res.status === 403) ? "imagemodel" : res.status === 429 ? "busy" : "other";
-    return json(502, { error: "Image service error", reason, status: res.status });
+    if (lastReason !== "imagemodel") break;   // only a rejected model is worth trying the next one for
   }
+  if (!res || !res.ok) return json(502, { error: "Image service error", reason: lastReason, status: res && res.status });
   const out = await res.json();
   const b64 = out?.data?.[0]?.b64_json;
   if (!b64) return json(502, { error: "No image came back", reason: "other" });
