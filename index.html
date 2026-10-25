@@ -1371,6 +1371,27 @@ tr.have-row td{background:var(--field)} tr.have-row td b{color:var(--muted)}
 .lab-idea-main b{font-size:1.05rem;line-height:1.25}
 .lab-idea > .btn{margin-left:0}
 .lab-idea > .linkbtn{margin-left:4px}
+
+/* ---------- Event pricing ---------- */
+.quote-card{display:flex;flex-direction:column;gap:6px;text-align:left;font:inherit;color:var(--ink);cursor:pointer;border-left:4px solid var(--line-2)}
+.quote-card.sent{border-left-color:var(--mustard)} .quote-card.booked{border-left-color:var(--jade)}
+.qc-t{font-size:1.1rem} .qc-nums{display:flex;gap:14px;flex-wrap:wrap;font-size:.92rem;margin-top:4px}
+.good-t{color:var(--good)} .bad-t{color:var(--bad)}
+.quote-wrap{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(300px,1fr);gap:16px;align-items:start}
+.quote-form{display:grid;gap:12px}
+.quote-sum{position:sticky;top:16px;border-left:5px solid var(--jade)}
+.qs-pp{font-family:var(--brand-font);font-weight:800;font-size:3.2rem;line-height:1;color:var(--jade);margin:2px 0 4px}
+.quote-sum{min-width:0;overflow:hidden}
+.qs-t{width:100% !important;min-width:0 !important;table-layout:fixed;border-collapse:collapse;font-size:.95rem}
+.qs-t td{padding:5px 0 !important;white-space:normal !important;border:0 !important;background:transparent !important}
+.qs-t td:first-child{width:55%} .qs-t td.num{text-align:right !important;font-variant-numeric:tabular-nums;white-space:nowrap !important}
+.qs-t tr.big td{font-weight:800;font-size:1.05rem;padding-top:8px} .qs-t tr.qs-tot td{border-top:1px solid var(--line) !important;font-weight:700}
+.qs-t tr.gap td{height:10px;border-bottom:1px dashed var(--line)}
+.qs-acts{display:grid;gap:8px;margin-top:14px}
+.q-items{display:grid;gap:8px}
+.q-item{display:grid;grid-template-columns:minmax(0,1fr) 84px 140px 44px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.q-extra{display:grid;grid-template-columns:minmax(0,1fr) 120px 44px;gap:8px;align-items:center}
+@media (max-width:900px){ .quote-wrap{grid-template-columns:1fr} .quote-sum{position:static} .q-item{grid-template-columns:1fr 70px 130px 40px} }
 </style>
 </head>
 <body>
@@ -1821,7 +1842,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 23, 2026 \u00b7 Recipe sheets";
+const APP_VERSION = "Oct 25, 2026 \u00b7 Event pricing";
 function applyBrand(){
   const av = $("appver"); if (av) av.textContent = "Version: " + APP_VERSION;
   const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
@@ -4262,6 +4283,7 @@ function printOrderSummary(res, entries){
 }
 
 /* ================= Events calendar: bookings (from your calendars), events and specials ================= */
+function evTabs(){ return el("div",{class:"seg", role:"tablist"}, [["cal","Calendar"],["pricing","Event pricing"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String((EVV.tab || "cal") === k), text:t, onclick:() => { EVV.tab = k; EVV.quote = null; render(); }}))); }
 const EVV = { month:null, day:null, feed:{ key:"", at:0, events:[], errors:[] }, loading:false };
 const FEED_COLORS = ["#3D6E9E","#B8352A","#6B4E9B","#1F6F5C","#C27C0E","#2E7D8A"];
 function calData(r){ r.calFeeds = r.calFeeds || []; r.events = r.events || []; r.specials = r.specials || []; return r; }
@@ -4288,12 +4310,16 @@ async function loadFeedEvents(r, from, to, force){
 }
 function events(m){
   const r = calData(R()), today = localDay(new Date()), edit = canEditSchedule(), boss = ACCT && ["owner","manager"].includes(ACCT.role);
+  if (EVV.tab === "pricing"){
+    m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Events"}), el("p",{class:"lead", text:"Price an event: the food, staff and extras, and what to charge per person."})), evTabs()));
+    return quotePricing(m);
+  }
   EVV.month = EVV.month || today.slice(0, 7) + "-01"; EVV.day = EVV.day || today;
   const first = EVV.month, firstDt = new Date(first + "T12:00:00"), gridStart = addDays(first, -((firstDt.getDay() + 6) % 7));
   const days = [...Array(42)].map((_, i) => addDays(gridStart, i)), monthKey = first.slice(0, 7);
   loadFeedEvents(r, days[0], days[41]);
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Events"}), el("p",{class:"lead", text:"Bookings from your calendars, events and specials. Staff see today's on the tablet."})),
-    el("div",{class:"row"}, edit ? el("button",{class:"btn quiet", type:"button", text:"+ Special", onclick:() => editSpecial(r)}) : null, edit ? el("button",{class:"btn primary", type:"button", text:"+ Event", onclick:() => editEvent(r, null, EVV.day)}) : null,
+    el("div",{class:"row"}, evTabs(), edit ? el("button",{class:"btn quiet", type:"button", text:"+ Special", onclick:() => editSpecial(r)}) : null, edit ? el("button",{class:"btn primary", type:"button", text:"+ Event", onclick:() => editEvent(r, null, EVV.day)}) : null,
       boss ? el("button",{class:"btn quiet", type:"button", text:"Connected calendars" + (r.calFeeds.length ? " (" + r.calFeeds.length + ")" : ""), onclick:() => openCalFeeds(r)}) : null)));
   if (!r.calFeeds.length && boss) m.append(el("div",{class:"card feed-card", style:"margin-bottom:12px"}, el("div",{class:"spread"}, el("div",null, el("b",{text:"Show your bookings here"}),
     el("p",{class:"mini", style:"margin:2px 0 0", text:"Connect the calendar your booking page adds reservations to, and they'll show up here and on the tablet automatically."})),
@@ -4563,6 +4589,160 @@ function consolidated(m, r, boss){
 // The printable/emailable order with the vendor choices already applied.
 function openOrderSummaryFixed(entries, swap, title){
   const before = PV.fixedSwap; PV.fixedSwap = swap; openOrderSummary(entries.map(e => Object.assign({}, e)), title); PV.fixedSwap = before;
+}
+
+/* ================= Event pricing: pick the food, set guests, get cost, price per person and a customer quote ================= */
+const QUOTE_TERMS = "Final guest count is due 3 days before the event.\nThis quote is good for 30 days.";
+function quoteCalc(q, r){
+  const g = Math.max(1, n(q.guests) || 1);
+  const rows = (q.items || []).map(e => {
+    let plate = 0, menu = 0, name = e.name, desc = "", ok = false;
+    if (e.type === "item"){ const it = r.items[e.refId]; if (it){ const st = stats(it, r); plate = st.plate; menu = st.price; name = it.name; desc = it.desc || ""; ok = !!(it.lines || []).length; } }
+    else { const idea = (r.ideas || []).find(i => i.id === e.refId); if (idea){ const x = labStats(idea.draft, r); plate = x.st.plate; menu = x.price; name = idea.draft.name; desc = idea.draft.desc || ""; ok = true; } }
+    const servings = e.per === "total" ? n(e.qty) : n(e.qty) * g;
+    return { e, name, desc, ok, plate, menu, servings, cost: servings * plate, menuValue: servings * menu };
+  });
+  const food = rows.reduce((t, x) => t + x.cost, 0), menuValue = rows.reduce((t, x) => t + x.menuValue, 0);
+  const labor = n(q.laborHours) * n(q.laborRate), extras = (q.extras || []).reduce((t, x) => t + n(x.cost), 0), cost = food + labor + extras;
+  const target = n(q.target) > 0 ? n(q.target) / 100 : 0.3, svc = n(q.service) / 100;
+  const suggested = Math.ceil(((food / target) + labor + extras) / g * 2 - 1e-9) / 2;   // to the next 50 cents
+  const pp = n(q.pp) > 0 ? n(q.pp) : suggested, subtotal = pp * g, service = subtotal * svc, total = subtotal + service, profit = subtotal - cost;
+  return { g, rows, food, menuValue, labor, extras, cost, suggested, pp, subtotal, service, total, profit, margin: subtotal ? profit / subtotal : 0, foodPct: subtotal ? food / subtotal : 0, unlinked: rows.filter(x => !x.ok).length };
+}
+function quotePricing(m){
+  const r = R(); r.quotes = r.quotes || [];
+  const q = EVV.quote && r.quotes.find(x => x.id === EVV.quote);
+  if (q) return quoteEditor(m, r, q);
+  m.append(el("div",{class:"spread", style:"margin:4px 0 12px"}, el("p",{class:"lead", style:"margin:0", text:"Price a party, catering order or private event: pick the food, set the guest count, and get a price per person and a quote for the customer."}),
+    el("button",{class:"btn primary", type:"button", text:"+ New event quote", onclick:() => { const nq = { id: uid("q"), title:"New event", date: addDays(localDay(new Date()), 14), start:"", guests: 25, items:[], laborHours: 0, laborRate: 15, extras:[], target: 30, service: 0, pp: null, status:"draft", notes:"" }; r.quotes.push(nq); save(); EVV.quote = nq.id; render(); }})));
+  if (!r.quotes.length){ m.append(el("div",{class:"card empty", text:"No event quotes yet. Start one with + New event quote."})); return; }
+  m.append(el("div",{class:"oreq-grid"}, r.quotes.slice().sort((a, b) => String(a.date || "").localeCompare(String(b.date || ""))).map(q2 => { const c = quoteCalc(q2, r);
+    return el("button",{class:"card quote-card " + (q2.status || "draft"), type:"button", onclick:() => { EVV.quote = q2.id; render(); }},
+      el("div",{class:"spread"}, el("b",{class:"qc-t", text:q2.title}), el("span",{class:"pill " + (q2.status === "booked" ? "good" : q2.status === "sent" ? "warn" : ""), text: q2.status === "booked" ? "Booked" : q2.status === "sent" ? "Sent" : "Draft"})),
+      el("span",{class:"mini", text: [q2.date ? nice(q2.date) : "", c.g + " guests", (q2.items || []).length + " items"].filter(Boolean).join("  |  ")}),
+      el("div",{class:"qc-nums"}, el("span",null, el("b",{text:$$(c.pp)}), " per person"), el("span",null, el("b",{text:$$(c.total)}), " total"), el("span",{class: c.profit >= 0 ? "good-t" : "bad-t"}, el("b",{text:$$(c.profit)}), " profit"))); })));
+}
+function quoteEditor(m, r, q){
+  q.items = q.items || []; q.extras = q.extras || [];
+  const sumBox = el("div",{class:"card quote-sum"});
+  const drawSum = () => { const c = quoteCalc(q, r);
+    sumBox.replaceChildren(...[
+      el("span",{class:"mini", text:"Price per person"}), el("div",{class:"qs-pp", text:$$(c.pp)}),
+      el("p",{class:"mini", style:"margin:0 0 10px", text: n(q.pp) > 0 ? "Your price. Suggested: " + $$(c.suggested) : "Suggested, for " + (n(q.target) || 30) + "% food cost"}),
+      el("table",{class:"qs-t"}, el("tbody",null,
+        ...[["Guests", c.g], ["Subtotal", $$(c.subtotal)], c.service ? ["Service charge (" + n(q.service) + "%)", $$(c.service)] : null, ["Customer pays", $$(c.total), "big"]].filter(Boolean).map(([a, b, k]) => el("tr",{class:k || ""}, el("td",{text:a}), el("td",{class:"num", text:String(b)}))),
+        el("tr",{class:"gap"}, el("td",{colspan:"2"})),
+        ...[["Food cost", $$(c.food) + "  (" + Math.round(c.foodPct * 100) + "%)"], ["Staff", $$(c.labor)], ["Extras", $$(c.extras)], ["Total cost", $$(c.cost), "qs-tot"]].map(([a, b, k]) => el("tr",{class:k || ""}, el("td",{text:a}), el("td",{class:"num", text:b}))),
+        el("tr",{class:"big " + (c.profit >= 0 ? "good-t" : "bad-t")}, el("td",{text:"Profit"}), el("td",{class:"num", text:$$(c.profit) + "  (" + Math.round(c.margin * 100) + "%)"})))),
+      c.menuValue ? el("p",{class:"mini", style:"margin:10px 0 0", text:"Off the menu, the same food would be " + $$(c.menuValue) + " (" + $$(c.menuValue / c.g) + " a guest)."}) : null,
+      c.unlinked ? el("p",{class:"mini", style:"color:var(--bad);margin:6px 0 0", text: c.unlinked + " item" + (c.unlinked === 1 ? " has" : "s have") + " no recipe yet, so the food cost is low."}) : null,
+      el("div",{class:"qs-acts"},
+        el("button",{class:"btn primary", type:"button", text:"Customer quote (image)", onclick:() => quoteSheet(q, r, "save")}),
+        el("button",{class:"btn quiet", type:"button", text:"Print quote", onclick:() => quoteSheet(q, r, "print")}),
+        el("button",{class:"btn quiet", type:"button", text:"Order summary", onclick:() => { const c2 = quoteCalc(q, r);
+          const ents = reqEntries(r, [{ title: q.title, entries: c2.rows.filter(x => x.ok).map(x => x.e.type === "item" ? { type:"item", refId: x.e.refId, qty: Math.ceil(x.servings) } : ideaEntry((r.ideas || []).find(i => i.id === x.e.refId), Math.ceil(x.servings))) }]);
+          openOrderSummary(ents, "Order summary: " + q.title); }}),
+        el("button",{class:"btn quiet", type:"button", text: q.eventId && r.events.some(e => e.id === q.eventId) ? "Update calendar event" : "Add to the calendar", onclick:() => { const c2 = quoteCalc(q, r); calData(r);
+          let ev = q.eventId && r.events.find(e => e.id === q.eventId); if (!ev){ ev = { id: uid("ev") }; r.events.push(ev); q.eventId = ev.id; }
+          Object.assign(ev, { title: q.title, date: q.date, start: q.start || null, end: null, where: ev.where || "", guests: c2.g, notes: "Menu: " + c2.rows.map(x => x.name).join(", ") + ". Quoted " + $$(c2.pp) + " a person, " + $$(c2.total) + " total." });
+          save(); toast("On the calendar for " + nice(q.date)); render(); }}))].filter(Boolean));
+  };
+  const upd = (k, v) => { q[k] = v; save(); drawSum(); };
+  const inp = (k, attrs) => { const i = el("input", Object.assign({ class:"inp" }, attrs)); i.value = q[k] == null ? "" : q[k]; i.oninput = () => upd(k, attrs.type === "number" ? (i.value === "" ? null : n(i.value)) : i.value); return i; };
+  const status = el("select",{class:"inp"}, [["draft","Draft"],["sent","Sent to customer"],["booked","Booked"]].map(([v, t]) => el("option",{value:v, text:t}))); status.value = q.status || "draft"; status.onchange = () => upd("status", status.value);
+  // Food and drinks
+  const items = el("div",{class:"q-items"});
+  const drawItems = () => { const c = quoteCalc(q, r);
+    items.replaceChildren(...(q.items.length ? c.rows.map((x, i) => { const e = x.e;
+      const qty = el("input",{class:"inp", type:"number", min:"0", step:"0.5", value: e.qty, "aria-label":"How many"}); qty.oninput = () => { e.qty = n(qty.value); save(); drawSum(); sv.textContent = servingsTxt(); };
+      const per = el("select",{class:"inp"}, el("option",{value:"guest", text:"per guest"}), el("option",{value:"total", text:"total"})); per.value = e.per || "guest"; per.onchange = () => { e.per = per.value; save(); drawSum(); sv.textContent = servingsTxt(); };
+      const servingsTxt = () => { const c2 = quoteCalc(q, r).rows[i]; return Math.round(c2.servings * 10) / 10 + " servings, " + $$(c2.plate) + " each = " + $$(c2.cost); };
+      const sv = el("span",{class:"mini", text: servingsTxt()});
+      return el("div",{class:"q-item"}, el("div",null, el("b",{text:x.name}), e.type === "idea" ? el("span",{class:"pill", style:"margin-left:6px", text:"Test kitchen"}) : null, el("div",null, sv)),
+        qty, per, el("button",{class:"btn quiet lab-x", type:"button", text:"\u00d7", "aria-label":"Remove " + x.name, onclick:() => { q.items.splice(i, 1); save(); drawItems(); drawSum(); }})); })
+      : [el("p",{class:"mini", text:"Nothing added yet. Pick from your menu or Test kitchen ideas below."})]));
+  };
+  const opts = [...Object.values(r.items).filter(it => (it.lines || []).length && !SUMMARY_SECTION.test(it.section || "")).sort((a, b) => a.name.localeCompare(b.name)).map(it => ({ v: "i:" + it.id, t: it.name + " (" + (it.section || "Menu") + ")" })),
+    ...(r.ideas || []).map(i => ({ v: "d:" + i.id, t: i.draft.name + " (Test kitchen idea)" }))];
+  const pick = el("select",{class:"inp"}, el("option",{value:"", text:"Add a menu item or idea\u2026"}), opts.map(o => el("option",{value:o.v, text:o.t})));
+  pick.onchange = () => { const v = pick.value; if (!v) return; const ty = v.startsWith("i:") ? "item" : "idea", id = v.slice(2);
+    const nm = ty === "item" ? r.items[id].name : (r.ideas.find(i => i.id === id) || {}).draft.name;
+    q.items.push({ type: ty, refId: id, name: nm, qty: 1, per: "guest" }); pick.value = ""; save(); drawItems(); drawSum(); };
+  // Extras
+  const exBox = el("div",{class:"q-items"});
+  const drawExtras = () => exBox.replaceChildren(...q.extras.map((x, i) => { const nm = el("input",{class:"inp", value:x.name || "", placeholder:"e.g. Cake, linens, decorations"}), co = el("input",{class:"inp", type:"number", min:"0", step:"0.01", value: x.cost == null ? "" : x.cost, placeholder:"$"});
+      nm.oninput = () => { x.name = nm.value; save(); }; co.oninput = () => { x.cost = n(co.value); save(); drawSum(); };
+      return el("div",{class:"q-extra"}, nm, co, el("button",{class:"btn quiet lab-x", type:"button", text:"\u00d7", "aria-label":"Remove", onclick:() => { q.extras.splice(i, 1); save(); drawExtras(); drawSum(); }})); }),
+    el("button",{class:"btn quiet", type:"button", text:"+ Add an extra cost", onclick:() => { q.extras.push({ name:"", cost: null }); drawExtras(); }}));
+  m.append(el("div",{class:"spread", style:"margin:4px 0 12px"}, el("button",{class:"linkbtn", type:"button", text:"\u2039 All event quotes", onclick:() => { EVV.quote = null; render(); }}),
+    el("button",{class:"btn danger", type:"button", text:"Delete quote", onclick:() => { if (!confirm("Delete this quote?")) return; r.quotes = r.quotes.filter(x => x.id !== q.id); save(); EVV.quote = null; render(); }})));
+  m.append(el("div",{class:"quote-wrap"},
+    el("div",{class:"quote-form"},
+      el("div",{class:"card"}, el("h3",{style:"margin:0 0 10px", text:"The event"}),
+        fld("Event name", inp("title", { placeholder:"e.g. Miller rehearsal dinner" })),
+        el("div",{class:"g3"}, fld("Date", inp("date", { type:"date" })), fld("Starts", inp("start", { type:"time" })), fld("Guests", inp("guests", { type:"number", min:"1", step:"1" }))),
+        el("div",{class:"g2"}, fld("Status", status), fld("Note on the quote", inp("notes", { placeholder:"e.g. Includes coffee and soft drinks" }))),
+        (() => { const t = el("textarea",{class:"inp", rows:"2"}); t.value = q.terms == null ? QUOTE_TERMS : q.terms; t.oninput = () => { q.terms = t.value; save(); }; return fld("Terms on the quote (one per line)", t); })()),
+      el("div",{class:"card"}, el("h3",{style:"margin:0 0 4px", text:"Food and drinks"}), el("p",{class:"mini", style:"margin:0 0 10px", text:"\u201cPer guest\u201d multiplies by the guest count (2 wings each). \u201cTotal\u201d is a set amount (3 pans)."}), items, el("div",{style:"margin-top:10px"}, pick)),
+      el("div",{class:"card"}, el("h3",{style:"margin:0 0 10px", text:"Staff and extras"}),
+        el("div",{class:"g2"}, fld("Staff hours (all staff together)", inp("laborHours", { type:"number", min:"0", step:"0.5" })), fld("Pay per hour ($)", inp("laborRate", { type:"number", min:"0", step:"0.25" }))), exBox),
+      el("div",{class:"card"}, el("h3",{style:"margin:0 0 10px", text:"Pricing"}),
+        el("div",{class:"g3"}, fld("Target food cost (%)", inp("target", { type:"number", min:"5", max:"90", step:"1" })), fld("Service charge (%)", inp("service", { type:"number", min:"0", max:"50", step:"0.5" })),
+          fld("Price per person (blank = suggested)", inp("pp", { type:"number", min:"0", step:"0.25", placeholder:"suggested" }))),
+        el("p",{class:"mini", style:"margin:4px 0 0", text:"Suggested price = food at your target food cost, plus staff and extras at cost, rounded up to the next 50 cents. Sales tax isn't included."}))),
+    sumBox));
+  drawItems(); drawExtras(); drawSum();
+}
+// The customer's quote: menu, price per person, total. No costs.
+async function quoteSheet(q, r, mode){
+  const c = quoteCalc(q, r);
+  const HF = '"Big Shoulders Display","Arial Narrow",sans-serif', BF = '"Atkinson Hyperlegible Next","Atkinson Hyperlegible",Arial,sans-serif';
+  try { await Promise.all(['800 60px "Big Shoulders Display"', '400 20px "Atkinson Hyperlegible Next"', '700 20px "Atkinson Hyperlegible Next"'].map(f => document.fonts.load(f))); } catch(e){}
+  const W = 1600, P = 80, C = { char:"#24221F", jade:"#1F6F5C", must:"#D99A1E", ink2:"#4A4842", muted:"#6E6C66", paper:"#F3F7F2", line:"#DCE4DA", field:"#F7F9F6" };
+  const cv = document.createElement("canvas"); cv.width = W; cv.height = 6000; const g = cv.getContext("2d");
+  const font = (w, px, fam) => w + " " + px + "px " + (fam || BF);
+  const lines = (t, f, maxW) => { g.font = f; const out = []; String(t || "").split("\n").forEach(par => { let cur = ""; par.split(/\s+/).filter(Boolean).forEach(wd => { const tt = cur ? cur + " " + wd : wd; if (g.measureText(tt).width > maxW && cur){ out.push(cur); cur = wd; } else cur = tt; }); if (cur) out.push(cur); }); return out; };
+  const text = (t, x0, y0, f, col, align) => { g.font = f; g.fillStyle = col; g.textAlign = align || "left"; g.fillText(t, x0, y0); g.textAlign = "left"; };
+  const para = (t, x0, y0, f, col, maxW, lh) => { const ls = lines(t, f, maxW); ls.forEach((l, i) => text(l, x0, y0 + i * lh, f, col)); return y0 + ls.length * lh; };
+  g.fillStyle = C.paper; g.fillRect(0, 0, W, cv.height);
+  g.fillStyle = C.char; g.fillRect(0, 0, W, 150);
+  text(r.name || (ACCT && ACCT.name) || "Our kitchen", P, 96, font(800, 64, HF), "#fff");
+  text("Event quote", W - P, 92, font(700, 28), C.must, "right");
+  let y = 268;
+  y = para(q.title || "Your event", P, y, font(800, 84, HF), C.char, W - 2 * P, 84);
+  const when = [q.date ? new Date(q.date + "T12:00:00").toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric", year:"numeric" }) : "", q.start ? "at " + t12(q.start) : "", c.g + " guests"].filter(Boolean).join("  |  ");
+  y = para(when, P, y + 14, font(700, 30), C.ink2, W - 2 * P, 40) + 40;
+  text("The menu", P, y, font(800, 46, HF), C.char); y += 30;
+  c.rows.forEach((x, i) => { const qty = x.e.per === "total" ? n(x.e.qty) + (n(x.e.qty) === 1 ? " order" : " orders") : (n(x.e.qty) === 1 ? "" : n(x.e.qty) + " per guest");
+    const dl = x.desc ? lines(x.desc, font(400, 24), W - 2 * P - 320) : [];
+    const h = 64 + dl.length * 32;
+    g.fillStyle = i % 2 ? C.field : "#fff"; g.fillRect(P, y, W - 2 * P, h);
+    text(x.name, P + 28, y + 44, font(700, 30), C.char); if (qty) text(qty, W - P - 28, y + 44, font(400, 24), C.muted, "right");
+    dl.forEach((t, k) => text(t, P + 28, y + 80 + k * 32, font(400, 24), C.ink2)); y += h; });
+  g.strokeStyle = C.line; g.lineWidth = 2; g.strokeRect(P, y - c.rows.reduce((t, x) => t + 64 + (x.desc ? lines(x.desc, font(400, 24), W - 2 * P - 320).length * 32 : 0), 0), W - 2 * P, c.rows.reduce((t, x) => t + 64 + (x.desc ? lines(x.desc, font(400, 24), W - 2 * P - 320).length * 32 : 0), 0));
+  y += 60;
+  // Price box
+  const bx = W / 2, bw = W - P - bx, rowsP = [["Price per person", $$(c.pp)], ["Guests", String(c.g)], ["Subtotal", $$(c.subtotal)]].concat(c.service ? [["Service charge (" + n(q.service) + "%)", $$(c.service)]] : []);
+  const bh = 70 + rowsP.length * 54 + 100;
+  g.fillStyle = "#fff"; g.fillRect(bx, y, bw, bh); g.strokeStyle = C.line; g.strokeRect(bx, y, bw, bh); g.fillStyle = C.jade; g.fillRect(bx, y, 10, bh);
+  let py = y + 70; rowsP.forEach(([a, b]) => { text(a, bx + 44, py, font(400, 28), C.ink2); text(b, W - P - 36, py, font(700, 30), C.char, "right"); py += 54; });
+  g.strokeStyle = C.line; g.beginPath(); g.moveTo(bx + 44, py - 20); g.lineTo(W - P - 36, py - 20); g.stroke();
+  text("Total", bx + 44, py + 52, font(800, 50, HF), C.char); text($$(c.total), W - P - 36, py + 52, font(800, 64, HF), C.jade, "right");
+  // Left of the price box: the note and details
+  let ly = y + 50; text("Good to know", P, ly, font(800, 36, HF), C.char); ly += 46;
+  [q.notes].concat(String(q.terms == null ? QUOTE_TERMS : q.terms).split("\n")).concat(["Sales tax is not included."]).map(t => String(t || "").trim()).filter(Boolean).forEach(t => { ly = para("\u2022  " + t, P, ly, font(400, 25), C.ink2, bx - P - 60, 36) + 10; });
+  y = Math.max(y + bh, ly) + 60;
+  g.strokeStyle = C.line; g.beginPath(); g.moveTo(P, y); g.lineTo(W - P, y); g.stroke();
+  text("Prepared " + new Date().toLocaleDateString(undefined, { month:"long", day:"numeric", year:"numeric" }) + (r.name ? "  |  " + r.name : ""), P, y + 44, font(400, 22), C.muted);
+  y += 80;
+  const out = document.createElement("canvas"); out.width = W; out.height = Math.ceil(y); out.getContext("2d").drawImage(cv, 0, 0);
+  const blob = await new Promise(res => out.toBlob(res, "image/jpeg", 0.92));
+  const url = URL.createObjectURL(blob), file = ("quote-" + (q.title || "event")).replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() + ".jpg";
+  if (mode === "print"){
+    const fr = document.createElement("iframe"); fr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0"; document.body.append(fr);
+    fr.contentDocument.write('<!doctype html><title>Quote</title><style>@page{margin:10mm}html,body{margin:0}img{width:100%;display:block}</style><img src="' + url + '">'); fr.contentDocument.close();
+    const im = fr.contentDocument.querySelector("img"); im.onload = () => { fr.contentWindow.focus(); fr.contentWindow.print(); setTimeout(() => { fr.remove(); URL.revokeObjectURL(url); }, 60000); };
+  } else { const a = el("a",{href:url, download:file}); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000); toast("Saved " + file); }
 }
 /* ================= Backup & restore ================= */
 async function downloadBackup(){
