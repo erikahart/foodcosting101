@@ -1867,7 +1867,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 26, 2026 \u00b7 Event cards in order";
+const APP_VERSION = "Oct 26, 2026 \u00b7 Event menu fix";
 function applyBrand(){
   const av = $("appver"); if (av) av.textContent = "Version: " + APP_VERSION;
   const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
@@ -4405,7 +4405,10 @@ function eventMenu(r, e){
   const q = e && e.quoteId && (r.quotes || []).find(x => x.id === e.quoteId);
   const list = q ? (q.items || []) : ((e && e.menu) || []);
   const g = n(e && e.guests) || (q ? n(q.guests) : 0);
-  return list.map(x => { const it = x.type === "item" ? r.items[x.refId] : null, idea = x.type === "idea" ? (r.ideas || []).find(i => i.id === x.refId) : null;
+  // A menu item with the same name wins: ideas that were later added to the menu use the menu item's card, and entries whose item or idea is gone still find it.
+  const byName = nm => { const k = String(nm || "").trim().toLowerCase(); return k ? Object.values(r.items).find(i => i.name.trim().toLowerCase() === k && !SUMMARY_SECTION.test(i.section || "")) : null; };
+  return list.map(x => { let it = x.type === "item" ? r.items[x.refId] : null, idea = x.type === "idea" ? (r.ideas || []).find(i => i.id === x.refId) : null;
+    if (!it){ const m2 = byName(idea ? idea.draft.name : x.name); if (m2){ it = m2; idea = null; } }
     const name = it ? it.name : idea ? idea.draft.name : x.name, count = x.per === "total" ? n(x.qty) : n(x.qty) * (g || 1);
     return { name, count: Math.round(count * 10) / 10, perGuest: x.per !== "total", qty: n(x.qty), itemId: it ? it.id : null, ideaId: idea ? idea.id : null }; }).filter(x => x.name);
 }
@@ -4467,7 +4470,7 @@ function menuPicker(r, holder){
   const quoteSel = el("select",{class:"inp"}, el("option",{value:"", text:"No quote: choose the menu below"}), (r.quotes || []).map(q => el("option",{value:q.id, text: q.title + (q.date ? " (" + nice(q.date) + ")" : "") + ", " + (q.items || []).length + " items"})));
   quoteSel.value = holder.quoteId || "";
   const opts = [...Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || "")).sort((a, b) => a.name.localeCompare(b.name)).map(it => ({ v: "i:" + it.id, t: it.name + " (" + (it.section || "Menu") + ")" })),
-    ...(r.ideas || []).map(i => ({ v: "d:" + i.id, t: i.draft.name + " (Test kitchen idea)" }))];
+    ...(r.ideas || []).filter(i => !Object.values(r.items).some(it => it.name.trim().toLowerCase() === String(i.draft.name || "").trim().toLowerCase())).map(i => ({ v: "d:" + i.id, t: i.draft.name + " (Test kitchen idea)" }))];
   const pick = el("select",{class:"inp"}, el("option",{value:"", text:"Add a menu item or idea\u2026"}), opts.map(o => el("option",{value:o.v, text:o.t})));
   const draw = () => {
     if (holder.quoteId){ const q = (r.quotes || []).find(x => x.id === holder.quoteId);
