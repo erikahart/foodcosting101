@@ -236,7 +236,9 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
   .pcard{page-break-after:always;break-after:page}
   .pcover h1{font-family:var(--head, Arial Narrow, sans-serif);font-weight:800;font-size:30pt;margin:0 0 4px;line-height:1}
   .pcv-k{margin:0;font-weight:700;font-size:10pt;letter-spacing:.08em;text-transform:uppercase;color:#555}
-  .pcv-w{margin:0 0 10px;font-weight:700;font-size:13pt} .pcv-n{border:1.5pt solid #000;border-radius:6px;padding:6px 10px;font-size:12pt}
+  .pcv-w{margin:0 0 10px;font-weight:700;font-size:13pt}
+  .pcv-h{font-family:var(--head, Arial Narrow, sans-serif);font-weight:800;font-size:18pt;margin:14px 0 6px;border-bottom:2pt solid #000}
+  .pcv-menu{font-size:15pt;padding-left:26px;margin:0} .pcv-menu li{padding:7px 0;border-bottom:1px solid #ccc} .pcv-menu li b{float:right} .pcv-n{border:1.5pt solid #000;border-radius:6px;padding:6px 10px;font-size:12pt}
   .pcard:last-child{page-break-after:auto;break-after:auto}
   .pc-h{display:flex;gap:20px;align-items:flex-start;border-bottom:3px solid #1F6F5C;padding-bottom:12px;margin-bottom:14px}
   .pc-h img{width:2.2in;height:2.2in;object-fit:cover;border-radius:10px;flex:none}
@@ -323,7 +325,7 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
   const sideOf = it => it.bar ? "Bar" : "Kitchen";
   function sections(){
     const order = BOOK.sections || [], g = {};
-    BOOK.items.forEach(it => { (g[it.section] = g[it.section] || []).push(it); });
+    BOOK.items.filter(it => !it.hidden).forEach(it => { (g[it.section] = g[it.section] || []).push(it); });
     return Object.keys(g).sort((a, b) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999)).map(k => ({ name: k, items: g[k].sort((a, b) => a.order - b.order), bar: g[k].filter(x => x.bar).length * 2 > g[k].length }));
   }
   function cardGrid(list){
@@ -338,10 +340,8 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
     const cover = ev ? h("article", { class:"pcard pcover" }, h("p", { class:"pcv-k", text:"Event sheet" }), h("h1", { text: ev.title }),
       h("p", { class:"pcv-w", text: [ev.dayLabel, ev.time ? t12(ev.time) : "", g ? g + " guests" : "", ev.where ? "@ " + ev.where : ""].filter(Boolean).join("  |  ") }),
       ev.desc ? h("p", { class:"pcv-n", text: ev.desc }) : null,
-      h("div", { class:"pc-b" },
-        h("section", null, h("h2", { text:"Menu" }), h("ul", null, (ev.menu || []).map(x => h("li", null, h("b", { text: x.perGuest && !g ? x.qty + "/guest" : String(x.count) }), " " + x.name)))),
-        h("section", null, h("h2", { text:"What we need" }), (ev.needs || []).length ? h("ul", null, ev.needs.map(x => h("li", null, h("b", { text: x.amount }), " " + x.name))) : h("p", { text:"No amounts yet." }))),
-      h("footer", { text: "Recipe cards follow.  |  " + (BOOK.name || "Kitchen book") + "  |  printed " + new Date().toLocaleDateString() })) : null;
+      h("h2", { class:"pcv-h", text:"Menu" }), h("ol", { class:"pcv-menu" }, (ev.menu || []).map(x => h("li", null, x.name, h("b", { text: x.perGuest && !g ? x.qty + " per guest" : String(x.count) })))),
+      h("footer", { text: "Recipe cards follow in this order.  |  " + (BOOK.name || "Kitchen book") + "  |  printed " + new Date().toLocaleDateString() })) : null;
     area.replaceChildren(...(cover ? [cover] : []), ...list.map(it => { const c = it.card || {}, url = PH.get(it.id), total = (c.prepMin || 0) + (c.cookMin || 0);
       const facts = [it.section, c.station, c.prepMin ? "Prep " + mins(c.prepMin) : "", c.cookMin ? (it.bar ? "Build " : "Cook ") + mins(c.cookMin) : "", total ? "Total " + mins(total) : "", c.yieldText ? "Makes " + c.yieldText : ""].filter(Boolean);
       return h("article", { class:"pcard" },
@@ -764,7 +764,7 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
       needPhotos([it]); return;
     }
     if (Q){
-      const q = Q.toLowerCase(), hits = BOOK.items.filter(it => (it.name + " " + it.section + " " + it.ings.map(x => x.name).join(" ")).toLowerCase().includes(q));
+      const q = Q.toLowerCase(), hits = BOOK.items.filter(it => !it.hidden && (it.name + " " + it.section + " " + it.ings.map(x => x.name).join(" ")).toLowerCase().includes(q));
       m.replaceChildren(h("div", { class:"crumbs" }, h("h2", { text: hits.length + (hits.length === 1 ? " match" : " matches") })), hits.length ? cardGrid(hits) : h("div", { class:"empty", text:"Nothing matches \u201c" + Q + "\u201d." }), status());
       needPhotos(hits); return;
     }

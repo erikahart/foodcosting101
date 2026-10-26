@@ -732,7 +732,7 @@ details.ai-fold[open] summary{padding:12px 0}
   .pcv-k{margin:0;font-weight:700;font-size:10pt;letter-spacing:.08em;text-transform:uppercase;color:#555}
   .pcv-w{margin:0 0 10pt;font-weight:700;font-size:13pt}
   .pcv-n{border:1.5pt solid #000;border-radius:4pt;padding:6pt 9pt;margin:0 0 12pt}
-  .pcv-cols{display:grid;grid-template-columns:1fr 1fr;gap:18pt}
+  .pcv-menu{font-size:14pt} .pcv-menu td{padding:6pt 4pt !important} .pcv-i{width:0.35in;color:#555} .pc-cover .pcv-menu .pcv-c{width:1.2in;text-align:right}
   .pc-cover h2{font-size:15pt;margin:0 0 4pt;border-bottom:2pt solid #000;padding-bottom:2pt}
   .pc-cover table{width:100%;border-collapse:collapse} .pc-cover td{padding:3.5pt 4pt;border-bottom:0.5pt solid #bbb;vertical-align:top}
   .pcv-c{width:1in;font-weight:800;white-space:nowrap} .pcv-x{color:#777;font-size:9pt}
@@ -1414,6 +1414,9 @@ tr.have-row td{background:var(--field)} tr.have-row td b{color:var(--muted)}
 .ev-ph-add .plus{font-size:1.8rem;line-height:1;font-weight:700}
 .ev-thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .ev-thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1px solid var(--line)}
+.q-item.q-item-o{grid-template-columns:auto minmax(0,1fr) 84px 140px 44px}
+.q-ord{display:flex;flex-direction:column;gap:2px} .q-ord .btn{min-height:24px;height:24px;padding:0 8px;font-size:.85rem;line-height:1}
+@media (max-width:900px){ .q-item.q-item-o{grid-template-columns:auto 1fr 70px 120px 40px} }
 </style>
 </head>
 <body>
@@ -1864,7 +1867,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 26, 2026 \u00b7 Event recipe printing";
+const APP_VERSION = "Oct 26, 2026 \u00b7 Event cards in order";
 function applyBrand(){
   const av = $("appver"); if (av) av.textContent = "Version: " + APP_VERSION;
   const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
@@ -3563,11 +3566,18 @@ function bookSnapshot(r){
     notes: Object.fromEntries(Object.entries(r.dayNotes).filter(([d]) => d >= from && d <= to)) };
   calData(r);
   const evTo = addDays(today, 370);   // a year of events and specials for "By month" on the tablet
-  const tabMenu = mm => mm.map(x => ({ name: x.name, count: x.count, perGuest: x.perGuest, qty: x.qty, itemId: x.itemId && items.some(i => i.id === x.itemId) ? x.itemId : null }));
+  const ideaCards = new Map();
+  const tabMenu = mm => mm.map(x => { let id = x.itemId && items.some(i => i.id === x.itemId) ? x.itemId : null;
+    if (!id && x.ideaId){ const idea = (r.ideas || []).find(i => i.id === x.ideaId); if (idea){ const it = ideaAsItem(r, idea), c = it.card || {}; id = it.id;
+      if (!ideaCards.has(id)) ideaCards.set(id, { id, name: it.name, section: it.section, desc: it.desc, bar: isDrink(it), hidden: true, ings: ingredientRows(it, r).map(y => ({ qty: y.qty, name: y.name })),
+        card: { prepMin: n(c.prepMin) || 0, cookMin: n(c.cookMin) || 0, station: c.station || "", yieldText: n(it.portions) > 1 ? it.portions + " portions" : "", steps: c.steps || [], plating: c.plating || "", notes: c.notes || "", allergens: c.allergens || [] },
+        photo: PHOTOS.has(id), ai: true, order: 9999 }); } }
+    return { name: x.name, count: x.count, perGuest: x.perGuest, qty: x.qty, itemId: id }; });
   const evs = r.events.filter(e => e.date >= from && e.date <= evTo).map(e => ({ date: e.date, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where || "", guests: e.guests || null, desc: e.notes || "", menu: tabMenu(eventMenu(r, e)), needs: eventNeeds(r, e), photos: (e.photos || []).slice(0, 8) }));
   const plans = {}; Object.entries(r.bookingPlans || {}).forEach(([k, p]) => { if (!p.date || (p.date >= from && p.date <= evTo)) plans[k] = { guests: p.guests || null, notes: p.notes || "", menu: tabMenu(eventMenu(r, p)), needs: eventNeeds(r, p), photos: (p.photos || []).slice(0, 8) }; });
   const specials = r.specials.filter(sp => (!sp.end || sp.end >= from) && (!sp.start || sp.start <= evTo)).map(sp => ({ title: sp.title, kind: sp.kind, price: sp.price || null, desc: sp.desc || "", start: sp.start || null, end: sp.end || null, days: sp.days || null, itemId: sp.itemId || null }));
   const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, startAt: l.startAt || null, items: l.items }));
+  ideaCards.forEach(c => items.push(c));
   return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, plans, specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
     brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Kitchen book" } };
 }
@@ -4405,20 +4415,29 @@ function eventEntries(r, e){
   return reqEntries(r, [{ title: e.title, entries: ents }]);
 }
 // A one-page event sheet for the kitchen and bar: when, who, the menu with counts, what we need, notes. No prices.
+function ideaAsItem(r, idea){
+  const dr = idea.draft || {};
+  return { id: "idea_" + idea.id, name: dr.name || "Idea", section: dr.section || (dr.kind === "food" ? "Specials" : "Cocktails"), desc: dr.desc || "", drinkType: dr.kind === "food" ? "food" : (dr.kind || "drink"),
+    lines: (dr.lines || []).map(l => Object.assign({}, l, { label: l.label || (dr.est && dr.est[l.s] && dr.est[l.s].name) || l.label })), portions: dr.servings || 1, card: dr.card || {} };
+}
+// Each menu entry's card, in the event menu's order (menu items and Test kitchen ideas).
+function eventCards(r, e){
+  const seen = new Set();
+  return eventMenu(r, e).map(x => x.itemId ? r.items[x.itemId] : x.ideaId ? ideaAsItem(r, (r.ideas || []).find(i => i.id === x.ideaId)) : null)
+    .filter(it => it && !seen.has(it.id) && seen.add(it.id));
+}
 function eventSheet(r, e){
-  const mm = eventMenu(r, e), needs = eventNeeds(r, e), g = n(e.guests);
+  const mm = eventMenu(r, e), g = n(e.guests);
   const when = [e.date ? new Date(e.date + "T12:00:00").toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" }) : "", e.start || e.time ? t12(e.start || e.time) : "", g ? g + " guests" : "", e.where ? "@ " + e.where : ""].filter(Boolean).join("  |  ");
   return el("div",{class:"pc-cover"},
     el("p",{class:"pcv-k", text:"Event sheet"}), el("h1",{text: e.title || "Event"}), el("p",{class:"pcv-w", text: when}),
     e.notes ? el("div",{class:"pcv-n"}, el("b",{text:"Notes: "}), e.notes) : null,
-    el("div",{class:"pcv-cols"},
-      el("div",null, el("h2",{text:"Menu"}), el("table",null, el("tbody",null, mm.map(x => el("tr",null, el("td",{class:"pcv-c", text: x.perGuest && !g ? x.qty + "/guest" : String(x.count)}), el("td",null, x.name, x.itemId ? null : el("span",{class:"pcv-x", text:"  (no recipe card)"}))))))),
-      el("div",null, el("h2",{text:"What we need"}), needs.length ? el("table",null, el("tbody",null, needs.map(x => el("tr",null, el("td",{class:"pcv-c", text:x.amount}), el("td",null, x.name)))))
-        : el("p",{text:"Add recipes to the menu items to see amounts."}))),
-    el("p",{class:"pcv-f", text:"Recipe cards follow, one per menu item.  |  Printed " + new Date().toLocaleDateString()}));
+    el("h2",{text:"Menu"}), el("table",{class:"pcv-menu"}, el("tbody",null, mm.map((x, i) => el("tr",null, el("td",{class:"pcv-i", text: (i + 1) + "."}), el("td",null, x.name),
+      el("td",{class:"pcv-c", text: x.perGuest && !g ? x.qty + " per guest" : x.count + (x.count === 1 ? "" : "")}))))),
+    el("p",{class:"pcv-f", text:"Recipe cards follow in this order.  |  Printed " + new Date().toLocaleDateString()}));
 }
 function eventPrint(r, e){
-  const seen = new Set(), items = eventMenu(r, e).map(x => x.itemId && r.items[x.itemId]).filter(it => it && !seen.has(it.id) && seen.add(it.id));
+  const items = eventCards(r, e);
   if (!eventMenu(r, e).length) return toast("Add a menu to this event first.");
   openPrintCards(items, e.title, { cover: () => eventSheet(r, e) });
 }
@@ -4457,7 +4476,10 @@ function menuPicker(r, holder){
     box.replaceChildren(...(holder.menu.length ? holder.menu.map((x, i) => {
       const qty = el("input",{class:"inp", type:"number", min:"0", step:"0.5", value: x.qty}); qty.oninput = () => x.qty = n(qty.value);
       const per = el("select",{class:"inp"}, el("option",{value:"guest", text:"per guest"}), el("option",{value:"total", text:"total"})); per.value = x.per || "guest"; per.onchange = () => x.per = per.value;
-      return el("div",{class:"q-item"}, el("b",{text:x.name}), qty, per, el("button",{class:"btn quiet lab-x", type:"button", text:"\u00d7", "aria-label":"Remove " + x.name, onclick:() => { holder.menu.splice(i, 1); draw(); }})); })
+      const mv = d => { const j = i + d; if (j < 0 || j >= holder.menu.length) return; [holder.menu[i], holder.menu[j]] = [holder.menu[j], holder.menu[i]]; draw(); };
+      return el("div",{class:"q-item q-item-o"}, el("div",{class:"q-ord"}, el("button",{class:"btn quiet", type:"button", text:"\u2191", "aria-label":"Move " + x.name + " up", disabled: i === 0 ? "" : null, onclick:() => mv(-1)}),
+          el("button",{class:"btn quiet", type:"button", text:"\u2193", "aria-label":"Move " + x.name + " down", disabled: i === holder.menu.length - 1 ? "" : null, onclick:() => mv(1)})),
+        el("b",{text:x.name}), qty, per, el("button",{class:"btn quiet lab-x", type:"button", text:"\u00d7", "aria-label":"Remove " + x.name, onclick:() => { holder.menu.splice(i, 1); draw(); }})); })
       : [el("p",{class:"mini", style:"margin:0", text:"No menu yet."})]));
   };
   quoteSel.onchange = () => { holder.quoteId = quoteSel.value || null; draw(); };
@@ -4813,7 +4835,10 @@ function quoteEditor(m, r, q){
       const per = el("select",{class:"inp"}, el("option",{value:"guest", text:"per guest"}), el("option",{value:"total", text:"total"})); per.value = e.per || "guest"; per.onchange = () => { e.per = per.value; save(); drawSum(); sv.textContent = servingsTxt(); };
       const servingsTxt = () => { const c2 = quoteCalc(q, r).rows[i]; return Math.round(c2.servings * 10) / 10 + " servings, " + $$(c2.plate) + " each = " + $$(c2.cost); };
       const sv = el("span",{class:"mini", text: servingsTxt()});
-      return el("div",{class:"q-item"}, el("div",null, el("b",{text:x.name}), e.type === "idea" ? el("span",{class:"pill", style:"margin-left:6px", text:"Test kitchen"}) : null, el("div",null, sv)),
+      const mv = d => { const j = i + d; if (j < 0 || j >= q.items.length) return; [q.items[i], q.items[j]] = [q.items[j], q.items[i]]; save(); drawItems(); };
+      return el("div",{class:"q-item q-item-o"}, el("div",{class:"q-ord"}, el("button",{class:"btn quiet", type:"button", text:"\u2191", "aria-label":"Move up", disabled: i === 0 ? "" : null, onclick:() => mv(-1)}),
+          el("button",{class:"btn quiet", type:"button", text:"\u2193", "aria-label":"Move down", disabled: i === q.items.length - 1 ? "" : null, onclick:() => mv(1)})),
+        el("div",null, el("b",{text:x.name}), e.type === "idea" ? el("span",{class:"pill", style:"margin-left:6px", text:"Test kitchen"}) : null, el("div",null, sv)),
         qty, per, el("button",{class:"btn quiet lab-x", type:"button", text:"\u00d7", "aria-label":"Remove " + x.name, onclick:() => { q.items.splice(i, 1); save(); drawItems(); drawSum(); }})); })
       : [el("p",{class:"mini", text:"Nothing added yet. Pick from your menu or Test kitchen ideas below."})]));
   };
