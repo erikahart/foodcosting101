@@ -1395,6 +1395,14 @@ tr.have-row td{background:var(--field)} tr.have-row td b{color:var(--muted)}
 .ev-menu{margin-top:6px;font-size:.88rem;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
 .ev-menu-i{background:var(--field);border:1px solid var(--line);border-radius:999px;padding:1px 9px}
 .menu-pick{display:grid;gap:8px;margin-bottom:8px}
+.ev-photos{display:flex;gap:8px;flex-wrap:wrap}
+.ev-ph{position:relative;width:96px;height:96px;border-radius:10px;overflow:hidden;background:var(--field);display:grid;place-items:center}
+.ev-ph img{width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+.ev-ph-x{position:absolute;top:4px;right:4px;width:26px;height:26px;border-radius:50%;border:0;background:rgba(20,20,18,.75);color:#fff;font-weight:800;cursor:pointer}
+.ev-ph-add{width:96px;height:96px;border-radius:10px;border:2px dashed var(--line-2);background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;cursor:pointer;color:var(--ink)}
+.ev-ph-add .plus{font-size:1.8rem;line-height:1;font-weight:700}
+.ev-thumbs{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.ev-thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;cursor:zoom-in;border:1px solid var(--line)}
 </style>
 </head>
 <body>
@@ -1845,7 +1853,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 26, 2026 \u00b7 Print drinks and food";
+const APP_VERSION = "Oct 26, 2026 \u00b7 Event photos";
 function applyBrand(){
   const av = $("appver"); if (av) av.textContent = "Version: " + APP_VERSION;
   const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
@@ -2479,7 +2487,7 @@ async function loadPhotos(force){
   PHOTOS_LOADING = false;
   if (error){ PHOTOS_READY = !/function|PGRST202|42883|does not exist|schema cache/i.test((error.code || "") + " " + (error.message || "")); PHOTOS_FOR = ACCT.id; if (ST && ST.page === "book") render(); return; }
   PHOTOS.clear(); (data || []).forEach(p => PHOTOS.set(p.item_id, p.data)); PHOTOS_FOR = ACCT.id; PHOTOS_READY = true;
-  if (ST && (ST.page === "book" || ST.page === "lab")) render();
+  if (ST && (ST.page === "book" || ST.page === "lab" || ST.page === "events")) render();
 }
 async function photoDataUrl(file){
   const img = await imageFromBlob(file);
@@ -3544,8 +3552,8 @@ function bookSnapshot(r){
   calData(r);
   const evTo = addDays(today, 370);   // a year of events and specials for "By month" on the tablet
   const tabMenu = mm => mm.map(x => ({ name: x.name, count: x.count, perGuest: x.perGuest, qty: x.qty, itemId: x.itemId && items.some(i => i.id === x.itemId) ? x.itemId : null }));
-  const evs = r.events.filter(e => e.date >= from && e.date <= evTo).map(e => ({ date: e.date, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where || "", guests: e.guests || null, desc: e.notes || "", menu: tabMenu(eventMenu(r, e)), needs: eventNeeds(r, e) }));
-  const plans = {}; Object.entries(r.bookingPlans || {}).forEach(([k, p]) => { if (!p.date || (p.date >= from && p.date <= evTo)) plans[k] = { guests: p.guests || null, notes: p.notes || "", menu: tabMenu(eventMenu(r, p)), needs: eventNeeds(r, p) }; });
+  const evs = r.events.filter(e => e.date >= from && e.date <= evTo).map(e => ({ date: e.date, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where || "", guests: e.guests || null, desc: e.notes || "", menu: tabMenu(eventMenu(r, e)), needs: eventNeeds(r, e), photos: (e.photos || []).slice(0, 8) }));
+  const plans = {}; Object.entries(r.bookingPlans || {}).forEach(([k, p]) => { if (!p.date || (p.date >= from && p.date <= evTo)) plans[k] = { guests: p.guests || null, notes: p.notes || "", menu: tabMenu(eventMenu(r, p)), needs: eventNeeds(r, p), photos: (p.photos || []).slice(0, 8) }; });
   const specials = r.specials.filter(sp => (!sp.end || sp.end >= from) && (!sp.start || sp.start <= evTo)).map(sp => ({ title: sp.title, kind: sp.kind, price: sp.price || null, desc: sp.desc || "", start: sp.start || null, end: sp.end || null, days: sp.days || null, itemId: sp.itemId || null }));
   const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, startAt: l.startAt || null, items: l.items }));
   return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, plans, specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
@@ -4302,8 +4310,8 @@ const specialOn = (sp, d) => (!sp.start || d >= sp.start) && (!sp.end || d <= sp
 function dayItems(r, d){
   const out = [];
   EVV.feed.events.filter(e => e.date <= d && e.endDate >= d).forEach(e => { const key = bookingKey(e), plan = (r.bookingPlans || {})[key];
-    out.push({ kind:"feed", key, date: e.date, time: e.date === d ? e.time : null, endTime: e.endTime, title: e.title, where: e.location, desc: [e.desc, plan && plan.notes].filter(Boolean).join("\n"), guests: plan && plan.guests, plan, menu: plan ? eventMenu(r, plan) : [], quoteId: plan && plan.quoteId, color: e.color || "#3D6E9E", src: e.feedName }); });
-  r.events.filter(e => e.date === d).forEach(e => out.push({ kind:"event", ref:e, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where, desc: e.notes, guests: e.guests, menu: eventMenu(r, e), quoteId: e.quoteId, color:"#1F6F5C", src:"Added here" }));
+    out.push({ kind:"feed", key, date: e.date, time: e.date === d ? e.time : null, endTime: e.endTime, title: e.title, where: e.location, desc: [e.desc, plan && plan.notes].filter(Boolean).join("\n"), guests: plan && plan.guests, plan, menu: plan ? eventMenu(r, plan) : [], quoteId: plan && plan.quoteId, photos: (plan && plan.photos) || [], color: e.color || "#3D6E9E", src: e.feedName }); });
+  r.events.filter(e => e.date === d).forEach(e => out.push({ kind:"event", ref:e, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where, desc: e.notes, guests: e.guests, menu: eventMenu(r, e), quoteId: e.quoteId, photos: e.photos || [], color:"#1F6F5C", src:"Added here" }));
   r.specials.filter(sp => specialOn(sp, d)).forEach(sp => out.push({ kind:"special", ref:sp, long: isLongSpecial(sp), title: sp.title, desc: sp.desc, price: sp.price, color:"#D99A1E", src: (sp.kind === "drink" ? "Drink special" : "Food special") + (isLongSpecial(sp) ? ", " + (sp.start ? nice(sp.start) : "") + (sp.end ? " to " + nice(sp.end) : " on") : "") }));
   if ((r.dayNotes || {})[d]) out.push({ kind:"note", title: r.dayNotes[d], color:"#8A8577", src:"Schedule note" });
   return out.sort((a, b) => ({ special:0, note:1 }[a.kind] ?? 2) - ({ special:0, note:1 }[b.kind] ?? 2) || (a.time || "00").localeCompare(b.time || "00"));
@@ -4326,7 +4334,7 @@ function events(m){
   EVV.month = EVV.month || today.slice(0, 7) + "-01"; EVV.day = EVV.day || today;
   const first = EVV.month, firstDt = new Date(first + "T12:00:00"), gridStart = addDays(first, -((firstDt.getDay() + 6) % 7));
   const days = [...Array(42)].map((_, i) => addDays(gridStart, i)), monthKey = first.slice(0, 7);
-  loadFeedEvents(r, days[0], days[41]);
+  loadFeedEvents(r, days[0], days[41]); loadPhotos();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Events"}), el("p",{class:"lead", text:"Bookings from your calendars, events and specials. Staff see today's on the tablet."})),
     el("div",{class:"row"}, evTabs(), edit ? el("button",{class:"btn quiet", type:"button", text:"+ Special", onclick:() => editSpecial(r)}) : null, edit ? el("button",{class:"btn primary", type:"button", text:"+ Event", onclick:() => editEvent(r, null, EVV.day)}) : null,
       boss ? el("button",{class:"btn quiet", type:"button", text:"Connected calendars" + (r.calFeeds.length ? " (" + r.calFeeds.length + ")" : ""), onclick:() => openCalFeeds(r)}) : null)));
@@ -4358,6 +4366,7 @@ function events(m){
       el("div",{class:"cal-when", text: it.kind === "special" ? "\u2605 Special" : it.kind === "note" ? "Note" : it.time ? t12(it.time) + (it.endTime ? " \u2013 " + t12(it.endTime) : "") : "All day"}),
       el("div",{class:"cal-what"}, el("b",{text: it.title}), it.price ? el("span",{class:"pill", style:"margin-left:8px", text:$$(n(it.price))}) : null, it.guests ? el("span",{class:"pill", style:"margin-left:8px", text: it.guests + " guests"}) : null,
         it.where ? el("div",{class:"mini", text:"@ " + it.where}) : null, it.desc ? el("div",{class:"cal-desc", text: it.desc}) : null,
+        (it.photos || []).length ? el("div",{class:"ev-thumbs"}, it.photos.map(pid => PHOTOS.get(pid) ? el("img",{src:PHOTOS.get(pid), alt:"Photo for " + it.title, onclick:() => photoViewer(PHOTOS.get(pid), it.title)}) : null)) : null,
         (it.menu || []).length ? el("div",{class:"ev-menu"}, el("b",{text:"Menu: "}), it.menu.map(x => el("span",{class:"ev-menu-i"}, (x.perGuest && !it.guests ? x.qty + " per guest " : x.count + " \u00d7 ") + x.name))) : null,
         (it.menu || []).length || (it.quoteId && (r.quotes || []).some(q => q.id === it.quoteId)) ? el("div",{class:"row", style:"gap:12px;margin-top:6px"},
           (it.menu || []).length ? el("button",{class:"btn quiet sm", type:"button", text:"Order list", title:"Ingredients and what to order for this menu", onclick:() => eventOrder(r, it.kind === "event" ? it.ref : Object.assign({ title: it.title, date: it.date }, it.plan))}) : null,
@@ -4427,12 +4436,40 @@ function menuPicker(r, holder){
   return el("div",{class:"menu-pick"}, fld("Event quote", quoteSel), box, pick);
 }
 // Plan a booking from a connected calendar: menu, quote and staff notes, kept in the app (Google stays as it is).
+
+/* ---------- Photos on events and booking plans (cake designs, room setup, flyers) ---------- */
+function photoViewer(url, title){
+  openDlg(title || "Photo", [el("img",{src:url, alt:title || "", style:"width:100%;max-height:75vh;object-fit:contain;border-radius:12px;background:var(--field)"})], []);
+}
+// holder.photos is a list of photo ids; photos save as soon as they're picked.
+function eventPhotoBox(holder, title){
+  holder.photos = holder.photos || [];
+  const box = el("div",{class:"ev-photos"});
+  const file = el("input",{type:"file", accept:"image/*", multiple:"", style:"display:none"});
+  const draw = () => box.replaceChildren(...holder.photos.map(pid => { const u = PHOTOS.get(pid);
+      return el("div",{class:"ev-ph"}, u ? el("img",{src:u, alt:"", onclick:() => photoViewer(u, title)}) : el("span",{class:"mini", text:"Loading\u2026"}),
+        el("button",{class:"ev-ph-x", type:"button", "aria-label":"Remove photo", text:"\u00d7", onclick: async () => { if (!confirm("Remove this photo?")) return;
+          holder.photos = holder.photos.filter(x => x !== pid); PHOTOS.delete(pid); draw(); try { await sb.rpc("delete_photo", { p_account: ACCT.id, p_item: pid }); } catch(e){} }})); }),
+    el("button",{class:"ev-ph-add", type:"button", onclick:() => file.click()}, el("span",{class:"plus", text:"+"}), el("span",{class:"mini", text:"Add photos"})));
+  file.onchange = async () => {
+    for (const f of [...file.files].slice(0, 8)){
+      try { const url = await photoDataUrl(f), pid = "evph_" + uid("p").replace(/[^a-z0-9]/gi, "");
+        const { error } = await sb.rpc("save_photo", { p_account: ACCT.id, p_item: pid, p_data: url });
+        if (error){ toast(/function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "Photos need a one-time setup: run supabase/002_recipe_photos.sql in Supabase." : plainErr(error)); break; }
+        PHOTOS.set(pid, url); holder.photos.push(pid); draw();
+      } catch(e){ toast((e && e.message) || "Couldn't add that photo."); }
+    }
+    file.value = "";
+  };
+  draw();
+  return el("div",null, box, file, el("p",{class:"mini", style:"margin:4px 0 0", text:"Cake design, room setup, a flyer or the customer's picture. Staff see them on the tablet."}));
+}
 function editBookingPlan(r, it){
   r.bookingPlans = r.bookingPlans || {};
   const key = it.key, cur = JSON.parse(JSON.stringify(r.bookingPlans[key] || { menu: [], quoteId: null, notes: "", guests: null }));
   const guests = el("input",{class:"inp", type:"number", min:"0", value: cur.guests || ""}), notes = el("textarea",{class:"inp", rows:"3", placeholder:"What the staff should know"}); notes.value = cur.notes || "";
   openDlg("Plan: " + it.title, [el("p",{class:"lead", text:"Add the menu and notes for this booking. It stays as it is in your Google calendar."}),
-    el("div",{class:"g2"}, fld("Guests", guests), el("span")), el("h3",{style:"margin:6px 0", text:"Menu"}), menuPicker(r, cur), fld("Notes for staff", notes)],
+    el("div",{class:"g2"}, fld("Guests", guests), el("span")), el("h3",{style:"margin:6px 0", text:"Menu"}), menuPicker(r, cur), fld("Notes for staff", notes), el("h3",{style:"margin:10px 0 6px", text:"Photos"}), eventPhotoBox(cur, it.title)],
     [r.bookingPlans[key] ? el("button",{class:"btn danger", text:"Remove plan", onclick:() => { delete r.bookingPlans[key]; save(); dlg.close(); }}) : el("span"),
      el("button",{class:"btn primary", text:"Save", onclick:() => { cur.guests = n(guests.value) || null; cur.notes = notes.value.trim(); cur.date = it.date; r.bookingPlans[key] = cur; save(); dlg.close(); }})]);
 }
@@ -4441,12 +4478,12 @@ function editEvent(r, ev, day){
   const f = { title: el("input",{class:"inp", value:e.title, placeholder:"e.g. Smith birthday party, Live music, Closing at 2"}), date: el("input",{class:"inp", type:"date", value:e.date}),
     start: el("input",{class:"inp", type:"time", value:e.start || ""}), end: el("input",{class:"inp", type:"time", value:e.end || ""}), where: el("input",{class:"inp", value:e.where || "", placeholder:"e.g. Back room"}),
     guests: el("input",{class:"inp", type:"number", min:"0", value:e.guests || ""}), notes: el("textarea",{class:"inp", rows:"3", placeholder:"What the staff should know"}) }; f.notes.value = e.notes || "";
-  const mh = { menu: JSON.parse(JSON.stringify(e.menu || [])), quoteId: e.quoteId || null };
+  const mh = { menu: JSON.parse(JSON.stringify(e.menu || [])), quoteId: e.quoteId || null }, ph = { photos: (e.photos || []).slice() };
   openDlg(ev ? "Edit event" : "New event", [fld("What", f.title), el("div",{class:"g3"}, fld("Day", f.date), fld("Starts", f.start), fld("Ends", f.end)), el("div",{class:"g2"}, fld("Where", f.where), fld("Guests", f.guests)),
-    el("h3",{style:"margin:6px 0", text:"Menu"}), menuPicker(r, mh), fld("Notes for staff", f.notes)],
+    el("h3",{style:"margin:6px 0", text:"Menu"}), menuPicker(r, mh), fld("Notes for staff", f.notes), el("h3",{style:"margin:10px 0 6px", text:"Photos"}), eventPhotoBox(ph, e.title || "Event")],
     [ev ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (!confirm("Delete this event?")) return; r.events = r.events.filter(x => x.id !== e.id); save(); dlg.close(); }}) : el("span"),
      el("button",{class:"btn primary", text:"Save", onclick:() => { if (!f.title.value.trim()) return f.title.focus();
-       Object.assign(e, { title: f.title.value.trim(), date: f.date.value || e.date, start: f.start.value || null, end: f.end.value || null, where: f.where.value.trim(), guests: n(f.guests.value) || null, notes: f.notes.value.trim(), menu: mh.menu.filter(x => n(x.qty) > 0), quoteId: mh.quoteId || null });
+       Object.assign(e, { title: f.title.value.trim(), date: f.date.value || e.date, start: f.start.value || null, end: f.end.value || null, where: f.where.value.trim(), guests: n(f.guests.value) || null, notes: f.notes.value.trim(), menu: mh.menu.filter(x => n(x.qty) > 0), quoteId: mh.quoteId || null, photos: ph.photos });
        r.events = r.events.filter(x => x.id !== e.id).concat([e]); EVV.day = e.date; save(); dlg.close(); }})]);
 }
 function editSpecial(r, sp, day){
