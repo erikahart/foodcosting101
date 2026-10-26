@@ -255,6 +255,11 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
 .ph-over{position:fixed;top:0;right:0;bottom:0;left:0;background:rgba(15,15,13,.92);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px}
 .ph-over img{max-width:100%;max-height:82vh;object-fit:contain;border-radius:12px}
 .ev-print-btn{margin:10px 10px 0 0;min-height:48px}
+.ev-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.ev-top .ev-modes{margin:0}
+.ev-add{min-height:52px;padding:0 22px;font-size:1.05rem}
+.tev-f{display:flex;flex-direction:column;gap:4px;font-weight:700;font-size:.95rem;margin-top:8px;flex:1}
+.flash{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--char, #24221F);color:#fff;padding:14px 20px;border-radius:14px;font-weight:700;z-index:60;box-shadow:0 10px 30px rgba(0,0,0,.25)}
 .ev-needs-btn{margin-top:10px;min-height:48px}
 .ev-needs{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px 18px;font-size:1.02rem}
 .ev-needs li{border-bottom:1px dashed var(--line);padding:6px 0}
@@ -589,6 +594,8 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
     (BOOK.specials || []).filter(sp => specialOn(sp, d)).forEach(sp => out.push({ kind:"special", sp, title: sp.title, desc: sp.desc, price: sp.price, itemId: sp.itemId, color:"#D99A1E" }));
     FEED.events.filter(e => e.date <= d && e.endDate >= d).forEach(e => { const p = (BOOK.plans || {})[e.date + "|" + (e.time || "") + "|" + e.title];
       out.push({ kind:"event", dayLabel, time: e.date === d ? e.time : null, endTime: e.endTime, title: e.title, where: e.location, desc: [e.desc, p && p.notes].filter(Boolean).join("\n"), guests: p && p.guests, menu: p ? p.menu : null, needs: p ? p.needs : null, photos: p ? p.photos : null, color: e.color || "#3D6E9E" }); });
+    TEVS.filter(x => x.day === d).forEach(x => out.push({ kind:"event", dayLabel, time: x.start_time, endTime: x.end_time, title: x.title, where: x.place, guests: x.guests,
+      desc: [x.notes, "Added on the tablet by " + x.made_by].filter(Boolean).join("\n"), color:"#6B4E9B" }));
     (BOOK.events || []).filter(e => e.date === d).forEach(e => out.push({ kind:"event", dayLabel, time: e.time, endTime: e.endTime, title: e.title, where: e.where, guests: e.guests, desc: e.desc, menu: e.menu, needs: e.needs, photos: e.photos, color:"#1F6F5C" }));
     const note = (S().notes || {})[d]; if (note) out.push({ kind:"note", title: note, color:"#8A8577" });
     return out.sort((a, b) => ({ special:0, note:1 }[a.kind] ?? 2) - ({ special:0, note:1 }[b.kind] ?? 2) || (a.time || "00").localeCompare(b.time || "00"));
@@ -621,12 +628,51 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
           return h("div", null, btn, list); })() : null,
         item ? h("button", { class:"back", type:"button", style:"margin-top:8px;min-height:44px", text:"Open the recipe card", onclick: () => go({ card: item.id }) }) : null));
   }
+  // Events added on this tablet that the app hasn't picked up yet.
+  let TEVS = [], TEVS_AT = 0;
+  function loadTabletEvents(force){
+    if (!sb || (!force && Date.now() - TEVS_AT < 60000)) return; TEVS_AT = Date.now();
+    sb.rpc("book_tablet_events", { p_token: token }).then(({ data, error }) => { if (error) return; TEVS = data || []; if (/^#(events|sched)/.test(location.hash) || !location.hash) render(); });
+  }
+  function addEventFlow(){
+    const today = localDay(), people = (S().people || []).map(p => p.name);
+    const wrap = h("div", { class:"pick", onclick: e => { if (e.target === wrap) wrap.remove(); } }), close = () => wrap.remove();
+    const f = { title: h("input", { class:"why-in", placeholder:"What is it? e.g. Johnson retirement party" }), day: h("input", { class:"why-in", type:"date", min: today, value: today }),
+      start: h("input", { class:"why-in", type:"time" }), end: h("input", { class:"why-in", type:"time" }), guests: h("input", { class:"why-in", type:"number", min:"1", inputmode:"numeric", placeholder:"How many?" }),
+      place: h("input", { class:"why-in", placeholder:"e.g. Back room" }), notes: h("textarea", { class:"why-in", rows:"3", placeholder:"Phone number, deposit, cake, anything the manager should know" }),
+      by: h("input", { class:"why-in", placeholder:"Your name", list:"tev-people" }) };
+    const err = h("div", { class:"miss" });
+    const lab = (txt, input) => h("label", { class:"tev-f" }, h("span", { text: txt }), input);
+    wrap.replaceChildren(h("div", { class:"req-panel" }, h("h3", { text:"Add an event" }),
+      lab("What", f.title), h("div", { class:"req-dates" }, lab("Day", f.day), lab("Starts", f.start), lab("Ends", f.end)),
+      h("div", { class:"req-dates" }, lab("Guests", f.guests), lab("Where", f.place)), lab("Notes", f.notes), lab("Added by", f.by),
+      h("datalist", { id:"tev-people" }, people.map(p => h("option", { value: p }))), err,
+      h("div", { class:"row", style:"margin-top:12px" },
+        h("button", { class:"go", type:"button", text:"Add event", onclick: async e => {
+          if (!f.title.value.trim()) { err.textContent = "Say what the event is."; return f.title.focus(); }
+          if (!f.day.value) { err.textContent = "Pick the day."; return f.day.focus(); }
+          if (!f.by.value.trim()) { err.textContent = "Add your name so the manager knows who to ask."; return f.by.focus(); }
+          e.currentTarget.disabled = true; err.textContent = "";
+          const { data, error } = await sb.rpc("book_add_event", { p_token: token, p_title: f.title.value.trim(), p_day: f.day.value, p_start: f.start.value || null, p_end: f.end.value || null,
+            p_guests: parseInt(f.guests.value, 10) || null, p_place: f.place.value.trim() || null, p_notes: f.notes.value.trim() || null, p_by: f.by.value.trim() });
+          if (error || !data || !data.ok){ e.currentTarget.disabled = false;
+            err.textContent = error && /function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "Adding events needs a one-time setup: ask the manager to run 014_tablet_events.sql in Supabase."
+              : data && data.reason === "day" ? "Pick a day within the next year." : data && data.reason === "cap" ? "Lots of events were added today. Ask a manager to add this one." : "Couldn't add the event. Check the Wi-Fi and try again."; return; }
+          close(); TEVS_AT = 0; loadTabletEvents(true); flash("Added. It's on the calendar, and the managers will see it in the app.");
+        } }),
+        h("button", { class:"back", type:"button", text:"Cancel", onclick: close }))));
+    document.body.append(wrap); setTimeout(() => f.title.focus(), 50);
+  }
+  function flash(msg){ const d = h("div", { class:"flash", role:"status", text: msg }); document.body.append(d); setTimeout(() => d.remove(), 4000); }
   function eventsView(m){
     const today = localDay();
+    loadTabletEvents();
+    const addBtn = h("button", { class:"go ev-add", type:"button", text:"+ Add event", onclick: addEventFlow });
     const modes = h("div", { class:"seg ev-modes", role:"group" }, [["upcoming","Coming up"],["month","By month"]].map(([k, l]) => h("button", { type:"button", "aria-pressed": String(EV_MODE === k), text:l, onclick: () => { EV_MODE = k; render(); } })));
-    if (EV_MODE === "month") return monthView(m, today, modes);
+    const top = h("div", { class:"ev-top" }, modes, addBtn);
+    if (EV_MODE === "month") return monthView(m, today, top);
     loadFeed();
-    const parts = [modes, h("div", { class:"day-h" }, h("h2", { text:"Today" }))];
+    const parts = [top, h("div", { class:"day-h" }, h("h2", { text:"Today" }))];
     const now = itemsOn(today);
     parts.push(now.length ? h("div", { class:"evlist" }, now.map(evRow)) : h("div", { class:"empty", text:"Nothing special on today." }));
     parts.push(h("h2", { class:"ev-h", text:"Coming up" }));
