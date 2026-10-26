@@ -4,14 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
-<title>PlateMargin</title>
+<title>The Fox Den Staff App</title>
+<link rel="icon" type="image/png" href="/favicon.png">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#24221F">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Kitchen">
-<link rel="apple-touch-icon" id="touchIcon" href="/icon-192.png">
+<meta name="apple-mobile-web-app-title" content="Fox Den">
+<link rel="apple-touch-icon" id="touchIcon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800;900&family=Atkinson+Hyperlegible+Next:wght@400;500;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
@@ -1435,7 +1436,7 @@ tr.have-row td{background:var(--field)} tr.have-row td b{color:var(--muted)}
 <div class="gate" id="gate"><div class="card" id="gate-card"><div class="spin"></div></div></div>
 <div class="app" id="app" hidden>
   <aside>
-    <div class="brandbox"><div class="logo" id="logo"></div><div><b id="prod-name">PlateMargin</b><span id="prod-tag">Menu profit, made simple</span></div></div>
+    <div class="brandbox"><div class="logo" id="logo"></div><div><b id="prod-name">The Fox Den Staff App</b><span id="prod-tag">Wellington, OH</span></div></div>
     <div class="acctrow">
       <label class="mini" for="acct">Location</label>
       <select class="acct" id="acct"></select>
@@ -1549,7 +1550,7 @@ const CFG = window.APP_CONFIG || {};
 let sb = null, USER = null, ACCT = null, ACCOUNTS = [], VERSION = 0;
 const Sync = { timer:null, saving:false, again:false, dirty:false };
 const LAST_ACCT = "fc101-last-account";
-const DEFAULT_BRAND = () => ({ product:"PlateMargin", tagline:"Menu profit, made simple", color:"#1F6F5C", logo:"", powered:false, domain:"" });
+const DEFAULT_BRAND = () => ({ product:"The Fox Den Staff App", tagline:"Wellington, OH", color:"#1F6F5C", logo:"", powered:false, domain:"" });
 function freshDemo(){ const r = demoRestaurant(); return { brand: DEFAULT_BRAND(), restaurants:{ [r.id]: r }, current: r.id, page:"home" }; }
 function freshEmpty(name){ const r = emptyRestaurant(name || "Main kitchen"); return { brand: DEFAULT_BRAND(), restaurants:{ [r.id]: r }, current: r.id, page:"home" }; }
 const fillIn = (node, ...k) => node.replaceChildren(...k.flat().filter(x => x != null && x !== false));
@@ -1597,7 +1598,7 @@ setInterval(async () => {
 const gate = () => { $("app").hidden = true; $("gate").hidden = false; return $("gate-card"); };
 function gateHeader(title, sub){
   const lg = el("div",{class:"logo"}, "PM");
-  return [el("div",{class:"brandbox"}, lg, el("div",null, el("b",{text:"PlateMargin"}), el("span",{text:"Menu profit, made simple"}))), el("h1",{text:title}), sub ? el("p",{class:"lead", text:sub}) : null];
+  return [el("div",{class:"brandbox"}, lg, el("div",null, el("b",{text:"The Fox Den Staff App"}), el("span",{text:"Wellington, OH"}))), el("h1",{text:title}), sub ? el("p",{class:"lead", text:sub}) : null];
 }
 function showAuth(mode = "signin", note){
   const card = gate(); const msg = el("div");
@@ -1879,7 +1880,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Install and tablet events";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Fox Den Staff App";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -1933,12 +1934,14 @@ async function syncTabletEvents(soon){
 }
 function applyBrand(){
   const av = $("appver"); if (av) av.textContent = "Version: " + APP_VERSION;
-  if (ST && ST.brand && ST.brand.logo !== setTouchIcon.last){ setTouchIcon.last = ST.brand.logo; setTouchIcon(); }
+
   const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
   document.documentElement.style.setProperty("--brand", c); document.documentElement.style.setProperty("--on-brand", onColor(c));
-  $("prod-name").textContent = b.product || "PlateMargin"; $("prod-tag").textContent = b.tagline || "";
-  document.title = b.product || "PlateMargin"; paintLogo($("logo"));
-  $("powered").textContent = b.powered ? "Powered by PlateMargin" : "";
+  // One-time rename: PlateMargin is now The Fox Den Staff App.
+  if (b.product === "PlateMargin" || !b.product){ b.product = "The Fox Den Staff App"; if (!b.tagline || b.tagline === "Menu profit, made simple") b.tagline = "Wellington, OH"; b.powered = false; if (ST) save(); }
+  $("prod-name").textContent = b.product; $("prod-tag").textContent = b.tagline || "";
+  document.title = b.product; paintLogo($("logo"));
+  $("powered").textContent = "";
   applyFont(b.font);
 }
 function applyFont(fam){
@@ -5962,7 +5965,7 @@ function approve(d){
 }
 function connectFlow(s){
   const r = R(), cust = el("input",{class:"inp", placeholder:"e.g. 067-123456"}), rep = el("input",{class:"inp", type:"email", placeholder:"rep@" + s.id + ".com"});
-  const letter = () => "Hi,\n\nPlease set up electronic invoices (EDI 810)" + (s.id === "sysco" ? ", price file (832)" : "") + " and order confirmations for my account " + (cust.value || "[customer #]") + " to be sent to our back-office software, " + (ST.brand.product || "PlateMargin") + ".\n\nTheir integration team can be reached at integrations@" + ((ST.brand.domain || "yourbrand.com").replace(/^app\./,"")) + ".\n\nThank you,\n" + r.name;
+  const letter = () => "Hi,\n\nPlease set up electronic invoices (EDI 810)" + (s.id === "sysco" ? ", price file (832)" : "") + " and order confirmations for my account " + (cust.value || "[customer #]") + " to be sent to our back-office software, " + (ST.brand.product || "our kitchen app") + ".\n\nTheir integration team can be reached at integrations@" + ((ST.brand.domain || "yourbrand.com").replace(/^app\./,"")) + ".\n\nThank you,\n" + r.name;
   const pre = el("textarea",{class:"inp", style:"min-height:170px"}); pre.value = letter(); cust.oninput = () => pre.value = letter();
   openDlg("Connect " + s.name, [
     el("p",{class:"lead", text:"Distributors turn feeds on through your sales rep. Send them this note; we handle the technical side with their integration team."}),
