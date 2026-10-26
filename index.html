@@ -1392,6 +1392,9 @@ tr.have-row td{background:var(--field)} tr.have-row td b{color:var(--muted)}
 .q-item{display:grid;grid-template-columns:minmax(0,1fr) 84px 140px 44px;gap:8px;align-items:center;border:1px solid var(--line);border-radius:10px;padding:8px 10px}
 .q-extra{display:grid;grid-template-columns:minmax(0,1fr) 120px 44px;gap:8px;align-items:center}
 @media (max-width:900px){ .quote-wrap{grid-template-columns:1fr} .quote-sum{position:static} .q-item{grid-template-columns:1fr 70px 130px 40px} }
+.ev-menu{margin-top:6px;font-size:.88rem;display:flex;flex-wrap:wrap;gap:4px 6px;align-items:center}
+.ev-menu-i{background:var(--field);border:1px solid var(--line);border-radius:999px;padding:1px 9px}
+.menu-pick{display:grid;gap:8px;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -1842,7 +1845,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 25, 2026 \u00b7 Event pricing";
+const APP_VERSION = "Oct 25, 2026 \u00b7 Event menus";
 function applyBrand(){
   const av = $("appver"); if (av) av.textContent = "Version: " + APP_VERSION;
   const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
@@ -3537,10 +3540,12 @@ function bookSnapshot(r){
     notes: Object.fromEntries(Object.entries(r.dayNotes).filter(([d]) => d >= from && d <= to)) };
   calData(r);
   const evTo = addDays(today, 370);   // a year of events and specials for "By month" on the tablet
-  const evs = r.events.filter(e => e.date >= from && e.date <= evTo).map(e => ({ date: e.date, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where || "", guests: e.guests || null, desc: e.notes || "" }));
+  const tabMenu = mm => mm.map(x => ({ name: x.name, count: x.count, perGuest: x.perGuest, qty: x.qty, itemId: x.itemId && items.some(i => i.id === x.itemId) ? x.itemId : null }));
+  const evs = r.events.filter(e => e.date >= from && e.date <= evTo).map(e => ({ date: e.date, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where || "", guests: e.guests || null, desc: e.notes || "", menu: tabMenu(eventMenu(r, e)) }));
+  const plans = {}; Object.entries(r.bookingPlans || {}).forEach(([k, p]) => { if (!p.date || (p.date >= from && p.date <= evTo)) plans[k] = { guests: p.guests || null, notes: p.notes || "", menu: tabMenu(eventMenu(r, p)) }; });
   const specials = r.specials.filter(sp => (!sp.end || sp.end >= from) && (!sp.start || sp.start <= evTo)).map(sp => ({ title: sp.title, kind: sp.kind, price: sp.price || null, desc: sp.desc || "", start: sp.start || null, end: sp.end || null, days: sp.days || null, itemId: sp.itemId || null }));
   const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, startAt: l.startAt || null, items: l.items }));
-  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
+  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, plans, specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
     brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Kitchen book" } };
 }
 let BOOK_T = null;
@@ -4293,8 +4298,9 @@ const specialOn = (sp, d) => (!sp.start || d >= sp.start) && (!sp.end || d <= sp
 // Everything on one day, in time order: connected calendars, events added here, specials and schedule notes.
 function dayItems(r, d){
   const out = [];
-  EVV.feed.events.filter(e => e.date <= d && e.endDate >= d).forEach(e => out.push({ kind:"feed", time: e.date === d ? e.time : null, endTime: e.endTime, title: e.title, where: e.location, desc: e.desc, color: e.color || "#3D6E9E", src: e.feedName }));
-  r.events.filter(e => e.date === d).forEach(e => out.push({ kind:"event", ref:e, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where, desc: e.notes, guests: e.guests, color:"#1F6F5C", src:"Added here" }));
+  EVV.feed.events.filter(e => e.date <= d && e.endDate >= d).forEach(e => { const key = bookingKey(e), plan = (r.bookingPlans || {})[key];
+    out.push({ kind:"feed", key, date: e.date, time: e.date === d ? e.time : null, endTime: e.endTime, title: e.title, where: e.location, desc: [e.desc, plan && plan.notes].filter(Boolean).join("\n"), guests: plan && plan.guests, plan, menu: plan ? eventMenu(r, plan) : [], quoteId: plan && plan.quoteId, color: e.color || "#3D6E9E", src: e.feedName }); });
+  r.events.filter(e => e.date === d).forEach(e => out.push({ kind:"event", ref:e, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where, desc: e.notes, guests: e.guests, menu: eventMenu(r, e), quoteId: e.quoteId, color:"#1F6F5C", src:"Added here" }));
   r.specials.filter(sp => specialOn(sp, d)).forEach(sp => out.push({ kind:"special", ref:sp, long: isLongSpecial(sp), title: sp.title, desc: sp.desc, price: sp.price, color:"#D99A1E", src: (sp.kind === "drink" ? "Drink special" : "Food special") + (isLongSpecial(sp) ? ", " + (sp.start ? nice(sp.start) : "") + (sp.end ? " to " + nice(sp.end) : " on") : "") }));
   if ((r.dayNotes || {})[d]) out.push({ kind:"note", title: r.dayNotes[d], color:"#8A8577", src:"Schedule note" });
   return out.sort((a, b) => ({ special:0, note:1 }[a.kind] ?? 2) - ({ special:0, note:1 }[b.kind] ?? 2) || (a.time || "00").localeCompare(b.time || "00"));
@@ -4348,18 +4354,71 @@ function events(m){
     items.length ? el("div",{class:"cal-list"}, items.map(it => el("div",{class:"cal-item", style:"--c:" + it.color},
       el("div",{class:"cal-when", text: it.kind === "special" ? "\u2605 Special" : it.kind === "note" ? "Note" : it.time ? t12(it.time) + (it.endTime ? " \u2013 " + t12(it.endTime) : "") : "All day"}),
       el("div",{class:"cal-what"}, el("b",{text: it.title}), it.price ? el("span",{class:"pill", style:"margin-left:8px", text:$$(n(it.price))}) : null, it.guests ? el("span",{class:"pill", style:"margin-left:8px", text: it.guests + " guests"}) : null,
-        it.where ? el("div",{class:"mini", text:"@ " + it.where}) : null, it.desc ? el("div",{class:"cal-desc", text: it.desc}) : null, el("div",{class:"mini", text: it.src})),
-      edit && (it.kind === "event" || it.kind === "special") ? el("button",{class:"btn quiet", type:"button", text:"Edit", onclick:() => it.kind === "event" ? editEvent(r, it.ref) : editSpecial(r, it.ref)}) : null))) : el("p",{class:"mini", text:"Nothing on the calendar."})));
+        it.where ? el("div",{class:"mini", text:"@ " + it.where}) : null, it.desc ? el("div",{class:"cal-desc", text: it.desc}) : null,
+        (it.menu || []).length ? el("div",{class:"ev-menu"}, el("b",{text:"Menu: "}), it.menu.map(x => el("span",{class:"ev-menu-i"}, (x.perGuest && !it.guests ? x.qty + " per guest " : x.count + " \u00d7 ") + x.name))) : null,
+        it.quoteId && (r.quotes || []).some(q => q.id === it.quoteId) ? el("button",{class:"linkbtn", type:"button", text:"Open the quote", onclick:() => { EVV.tab = "pricing"; EVV.quote = it.quoteId; render(); }}) : null,
+        el("div",{class:"mini", text: it.src})),
+      edit && (it.kind === "event" || it.kind === "special") ? el("button",{class:"btn quiet", type:"button", text:"Edit", onclick:() => it.kind === "event" ? editEvent(r, it.ref) : editSpecial(r, it.ref)})
+        : edit && it.kind === "feed" ? el("button",{class:"btn quiet", type:"button", text: it.plan ? "Edit plan" : "Plan it", title:"Add a menu and notes for this booking", onclick:() => editBookingPlan(r, it)}) : null))) : el("p",{class:"mini", text:"Nothing on the calendar."})));
+}
+
+/* ---------- Menus on events: chosen items, or a linked event quote; bookings get a "plan" stored here ---------- */
+const bookingKey = e => e.date + "|" + (e.time || "") + "|" + e.title;
+function eventMenu(r, e){
+  const q = e && e.quoteId && (r.quotes || []).find(x => x.id === e.quoteId);
+  const list = q ? (q.items || []) : ((e && e.menu) || []);
+  const g = n(e && e.guests) || (q ? n(q.guests) : 0);
+  return list.map(x => { const it = x.type === "item" ? r.items[x.refId] : null, idea = x.type === "idea" ? (r.ideas || []).find(i => i.id === x.refId) : null;
+    const name = it ? it.name : idea ? idea.draft.name : x.name, count = x.per === "total" ? n(x.qty) : n(x.qty) * (g || 1);
+    return { name, count: Math.round(count * 10) / 10, perGuest: x.per !== "total", qty: n(x.qty), itemId: it ? it.id : null, ideaId: idea ? idea.id : null }; }).filter(x => x.name);
+}
+const menuLine = (mm, hasGuests) => mm.map(x => (x.perGuest && !hasGuests ? x.qty + " per guest " : x.count + " \u00d7 ") + x.name).join(", ");
+// The menu picker used by events and booking plans: items or ideas, per guest or total, or a linked quote.
+function menuPicker(r, holder){
+  holder.menu = holder.menu || [];
+  const box = el("div",{class:"q-items"});
+  const quoteSel = el("select",{class:"inp"}, el("option",{value:"", text:"No quote: choose the menu below"}), (r.quotes || []).map(q => el("option",{value:q.id, text: q.title + (q.date ? " (" + nice(q.date) + ")" : "") + ", " + (q.items || []).length + " items"})));
+  quoteSel.value = holder.quoteId || "";
+  const opts = [...Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || "")).sort((a, b) => a.name.localeCompare(b.name)).map(it => ({ v: "i:" + it.id, t: it.name + " (" + (it.section || "Menu") + ")" })),
+    ...(r.ideas || []).map(i => ({ v: "d:" + i.id, t: i.draft.name + " (Test kitchen idea)" }))];
+  const pick = el("select",{class:"inp"}, el("option",{value:"", text:"Add a menu item or idea\u2026"}), opts.map(o => el("option",{value:o.v, text:o.t})));
+  const draw = () => {
+    if (holder.quoteId){ const q = (r.quotes || []).find(x => x.id === holder.quoteId);
+      box.replaceChildren(el("p",{class:"mini", style:"margin:0", text: q ? "Menu comes from the quote: " + (menuLine(eventMenu(r, { quoteId: q.id, guests: q.guests }), true) || "nothing on it yet") + "." : "That quote was deleted."})); pick.style.display = "none"; return; }
+    pick.style.display = "";
+    box.replaceChildren(...(holder.menu.length ? holder.menu.map((x, i) => {
+      const qty = el("input",{class:"inp", type:"number", min:"0", step:"0.5", value: x.qty}); qty.oninput = () => x.qty = n(qty.value);
+      const per = el("select",{class:"inp"}, el("option",{value:"guest", text:"per guest"}), el("option",{value:"total", text:"total"})); per.value = x.per || "guest"; per.onchange = () => x.per = per.value;
+      return el("div",{class:"q-item"}, el("b",{text:x.name}), qty, per, el("button",{class:"btn quiet lab-x", type:"button", text:"\u00d7", "aria-label":"Remove " + x.name, onclick:() => { holder.menu.splice(i, 1); draw(); }})); })
+      : [el("p",{class:"mini", style:"margin:0", text:"No menu yet."})]));
+  };
+  quoteSel.onchange = () => { holder.quoteId = quoteSel.value || null; draw(); };
+  pick.onchange = () => { const v = pick.value; if (!v) return; const ty = v.startsWith("i:") ? "item" : "idea", id = v.slice(2);
+    holder.menu.push({ type: ty, refId: id, name: ty === "item" ? r.items[id].name : r.ideas.find(i => i.id === id).draft.name, qty: 1, per: "guest" }); pick.value = ""; draw(); };
+  draw();
+  return el("div",{class:"menu-pick"}, fld("Event quote", quoteSel), box, pick);
+}
+// Plan a booking from a connected calendar: menu, quote and staff notes, kept in the app (Google stays as it is).
+function editBookingPlan(r, it){
+  r.bookingPlans = r.bookingPlans || {};
+  const key = it.key, cur = JSON.parse(JSON.stringify(r.bookingPlans[key] || { menu: [], quoteId: null, notes: "", guests: null }));
+  const guests = el("input",{class:"inp", type:"number", min:"0", value: cur.guests || ""}), notes = el("textarea",{class:"inp", rows:"3", placeholder:"What the staff should know"}); notes.value = cur.notes || "";
+  openDlg("Plan: " + it.title, [el("p",{class:"lead", text:"Add the menu and notes for this booking. It stays as it is in your Google calendar."}),
+    el("div",{class:"g2"}, fld("Guests", guests), el("span")), el("h3",{style:"margin:6px 0", text:"Menu"}), menuPicker(r, cur), fld("Notes for staff", notes)],
+    [r.bookingPlans[key] ? el("button",{class:"btn danger", text:"Remove plan", onclick:() => { delete r.bookingPlans[key]; save(); dlg.close(); }}) : el("span"),
+     el("button",{class:"btn primary", text:"Save", onclick:() => { cur.guests = n(guests.value) || null; cur.notes = notes.value.trim(); cur.date = it.date; r.bookingPlans[key] = cur; save(); dlg.close(); }})]);
 }
 function editEvent(r, ev, day){
   const e = Object.assign({ id: uid("ev"), title:"", date: day || localDay(new Date()), start:"", end:"", where:"", guests:"", notes:"" }, ev || {});
   const f = { title: el("input",{class:"inp", value:e.title, placeholder:"e.g. Smith birthday party, Live music, Closing at 2"}), date: el("input",{class:"inp", type:"date", value:e.date}),
     start: el("input",{class:"inp", type:"time", value:e.start || ""}), end: el("input",{class:"inp", type:"time", value:e.end || ""}), where: el("input",{class:"inp", value:e.where || "", placeholder:"e.g. Back room"}),
     guests: el("input",{class:"inp", type:"number", min:"0", value:e.guests || ""}), notes: el("textarea",{class:"inp", rows:"3", placeholder:"What the staff should know"}) }; f.notes.value = e.notes || "";
-  openDlg(ev ? "Edit event" : "New event", [fld("What", f.title), el("div",{class:"g3"}, fld("Day", f.date), fld("Starts", f.start), fld("Ends", f.end)), el("div",{class:"g2"}, fld("Where", f.where), fld("Guests", f.guests)), fld("Notes for staff", f.notes)],
+  const mh = { menu: JSON.parse(JSON.stringify(e.menu || [])), quoteId: e.quoteId || null };
+  openDlg(ev ? "Edit event" : "New event", [fld("What", f.title), el("div",{class:"g3"}, fld("Day", f.date), fld("Starts", f.start), fld("Ends", f.end)), el("div",{class:"g2"}, fld("Where", f.where), fld("Guests", f.guests)),
+    el("h3",{style:"margin:6px 0", text:"Menu"}), menuPicker(r, mh), fld("Notes for staff", f.notes)],
     [ev ? el("button",{class:"btn danger", text:"Delete", onclick:() => { if (!confirm("Delete this event?")) return; r.events = r.events.filter(x => x.id !== e.id); save(); dlg.close(); }}) : el("span"),
      el("button",{class:"btn primary", text:"Save", onclick:() => { if (!f.title.value.trim()) return f.title.focus();
-       Object.assign(e, { title: f.title.value.trim(), date: f.date.value || e.date, start: f.start.value || null, end: f.end.value || null, where: f.where.value.trim(), guests: n(f.guests.value) || null, notes: f.notes.value.trim() });
+       Object.assign(e, { title: f.title.value.trim(), date: f.date.value || e.date, start: f.start.value || null, end: f.end.value || null, where: f.where.value.trim(), guests: n(f.guests.value) || null, notes: f.notes.value.trim(), menu: mh.menu.filter(x => n(x.qty) > 0), quoteId: mh.quoteId || null });
        r.events = r.events.filter(x => x.id !== e.id).concat([e]); EVV.day = e.date; save(); dlg.close(); }})]);
 }
 function editSpecial(r, sp, day){
@@ -4644,7 +4703,7 @@ function quoteEditor(m, r, q){
           openOrderSummary(ents, "Order summary: " + q.title); }}),
         el("button",{class:"btn quiet", type:"button", text: q.eventId && r.events.some(e => e.id === q.eventId) ? "Update calendar event" : "Add to the calendar", onclick:() => { const c2 = quoteCalc(q, r); calData(r);
           let ev = q.eventId && r.events.find(e => e.id === q.eventId); if (!ev){ ev = { id: uid("ev") }; r.events.push(ev); q.eventId = ev.id; }
-          Object.assign(ev, { title: q.title, date: q.date, start: q.start || null, end: null, where: ev.where || "", guests: c2.g, notes: "Menu: " + c2.rows.map(x => x.name).join(", ") + ". Quoted " + $$(c2.pp) + " a person, " + $$(c2.total) + " total." });
+          Object.assign(ev, { quoteId: q.id, title: q.title, date: q.date, start: q.start || null, end: null, where: ev.where || "", guests: c2.g, notes: "Menu: " + c2.rows.map(x => x.name).join(", ") + ". Quoted " + $$(c2.pp) + " a person, " + $$(c2.total) + " total." });
           save(); toast("On the calendar for " + nice(q.date)); render(); }}))].filter(Boolean));
   };
   const upd = (k, v) => { q[k] = v; save(); drawSum(); };

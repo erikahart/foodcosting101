@@ -225,6 +225,10 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
 .ev-when{font-weight:800}
 .ev b{font-size:1.15rem}
 .ev .role{margin-left:8px}
+.ev-menu{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
+.ev-menu b{font-size:1rem;margin-right:2px}
+.ev-menu-i{background:var(--field);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:1rem;font-weight:600;color:var(--ink)}
+.ev-menu-i.link{cursor:pointer;min-height:44px;border-color:var(--jade);color:var(--jade)}
 .ev-desc{white-space:pre-line;color:var(--ink-2);font-size:1rem;margin-top:4px}
 .ev-h{font-family:var(--head);font-weight:800;font-size:1.8rem;margin:10px 0 10px}
 .ev-day{display:grid;grid-template-columns:120px 1fr;gap:14px;margin-bottom:6px}
@@ -524,8 +528,9 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
   function itemsOn(d){
     const out = [];
     (BOOK.specials || []).filter(sp => specialOn(sp, d)).forEach(sp => out.push({ kind:"special", sp, title: sp.title, desc: sp.desc, price: sp.price, itemId: sp.itemId, color:"#D99A1E" }));
-    FEED.events.filter(e => e.date <= d && e.endDate >= d).forEach(e => out.push({ kind:"event", time: e.date === d ? e.time : null, endTime: e.endTime, title: e.title, where: e.location, desc: e.desc, color: e.color || "#3D6E9E" }));
-    (BOOK.events || []).filter(e => e.date === d).forEach(e => out.push({ kind:"event", time: e.time, endTime: e.endTime, title: e.title, where: e.where, guests: e.guests, desc: e.desc, color:"#1F6F5C" }));
+    FEED.events.filter(e => e.date <= d && e.endDate >= d).forEach(e => { const p = (BOOK.plans || {})[e.date + "|" + (e.time || "") + "|" + e.title];
+      out.push({ kind:"event", time: e.date === d ? e.time : null, endTime: e.endTime, title: e.title, where: e.location, desc: [e.desc, p && p.notes].filter(Boolean).join("\n"), guests: p && p.guests, menu: p ? p.menu : null, color: e.color || "#3D6E9E" }); });
+    (BOOK.events || []).filter(e => e.date === d).forEach(e => out.push({ kind:"event", time: e.time, endTime: e.endTime, title: e.title, where: e.where, guests: e.guests, desc: e.desc, menu: e.menu, color:"#1F6F5C" }));
     const note = (S().notes || {})[d]; if (note) out.push({ kind:"note", title: note, color:"#8A8577" });
     return out.sort((a, b) => ({ special:0, note:1 }[a.kind] ?? 2) - ({ special:0, note:1 }[b.kind] ?? 2) || (a.time || "00").localeCompare(b.time || "00"));
   }
@@ -535,6 +540,8 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
       h("div", { class:"ev-when", text: it.kind === "special" ? "\u2605 Special" : it.kind === "note" ? "Note" : it.time ? t12(it.time) + (it.endTime ? " \u2013 " + t12(it.endTime) : "") : "All day" }),
       h("div", null, h("b", { text: it.title }), it.price ? h("span", { class:"role", text: "$" + Number(it.price).toFixed(2) }) : null, it.guests ? h("span", { class:"role", text: it.guests + " guests" }) : null,
         it.where ? h("div", { class:"sub-note", text: "@ " + it.where }) : null, it.desc ? h("div", { class:"ev-desc", text: it.desc }) : null,
+        (it.menu || []).length ? h("div", { class:"ev-menu" }, h("b", { text:"Menu" }), it.menu.map(x => { const lbl = (x.perGuest && !it.guests ? x.qty + " per guest  " : x.count + " \u00d7  ") + x.name;
+          return x.itemId ? h("button", { class:"ev-menu-i link", type:"button", text: lbl, onclick: () => go({ card: x.itemId }) }) : h("span", { class:"ev-menu-i", text: lbl }); })) : null,
         item ? h("button", { class:"back", type:"button", style:"margin-top:8px;min-height:44px", text:"Open the recipe card", onclick: () => go({ card: item.id }) }) : null));
   }
   function eventsView(m){
