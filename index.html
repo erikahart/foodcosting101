@@ -1845,7 +1845,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 26, 2026 \u00b7 Event order lists";
+const APP_VERSION = "Oct 26, 2026 \u00b7 Print drinks and food";
 function applyBrand(){
   const av = $("appver"); if (av) av.textContent = "Version: " + APP_VERSION;
   const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
@@ -2688,7 +2688,8 @@ function openPrintCards(preset, title){
   const inView = sortIt(all.filter(it => (BKV.cat === "all" || (it.section || "Menu") === BKV.cat) && (!q || it.name.toLowerCase().includes(q) || (cardOf(it).station || "").toLowerCase().includes(q) || ingredientRows(it, r).some(x => x.name.toLowerCase().includes(q)))));
   let which = preset ? "preset" : "view", cat = order[0] || "", layout = "full", photos = true, allergens = true, onlyWritten = true;
   const count = el("b");
-  const listFor = () => { let l = which === "preset" ? preset : which === "cat" ? sortIt(all.filter(it => (it.section || "Menu") === cat)) : which === "all" ? sortIt(all) : inView;
+  const bar = sortIt(all.filter(it => isDrink(it))), food = sortIt(all.filter(it => !isDrink(it)));
+  const listFor = () => { let l = which === "preset" ? preset : which === "cat" ? sortIt(all.filter(it => (it.section || "Menu") === cat)) : which === "all" ? sortIt(all) : which === "bar" ? bar : which === "food" ? food : inView;
     return onlyWritten && which !== "preset" ? l.filter(it => (cardOf(it).steps || []).length) : l; };
   const paint = () => { const k = listFor().length; count.textContent = k + (k === 1 ? " card" : " cards"); go2.disabled = !k; go2.textContent = "Print " + k + (k === 1 ? " card" : " cards");
     const sheets = layout === "half" ? Math.ceil(k / 2) : k; sheetNote.textContent = layout === "index" ? k + " index cards (4\u00d76)" : sheets + (sheets === 1 ? " sheet" : " sheets") + " of letter paper"; };
@@ -2698,7 +2699,9 @@ function openPrintCards(preset, title){
     preset ? radio("pc-which", "preset", which, preset.length === 1 ? "Just this card" : preset.length + " cards", preset.length === 1 ? preset[0].name : null, v => which = v) : null,
     radio("pc-which", "view", which, "What's showing in the book", inView.length + " dishes" + (BKV.cat !== "all" ? " in " + BKV.cat : "") + (q ? " matching \u201c" + BKV.q + "\u201d" : ""), v => which = v),
     order.length ? el("div",null, radio("pc-which", "cat", which, "One category", null, v => which = v), catSel) : null,
-    radio("pc-which", "all", which, "Every card", all.length + " dishes", v => which = v));
+    bar.length ? radio("pc-which", "bar", which, "All bar drinks and cocktails", bar.length + " drinks", v => which = v) : null,
+    food.length ? radio("pc-which", "food", which, "All food", food.length + " dishes", v => which = v) : null,
+    radio("pc-which", "all", which, "Every card", all.length + " dishes and drinks", v => which = v));
   const layoutBox = el("div",{class:"choice"},
     radio("pc-layout", "full", layout, "Full page", "One card per sheet: binders and sheet protectors", v => layout = v),
     radio("pc-layout", "half", layout, "Half page", "Two cards per sheet: cut in half and post at a station", v => layout = v),

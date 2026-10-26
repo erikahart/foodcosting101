@@ -225,6 +225,26 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
 .ev-when{font-weight:800}
 .ev b{font-size:1.15rem}
 .ev .role{margin-left:8px}
+.crumbs .print-btn{margin-left:auto}
+.side-h{display:flex;align-items:center;justify-content:space-between;gap:12px}
+#printArea{display:none}
+@media print{
+  html, body{background:#fff !important}
+  body > *:not(#printArea){display:none !important}
+  #printArea{display:block !important;color:#000;font-family:var(--body, Arial, sans-serif)}
+  @page{size:letter;margin:0.45in}
+  .pcard{page-break-after:always;break-after:page}
+  .pcard:last-child{page-break-after:auto;break-after:auto}
+  .pc-h{display:flex;gap:20px;align-items:flex-start;border-bottom:3px solid #1F6F5C;padding-bottom:12px;margin-bottom:14px}
+  .pc-h img{width:2.2in;height:2.2in;object-fit:cover;border-radius:10px;flex:none}
+  .pc-h h1{font-family:var(--head, Arial Narrow, sans-serif);font-weight:800;font-size:30pt;margin:0 0 4px;line-height:1}
+  .pc-f{font-weight:700;font-size:11pt;color:#444;margin:0 0 6px} .pc-d{font-size:12pt;margin:0 0 6px} .pc-a{font-weight:700;font-size:11pt;background:#F6E7C8;display:inline-block;padding:3px 8px;border-radius:6px;margin:0}
+  .pc-b{display:grid;grid-template-columns:2fr 3fr;gap:24px}
+  .pc-b h2{font-family:var(--head, Arial Narrow, sans-serif);font-weight:800;font-size:16pt;margin:0 0 6px}
+  .pc-b ul{list-style:none;padding:0;margin:0 0 10px;font-size:12pt} .pc-b ul li{padding:4px 0;border-bottom:1px solid #ddd} .pc-b ul b{display:inline-block;min-width:0.9in}
+  .pc-b ol{margin:0 0 12px;padding-left:22px;font-size:12pt} .pc-b ol li{margin-bottom:6px} .pc-b p{font-size:12pt;margin:0 0 10px}
+  .pcard footer{margin-top:16px;font-size:9pt;color:#777;border-top:1px solid #ddd;padding-top:6px}
+}
 .ev-needs-btn{margin-top:10px;min-height:48px}
 .ev-needs{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px 18px;font-size:1.02rem}
 .ev-needs li{border-bottom:1px dashed var(--line);padding:6px 0}
@@ -302,6 +322,25 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
     return h("div", { class:"grid" }, list.map(it => h("button", { class:"card", type:"button", onclick: () => go({ cat: view().cat, card: it.id }) },
       photoEl(it), h("div", { class:"nm" }, h("b", { text: it.name }), h("span", { text: [it.section, mins((it.card.prepMin || 0) + (it.card.cookMin || 0))].filter(Boolean).join("  ·  ") })))));
   }
+  // Printing recipe cards from the tablet: one card per page, photo if it's loaded, ingredients, steps, plating, allergens.
+  function printItems(list){
+    if (!list.length) return;
+    let area = document.getElementById("printArea"); if (!area){ area = document.createElement("div"); area.id = "printArea"; document.body.append(area); }
+    area.replaceChildren(...list.map(it => { const c = it.card || {}, url = PH.get(it.id), total = (c.prepMin || 0) + (c.cookMin || 0);
+      const facts = [it.section, c.station, c.prepMin ? "Prep " + mins(c.prepMin) : "", c.cookMin ? (it.bar ? "Build " : "Cook ") + mins(c.cookMin) : "", total ? "Total " + mins(total) : "", c.yieldText ? "Makes " + c.yieldText : ""].filter(Boolean);
+      return h("article", { class:"pcard" },
+        h("header", { class:"pc-h" }, url ? h("img", { src: url, alt:"" }) : null, h("div", null, h("h1", { text: it.name }), facts.length ? h("p", { class:"pc-f", text: facts.join("  |  ") }) : null, it.desc ? h("p", { class:"pc-d", text: it.desc }) : null,
+          (c.allergens || []).length ? h("p", { class:"pc-a", text: "Contains: " + c.allergens.join(", ") }) : null)),
+        h("div", { class:"pc-b" },
+          h("section", null, h("h2", { text:"Ingredients" }), it.ings.length ? h("ul", null, it.ings.map(x => h("li", null, h("b", { text: x.qty }), " " + x.name))) : h("p", { text:"Not listed yet." })),
+          h("section", null, h("h2", { text: it.bar ? "Build" : "Steps" }), (c.steps || []).length ? h("ol", null, c.steps.map(s => h("li", { text: s }))) : h("p", { text:"No steps written yet." }),
+            c.plating ? h("div", null, h("h2", { text: it.bar ? "Glass and garnish" : "Plating" }), h("p", { text: c.plating })) : null,
+            c.notes ? h("div", null, h("h2", { text:"Notes" }), h("p", { text: c.notes })) : null)),
+        h("footer", { text: (BOOK.name || "Kitchen book") + "  |  printed " + new Date().toLocaleDateString() })); }));
+    const imgs = [...area.querySelectorAll("img")].filter(i => !i.complete);
+    Promise.all(imgs.map(i => new Promise(res => { i.onload = i.onerror = res; }))).then(() => setTimeout(() => window.print(), 60));
+  }
+  const printBtn = (label, list) => list.length ? h("button", { class:"back print-btn", type:"button", text: label, onclick: () => printItems(list) }) : null;
   function spec(it){
     const c = it.card, total = (c.prepMin || 0) + (c.cookMin || 0);
     const facts = [c.station, c.prepMin ? "Prep " + mins(c.prepMin) : "", c.cookMin ? (it.bar ? "Build " : "Cook ") + mins(c.cookMin) : "", total ? "Total " + mins(total) : "", c.yieldText ? "Makes " + c.yieldText : ""].filter(Boolean);
@@ -690,7 +729,7 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
     if (v.card){
       const it = BOOK.items.find(x => x.id === v.card);
       if (!it){ go({ cat: v.cat }); return; }
-      m.replaceChildren(h("div", { class:"crumbs" }, h("button", { class:"back", type:"button", text:"\u2190 " + (v.cat || "Back"), onclick: () => history.back() }), h("h2", { text: it.name })), spec(it), status());
+      m.replaceChildren(h("div", { class:"crumbs" }, h("button", { class:"back", type:"button", text:"\u2190 " + (v.cat || "Back"), onclick: () => history.back() }), h("h2", { text: it.name }), printBtn("Print", [it])), spec(it), status());
       needPhotos([it]); return;
     }
     if (Q){
@@ -701,10 +740,11 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
     if (v.cat){
       const sec = secs.find(x => x.name === v.cat);
       if (!sec){ go({}); return; }
-      m.replaceChildren(h("div", { class:"crumbs" }, h("button", { class:"back", type:"button", text:"\u2190 All", onclick: () => go({}) }), h("h2", { text: sec.name })), cardGrid(sec.items), status());
+      m.replaceChildren(h("div", { class:"crumbs" }, h("button", { class:"back", type:"button", text:"\u2190 All", onclick: () => go({}) }), h("h2", { text: sec.name }), printBtn("Print all " + sec.items.length, sec.items)), cardGrid(sec.items), status());
       needPhotos(sec.items); return;
     }
-    const side = (title, list) => list.length ? h("section", { class:"side" }, h("h2", { text: title }),
+    const side = (title, list) => list.length ? h("section", { class:"side" }, h("div", { class:"side-h" }, h("h2", { text: title }),
+        printBtn(title === "Bar" ? "Print all drinks" : "Print all food", list.flatMap(s => s.items))),
       h("div", { class:"cats" }, (() => { const anyPics = list.some(sec => sec.items.some(it => it.photo)); return list.map(sec => { const pics = sec.items.filter(it => it.photo).slice(0, 4);
         return h("button", { class:"cat" + (sec.bar ? " bar" : "") + (pics.length || anyPics ? " has-pics" : ""), type:"button", onclick: () => go({ cat: sec.name }) },
           pics.length ? h("div", { class:"cat-pics" }, pics.map(it => { const u = PH.get(it.id); return u ? h("img", { src: u, alt: "" }) : h("span", { class:"cat-pic-wait" }); }))
