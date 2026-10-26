@@ -1885,7 +1885,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Staff PINs";
+const APP_VERSION = "Oct 27, 2026 \u00b7 4-digit PINs";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2064,12 +2064,12 @@ async function pinHash(salt, pin){ const buf = await crypto.subtle.digest("SHA-2
 setInterval(() => { if (UNLOCK && UNLOCK.until <= Date.now()){ setUnlock(null); if (ST && (pinLocked() || gateLocked())){ if (dlg.open) dlg.close(); ST.page = "home"; render(); toast("Locked"); } } }, 20000);
 function lockNow(){ setUnlock(null); if (dlg.open) dlg.close(); if (!STAFF_PAGES.includes(ST.page)) ST.page = "home"; render(); toast(gateLocked() ? "Locked. Next person, enter your PIN." : "Locked. Staff mode is on."); }
 function pinScreen(m, wanted, gate){
-  const p = pinCfg(), box = el("input",{class:"inp pin-in", type:"password", inputmode:"numeric", autocomplete:"off", maxlength:"6", "aria-label": gate ? "Your PIN" : "Manager PIN", placeholder:"\u2022\u2022\u2022\u2022"});
+  const p = pinCfg(), box = el("input",{class:"inp pin-in", type:"password", inputmode:"numeric", autocomplete:"off", maxlength:"4", "aria-label": gate ? "Your 4-digit PIN" : "Manager PIN", placeholder:"\u2022\u2022\u2022\u2022"}); box.maxLength = 4;
   const msg = el("p",{class:"pin-msg"});
   const tries = () => { try { return JSON.parse(sessionStorage.getItem("pm-tries") || '{"n":0,"until":0}'); } catch(e){ return { n:0, until:0 }; } };
   const tryPin = async (quiet) => {
     const t = tries(); if (t.until > Date.now()){ msg.textContent = "Too many tries. Wait " + Math.ceil((t.until - Date.now()) / 1000) + " seconds."; return; }
-    const v = box.value.trim(); if (v.length < 4) return;
+    const v = box.value.trim(); if (v.length !== 4) return;
     const h = await pinHash(p.salt, v), who = (p.pins || []).find(x => x.hash === h);
     if (who && !gate && who.role === "staff"){ msg.textContent = who.name + ", that's a staff PIN. A manager's PIN is needed here."; box.value = ""; return; }
     if (who){ try { sessionStorage.removeItem("pm-tries"); } catch(e){} setUnlock(who.name, who.role || "manager");
@@ -2079,8 +2079,8 @@ function pinScreen(m, wanted, gate){
     box.value = ""; msg.textContent = t.until > Date.now() ? "Too many tries. Wait a minute." : "That PIN didn't match."; box.focus();
   };
   box.onkeydown = e => { if (e.key === "Enter") tryPin(); };
-  box.oninput = () => { box.value = box.value.replace(/\D/g, ""); if (box.value.length === 6) tryPin(); else if (box.value.length >= 4) tryPin(true); };
-  const key = d => el("button",{class:"pin-key", type:"button", text:d, onclick:() => { if (d === "\u232b") box.value = box.value.slice(0, -1); else if (d === "OK") tryPin(); else if (box.value.length < 6){ box.value += d; if (box.value.length === 6) tryPin(); else if (box.value.length >= 4) tryPin(true); } box.focus(); }});
+  box.oninput = () => { box.value = box.value.replace(/\D/g, "").slice(0, 4); if (box.value.length === 4) tryPin(); };
+  const key = d => el("button",{class:"pin-key", type:"button", text:d, onclick:() => { if (d === "\u232b") box.value = box.value.slice(0, -1); else if (d === "OK") tryPin(); else if (box.value.length < 4){ box.value += d; if (box.value.length === 4) tryPin(); } box.focus(); }});
   m.append(el("div",{class:"pin-wrap"},
     el("div",{class:"pin-card card"}, gate ? el("div",{class:"logo pin-logo", id:"pinLogo"}) : el("div",{class:"pin-lock", "aria-hidden":"true", text:"\ud83d\udd12"}),
       el("h1",{text: gate ? "Enter your PIN" : "Manager PIN needed"}),
@@ -2108,7 +2108,7 @@ function ensurePinCfg(){ ST.pinLock = ST.pinLock || { on:false, salt: Math.rando
 function openPinDialog(existing, preset){
   const p = ensurePinCfg(), tied = existing ? existing.userId : preset && preset.userId;
   const name = el("input",{class:"inp", value: existing ? existing.name : (preset && preset.name) || (USER && USER.email ? USER.email.split("@")[0] : ""), placeholder:"Name"});
-  const a = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"6", placeholder:"4 to 6 digits"}), b = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"6", placeholder:"Same again"});
+  const a = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"4", placeholder:"4 digits"}), b = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"4", placeholder:"Same again"});
   const msg = el("div");
   const role = el("select",{class:"inp"}, el("option",{value:"staff", text:"Staff: Kitchen book, Test kitchen, Schedule, Events"}), el("option",{value:"manager", text:"Manager: everything"}));
   role.value = existing ? (existing.role || "manager") : (preset && preset.role) || (preset && preset.userId ? "manager" : "staff");
@@ -2120,7 +2120,7 @@ function openPinDialog(existing, preset){
         if (p.pins.length === 1 && p.on) return toast("Turn the lock off before removing the last PIN.");
         if (!confirm("Remove " + existing.name + "'s PIN?")) return; p.pins = p.pins.filter(y => y !== existing); save(); dlg.close(); render(); }}) : el("span"),
      el("button",{class:"btn primary", text:"Save PIN", onclick: async () => {
-      const v = a.value.trim(); if (!/^\d{4,6}$/.test(v)) return msg.replaceChildren(el("div",{class:"msg bad", text:"The PIN needs 4 to 6 digits."}));
+      const v = a.value.trim(); if (!/^\d{4}$/.test(v)) return msg.replaceChildren(el("div",{class:"msg bad", text:"The PIN needs exactly 4 digits."}));
       if (v !== b.value.trim()) return msg.replaceChildren(el("div",{class:"msg bad", text:"The two PINs don't match."}));
       if (!name.value.trim()) return name.focus();
       const h = await pinHash(p.salt, v);
@@ -2141,12 +2141,12 @@ function pinLockCard(){
   const addPin = (existing) => openPinDialog(existing);   // staff and managers
   const addPinOld = (existing) => {
     const name = el("input",{class:"inp", value: existing ? existing.name : (USER && USER.email ? USER.email.split("@")[0] : ""), placeholder:"Name"});
-    const a = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"6", placeholder:"4 to 6 digits"}), b = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"6", placeholder:"Same again"});
+    const a = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"4", placeholder:"4 digits"}), b = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"4", placeholder:"Same again"});
     const msg = el("div");
     openDlg(existing ? "Change PIN for " + existing.name : "Add a manager PIN", [fld("Manager name", name), el("div",{class:"g2"}, fld("PIN", a), fld("Confirm PIN", b)), msg,
-      el("p",{class:"mini", text:"4 to 6 digits, different for each person. Avoid birthdays and 1234."})],
+      el("p",{class:"mini", text:"4 digits, different for each person. Avoid birthdays and 1234."})],
       [el("span"), el("button",{class:"btn primary", text:"Save PIN", onclick: async () => {
-        const v = a.value.trim(); if (!/^\d{4,6}$/.test(v)) return msg.replaceChildren(el("div",{class:"msg bad", text:"The PIN needs 4 to 6 digits."}));
+        const v = a.value.trim(); if (!/^\d{4}$/.test(v)) return msg.replaceChildren(el("div",{class:"msg bad", text:"The PIN needs exactly 4 digits."}));
         if (v !== b.value.trim()) return msg.replaceChildren(el("div",{class:"msg bad", text:"The two PINs don't match."}));
         if (!name.value.trim()) return name.focus();
         const h = await pinHash(p.salt, v);
@@ -2170,8 +2170,9 @@ function pinLockCard(){
         const lines = ta.value.split(/\n+/).map(x => x.trim()).filter(Boolean), done = [], bad = [];
         const seen = new Map(p.pins.filter(x => x.hash).map(x => [x.hash, x]));
         for (const ln of lines){
-          const m2 = ln.match(/^(.*?)[\s,;:\-\t]+(\d{4,6})(?:[\s,;:\-\t]+(manager|mgr|staff))?\s*$/i);
-          if (!m2){ bad.push(ln + " (no 4 to 6 digit PIN found)"); continue; }
+          const m2 = ln.match(/^(.*?)[\s,;:\-\t]+(\d+)(?:[\s,;:\-\t]+(manager|mgr|staff))?\s*$/i);
+          if (!m2){ bad.push(ln + " (no PIN found)"); continue; }
+          if (m2[2].length !== 4){ bad.push(m2[1].trim() + " (PIN must be 4 digits)"); continue; }
           const nm = m2[1].replace(/[,;:\-\s]+$/, "").trim(), pin = m2[2], role = /^m/i.test(m2[3] || "") ? "manager" : m2[3] ? "staff" : null;
           const key = nm.toLowerCase().replace(/[^a-z0-9 ]/g, "");
           let x = p.pins.find(y => y.name.toLowerCase().replace(/[^a-z0-9 ]/g, "") === key) || p.pins.find(y => { const a2 = y.name.toLowerCase().replace(/[^a-z0-9 ]/g, ""); return a2.split(" ")[0] === key.split(" ")[0] && (a2.startsWith(key) || key.startsWith(a2)); });
