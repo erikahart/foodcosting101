@@ -225,6 +225,10 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
 .ev-when{font-weight:800}
 .ev b{font-size:1.15rem}
 .ev .role{margin-left:8px}
+.ev-needs-btn{margin-top:10px;min-height:48px}
+.ev-needs{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px 18px;font-size:1.02rem}
+.ev-needs li{border-bottom:1px dashed var(--line);padding:6px 0}
+.ev-needs b{display:inline-block;min-width:76px}
 .ev-menu{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:10px}
 .ev-menu b{font-size:1rem;margin-right:2px}
 .ev-menu-i{background:var(--field);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:1rem;font-weight:600;color:var(--ink)}
@@ -529,8 +533,8 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
     const out = [];
     (BOOK.specials || []).filter(sp => specialOn(sp, d)).forEach(sp => out.push({ kind:"special", sp, title: sp.title, desc: sp.desc, price: sp.price, itemId: sp.itemId, color:"#D99A1E" }));
     FEED.events.filter(e => e.date <= d && e.endDate >= d).forEach(e => { const p = (BOOK.plans || {})[e.date + "|" + (e.time || "") + "|" + e.title];
-      out.push({ kind:"event", time: e.date === d ? e.time : null, endTime: e.endTime, title: e.title, where: e.location, desc: [e.desc, p && p.notes].filter(Boolean).join("\n"), guests: p && p.guests, menu: p ? p.menu : null, color: e.color || "#3D6E9E" }); });
-    (BOOK.events || []).filter(e => e.date === d).forEach(e => out.push({ kind:"event", time: e.time, endTime: e.endTime, title: e.title, where: e.where, guests: e.guests, desc: e.desc, menu: e.menu, color:"#1F6F5C" }));
+      out.push({ kind:"event", time: e.date === d ? e.time : null, endTime: e.endTime, title: e.title, where: e.location, desc: [e.desc, p && p.notes].filter(Boolean).join("\n"), guests: p && p.guests, menu: p ? p.menu : null, needs: p ? p.needs : null, color: e.color || "#3D6E9E" }); });
+    (BOOK.events || []).filter(e => e.date === d).forEach(e => out.push({ kind:"event", time: e.time, endTime: e.endTime, title: e.title, where: e.where, guests: e.guests, desc: e.desc, menu: e.menu, needs: e.needs, color:"#1F6F5C" }));
     const note = (S().notes || {})[d]; if (note) out.push({ kind:"note", title: note, color:"#8A8577" });
     return out.sort((a, b) => ({ special:0, note:1 }[a.kind] ?? 2) - ({ special:0, note:1 }[b.kind] ?? 2) || (a.time || "00").localeCompare(b.time || "00"));
   }
@@ -542,6 +546,9 @@ button.ev-date{border:0;background:transparent;text-align:left;cursor:pointer;co
         it.where ? h("div", { class:"sub-note", text: "@ " + it.where }) : null, it.desc ? h("div", { class:"ev-desc", text: it.desc }) : null,
         (it.menu || []).length ? h("div", { class:"ev-menu" }, h("b", { text:"Menu" }), it.menu.map(x => { const lbl = (x.perGuest && !it.guests ? x.qty + " per guest  " : x.count + " \u00d7  ") + x.name;
           return x.itemId ? h("button", { class:"ev-menu-i link", type:"button", text: lbl, onclick: () => go({ card: x.itemId }) }) : h("span", { class:"ev-menu-i", text: lbl }); })) : null,
+        (it.needs || []).length ? (() => { const list = h("ul", { class:"ev-needs", hidden:"" }, it.needs.map(x => h("li", null, h("b", { text: x.amount }), " " + x.name, x.vendor ? h("span", { class:"sub-note", text: "  " + x.vendor }) : null)));
+          const btn = h("button", { class:"back ev-needs-btn", type:"button", text:"What we need (" + it.needs.length + ")", "aria-expanded":"false", onclick: () => { list.hidden = !list.hidden; btn.setAttribute("aria-expanded", String(!list.hidden)); btn.textContent = (list.hidden ? "What we need (" : "Hide what we need (") + it.needs.length + ")"; } });
+          return h("div", null, btn, list); })() : null,
         item ? h("button", { class:"back", type:"button", style:"margin-top:8px;min-height:44px", text:"Open the recipe card", onclick: () => go({ card: item.id }) }) : null));
   }
   function eventsView(m){

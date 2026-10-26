@@ -1845,7 +1845,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 25, 2026 \u00b7 Event menus";
+const APP_VERSION = "Oct 26, 2026 \u00b7 Event order lists";
 function applyBrand(){
   const av = $("appver"); if (av) av.textContent = "Version: " + APP_VERSION;
   const b = ST.brand, c = usableBrand(b.color) && b.color.toUpperCase() !== "#1D7A5F" ? b.color : "#1F6F5C";
@@ -3541,8 +3541,8 @@ function bookSnapshot(r){
   calData(r);
   const evTo = addDays(today, 370);   // a year of events and specials for "By month" on the tablet
   const tabMenu = mm => mm.map(x => ({ name: x.name, count: x.count, perGuest: x.perGuest, qty: x.qty, itemId: x.itemId && items.some(i => i.id === x.itemId) ? x.itemId : null }));
-  const evs = r.events.filter(e => e.date >= from && e.date <= evTo).map(e => ({ date: e.date, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where || "", guests: e.guests || null, desc: e.notes || "", menu: tabMenu(eventMenu(r, e)) }));
-  const plans = {}; Object.entries(r.bookingPlans || {}).forEach(([k, p]) => { if (!p.date || (p.date >= from && p.date <= evTo)) plans[k] = { guests: p.guests || null, notes: p.notes || "", menu: tabMenu(eventMenu(r, p)) }; });
+  const evs = r.events.filter(e => e.date >= from && e.date <= evTo).map(e => ({ date: e.date, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where || "", guests: e.guests || null, desc: e.notes || "", menu: tabMenu(eventMenu(r, e)), needs: eventNeeds(r, e) }));
+  const plans = {}; Object.entries(r.bookingPlans || {}).forEach(([k, p]) => { if (!p.date || (p.date >= from && p.date <= evTo)) plans[k] = { guests: p.guests || null, notes: p.notes || "", menu: tabMenu(eventMenu(r, p)), needs: eventNeeds(r, p) }; });
   const specials = r.specials.filter(sp => (!sp.end || sp.end >= from) && (!sp.start || sp.start <= evTo)).map(sp => ({ title: sp.title, kind: sp.kind, price: sp.price || null, desc: sp.desc || "", start: sp.start || null, end: sp.end || null, days: sp.days || null, itemId: sp.itemId || null }));
   const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, startAt: l.startAt || null, items: l.items }));
   return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, plans, specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
@@ -4356,7 +4356,9 @@ function events(m){
       el("div",{class:"cal-what"}, el("b",{text: it.title}), it.price ? el("span",{class:"pill", style:"margin-left:8px", text:$$(n(it.price))}) : null, it.guests ? el("span",{class:"pill", style:"margin-left:8px", text: it.guests + " guests"}) : null,
         it.where ? el("div",{class:"mini", text:"@ " + it.where}) : null, it.desc ? el("div",{class:"cal-desc", text: it.desc}) : null,
         (it.menu || []).length ? el("div",{class:"ev-menu"}, el("b",{text:"Menu: "}), it.menu.map(x => el("span",{class:"ev-menu-i"}, (x.perGuest && !it.guests ? x.qty + " per guest " : x.count + " \u00d7 ") + x.name))) : null,
-        it.quoteId && (r.quotes || []).some(q => q.id === it.quoteId) ? el("button",{class:"linkbtn", type:"button", text:"Open the quote", onclick:() => { EVV.tab = "pricing"; EVV.quote = it.quoteId; render(); }}) : null,
+        (it.menu || []).length || (it.quoteId && (r.quotes || []).some(q => q.id === it.quoteId)) ? el("div",{class:"row", style:"gap:12px;margin-top:6px"},
+          (it.menu || []).length ? el("button",{class:"btn quiet sm", type:"button", text:"Order list", title:"Ingredients and what to order for this menu", onclick:() => eventOrder(r, it.kind === "event" ? it.ref : Object.assign({ title: it.title, date: it.date }, it.plan))}) : null,
+          it.quoteId && (r.quotes || []).some(q => q.id === it.quoteId) ? el("button",{class:"linkbtn", type:"button", text:"Open the quote", onclick:() => { EVV.tab = "pricing"; EVV.quote = it.quoteId; render(); }}) : null) : null,
         el("div",{class:"mini", text: it.src})),
       edit && (it.kind === "event" || it.kind === "special") ? el("button",{class:"btn quiet", type:"button", text:"Edit", onclick:() => it.kind === "event" ? editEvent(r, it.ref) : editSpecial(r, it.ref)})
         : edit && it.kind === "feed" ? el("button",{class:"btn quiet", type:"button", text: it.plan ? "Edit plan" : "Plan it", title:"Add a menu and notes for this booking", onclick:() => editBookingPlan(r, it)}) : null))) : el("p",{class:"mini", text:"Nothing on the calendar."})));
@@ -4371,6 +4373,29 @@ function eventMenu(r, e){
   return list.map(x => { const it = x.type === "item" ? r.items[x.refId] : null, idea = x.type === "idea" ? (r.ideas || []).find(i => i.id === x.refId) : null;
     const name = it ? it.name : idea ? idea.draft.name : x.name, count = x.per === "total" ? n(x.qty) : n(x.qty) * (g || 1);
     return { name, count: Math.round(count * 10) / 10, perGuest: x.per !== "total", qty: n(x.qty), itemId: it ? it.id : null, ideaId: idea ? idea.id : null }; }).filter(x => x.name);
+}
+// The ingredients an event's menu needs, as order-summary entries (menu items use live recipes; ideas their saved recipe).
+function eventEntries(r, e){
+  const ents = eventMenu(r, e).filter(x => x.count > 0).map(x => x.itemId ? { type:"item", refId: x.itemId, qty: Math.ceil(x.count) } : x.ideaId ? ideaEntry((r.ideas || []).find(i => i.id === x.ideaId), Math.ceil(x.count)) : null).filter(Boolean);
+  return reqEntries(r, [{ title: e.title, entries: ents }]);
+}
+function eventOrder(r, e){
+  const ents = eventEntries(r, e);
+  if (!ents.length) return toast("Add a menu to this event first.");
+  openOrderSummary(ents, "Order list: " + e.title + (e.date ? " (" + nice(e.date) + ")" : ""));
+}
+// Amounts for the kitchen, in friendly units (ounces over 2 lb become pounds, fluid ounces over a quart become quarts or gallons).
+function kitchenAmt(amt, unit){
+  let v = amt, u = unit;
+  if (u === "oz" && v >= 32){ v /= 16; u = "lb"; }
+  if (u === "fl oz" && v >= 128){ v /= 128; u = "gal"; } else if (u === "fl oz" && v >= 32){ v /= 32; u = "qt"; }
+  const r2 = v >= 10 ? Math.round(v) : Math.round(v * 10) / 10;
+  return r2 + " " + u;
+}
+function eventNeeds(r, e){
+  const res = orderNeeds(eventEntries(r, e), r, {});
+  return res.vendors.flatMap(v => res.groups[v].map(x => ({ name: supName(x.su), amount: kitchenAmt(x.amt, x.su.unit), vendor: v === "No vendor yet" ? "" : v })))
+    .concat(res.loose.map(x => ({ name: x.name, amount: kitchenAmt(x.qty, x.unit), vendor: "" })));
 }
 const menuLine = (mm, hasGuests) => mm.map(x => (x.perGuest && !hasGuests ? x.qty + " per guest " : x.count + " \u00d7 ") + x.name).join(", ");
 // The menu picker used by events and booking plans: items or ideas, per guest or total, or a linked quote.
