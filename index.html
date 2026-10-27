@@ -1493,6 +1493,15 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .bp-val{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
 .bp-sum{margin-top:10px;padding:10px 12px;border-radius:10px;background:#FFF8E3;border:1px solid #EBCB88}
 @media (max-width:640px){ .bp-row{grid-template-columns:24px 1fr 60px} .bp-track{grid-column:2 / 4;order:5} }
+.promo-line{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px;margin:12px 0}
+.pl-star{font-size:1.3rem;color:var(--mustard)} .pl-body{flex:1;display:grid;gap:4px;min-width:200px}
+.pl-item{display:flex;align-items:center;gap:10px;flex-wrap:wrap} .danger-t{color:var(--bad, #B8352A) !important}
+.att{margin-top:12px} .att-list{display:grid;gap:6px;margin-top:10px}
+.att-row{display:grid;grid-template-columns:12px minmax(140px,1fr) auto auto 14px;gap:12px;align-items:center;text-align:left;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;cursor:pointer}
+.att-row:hover{border-color:var(--line-2)}
+.att-dot{width:10px;height:10px;border-radius:50%;background:var(--line-2)} .att-row.bad .att-dot{background:#C2463A} .att-row.warn .att-dot{background:#D99A1E} .att-row.good .att-dot{background:#2E8B6A}
+.att-pct{color:var(--ink-2);font-size:.92rem} .att-fix{font-weight:800;color:#9A2B21;background:#F6D6D2;border-radius:999px;padding:2px 10px;font-size:.85rem} .att-go{color:var(--muted);font-size:1.3rem}
+@media (max-width:640px){ .att-row{grid-template-columns:10px 1fr auto 12px} .att-pct{grid-column:2/3;grid-row:2;font-size:.82rem} }
 </style>
 </head>
 <body>
@@ -1988,7 +1997,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 BOGO planner";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Calmer home";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2799,10 +2808,24 @@ function categoryButtons(r){
       el("div",{class:"cat-foot"}, fix ? el("span",{class:"cat-fix", text: fix + " to fix"}) : el("span"),
         el("button",{class:"linkbtn", type:"button", text:"Costs", onclick:() => { MV.cat = k; MV.status = "all"; go("menu"); }})));
   };
-  const bar = names.filter(isBar), kitchen = names.filter(k => !isBar(k));
-  const section = (title, list) => list.length ? el("section",{class:"cat-sec", "aria-label":title}, el("h2",{text:title}), el("div",{class:"cat-grid"}, list.map(tile))) : null;
-  return el("div",{class:"cats"}, section("Bar", bar), section("Kitchen", kitchen));
+  const info = k => { const its = groups[k], st = its.map(it => ({ it, s: stats(it) })).filter(x => x.s.status !== "norecipe" && x.s.price > 0);
+    const sold = st.reduce((t, x) => t + (n(x.it.sold) || 0), 0);
+    const pct = st.length ? (sold ? st.reduce((t, x) => t + x.s.plate * (n(x.it.sold) || 0), 0) / st.reduce((t, x) => t + x.s.price * (n(x.it.sold) || 0), 0) : st.reduce((t, x) => t + x.s.fc, 0) / st.length) : null;
+    const target = targetFor(its[0], r), fix = st.filter(x => x.s.status === "bad").length, over = pct == null ? -1 : pct - target;
+    return { k, pct, target, fix, over, drink: isBar(k), tone: pct == null ? "" : pct > target + (r.tol || 0.05) ? "bad" : pct > target ? "warn" : "good" }; };
+  const all = names.map(info), needs = all.filter(x => x.fix || x.tone === "bad" || x.tone === "warn").sort((a, b) => b.fix - a.fix || b.over - a.over);
+  const row = x => el("button",{class:"att-row " + x.tone, type:"button", onclick:() => { MV.cat = x.k; MV.group = "fix"; go("menu"); }},
+    el("i",{class:"att-dot"}), el("b",{text: x.k}),
+    el("span",{class:"att-pct", text: x.pct != null ? pc(x.pct) + " " + (x.drink ? "pour" : "food") + " cost (target " + pc(x.target) + ")" : "Not costed yet"}),
+    x.fix ? el("span",{class:"att-fix", text: x.fix + " to fix"}) : el("span"), el("span",{class:"att-go", text:"\u203a"}));
+  const showAll = !!HV.allSections, list = showAll ? all.slice().sort((a, b) => b.fix - a.fix || b.over - a.over) : needs.slice(0, 5);
+  return el("div",{class:"card att"},
+    el("div",{class:"spread"}, el("h2",{style:"margin:0", text: showAll ? "All sections" : needs.length ? "Needs attention" : "Menu sections"}),
+      el("span",{class:"mini", text: needs.length ? needs.length + " of " + all.length + " sections" : "Every section is on target"})),
+    list.length ? el("div",{class:"att-list"}, list.map(row)) : el("p",{class:"mini", style:"margin:8px 0 0", text:"\u2713 Every section is at or under its target."}),
+    el("button",{class:"linkbtn", type:"button", style:"margin-top:8px", text: showAll ? "Show only what needs attention" : "All " + all.length + " sections \u203a", onclick:() => { HV.allSections = !showAll; render(); }}));
 }
+const HV = { allSections:false };
 function barKitchenNumbers(r, all){
   const part = pick => { const xs = all.filter(x => x.s.status !== "norecipe" && x.s.price > 0 && pick(x.i));
     const sales = xs.reduce((t, x) => t + x.s.price * (n(x.i.sold) || 0), 0), cost = xs.reduce((t, x) => t + x.s.plate * (n(x.i.sold) || 0), 0);
@@ -5418,6 +5441,19 @@ function stopPromo(r, p){ const t = localDay(new Date()); calData(r);
     .map(sp => sp); save(); toast(p.name + " stopped. Past dates stay on the calendar."); }
 // Manager Home: one-tap promos.
 function promoCard(r){
+  const list = promoList(r), t = localDay(new Date());
+  const running = list.map(p => ({ p, run: promoRunning(r, p), once: promoOnce(r, p) })).filter(x => x.run || x.once.length);
+  const isBogo = p => /bogo|buy one/i.test(p.name + " " + p.rules);
+  return el("div",{class:"card promo-line"},
+    el("span",{class:"pl-star", text:"\u2605"}),
+    running.length ? el("div",{class:"pl-body"}, running.map(({ p, run, once }) => el("div",{class:"pl-item"},
+        el("b",{text: p.name}), el("span",{text: run ? " every " + DAY_NAMES[run.days[0]] : " on " + once.map(sp => nice(sp.start)).join(", ")}),
+        isBogo(p) ? el("button",{class:"linkbtn", type:"button", text: p.only && p.only.length ? p.only.length + " items" : "Pick the items", onclick:() => openBogoPlanner(p)}) : null,
+        el("button",{class:"linkbtn danger-t", type:"button", text:"Stop", onclick:() => { stopPromo(r, p); render(); }}))))
+      : el("div",{class:"pl-body"}, el("b",{text:"No promo running"}), el("span",{class:"mini", text:" BOGO, half-price apps and more"})),
+    el("button",{class:"btn " + (running.length ? "quiet" : "primary") + " sm", type:"button", text: running.length ? "Promos" : "Run a promo", onclick: openPromos}));
+}
+function promoCardFull(r){
   const list = promoList(r), t = localDay(new Date()), dow = new Date(t + "T12:00:00").getDay();
   const today = list.filter(p => (r.specials || []).some(sp => sp.promoId === p.id && specialOn(sp, t)));
   return el("div",{class:"card promo-card"},
