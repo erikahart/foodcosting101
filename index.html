@@ -1448,6 +1448,11 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .bulk .btn{background:transparent !important;color:#fff !important;border:1.5px solid rgba(255,255,255,.55) !important;min-height:38px}
 .bulk .btn:hover{background:rgba(255,255,255,.12) !important}
 .bulk .btn.danger{background:#B8352A !important;border-color:#B8352A !important;color:#fff !important}
+.wn-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:0 0 14px;background:var(--panel)}
+.wn-bar.due{background:#FFF4D6;border-color:var(--mustard)}
+.ann-row{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;display:grid;gap:6px}
+.diffs{margin:0;padding-left:18px;font-size:.92rem;display:grid;gap:2px} .diffs .dl{font-weight:700} .diffs s{color:var(--muted)} .diffs mark{background:#FFE58A;padding:0 3px;border-radius:3px}
+.wn-list{display:grid;gap:10px} .wn{border:1px solid var(--line);border-left:5px solid var(--mustard);border-radius:12px;padding:10px 12px} .wn-why{margin:4px 0 6px;font-style:italic}
 </style>
 </head>
 <body>
@@ -1943,7 +1948,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Readable selection bar";
+const APP_VERSION = "Oct 27, 2026 \u00b7 What\u2019s new";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2792,6 +2797,71 @@ function todayStrip(r){
       onclick:() => { if (it.kind === "special" && it.ref && it.ref.itemId && r.items[it.ref.itemId] && ST.page === "book") return openCard(it.ref.itemId); EVV.day = t; EVV.month = t.slice(0, 7) + "-01"; go("events"); }},
     (it.kind === "special" ? "\u2605 " : it.time ? t12(it.time, true) + " " : "") + it.title + (it.guests ? " (" + it.guests + ")" : ""))), today.length > 6 ? el("span",{class:"mini", text:"+" + (today.length - 6) + " more"}) : null);
 }
+
+/* ================= What's new: recipe changes and announcements the team should see ================= */
+// Each recipe's last announced version; edits since then are "not announced yet".
+const cardSig = (it, r) => ({ name: it.name, ings: ingredientRows(it, r).map(x => [x.name, String(x.qty)]), steps: (cardOf(it).steps || []).slice(), plating: cardOf(it).plating || "" });
+function ensureCardBase(r){
+  if (r.cardBase) return;
+  r.cardBase = {}; Object.values(r.items).forEach(it => { if (!SUMMARY_SECTION.test(it.section || "")) r.cardBase[it.id] = cardSig(it, r); }); save();
+}
+function sigDiffs(a, b){
+  const out = [];
+  if (!a) return [{ label:"New on the menu", old:"", now: b.ings.map(x => x[0]).slice(0, 6).join(", ") }];
+  const am = new Map(a.ings.map(x => [x[0], x[1]])), bm = new Map(b.ings.map(x => [x[0], x[1]]));
+  b.ings.forEach(([nm, q]) => { if (!am.has(nm)) out.push({ label: nm, old:"", now: q || "added" }); else if (am.get(nm) !== q) out.push({ label: nm, old: am.get(nm), now: q }); });
+  a.ings.forEach(([nm, q]) => { if (!bm.has(nm)) out.push({ label: nm, old: q || "in it", now: "removed" }); });
+  const n2 = Math.max(a.steps.length, b.steps.length);
+  for (let i = 0; i < n2; i++) if ((a.steps[i] || "") !== (b.steps[i] || "")) out.push({ label: "Step " + (i + 1), old: a.steps[i] || "", now: b.steps[i] || "removed" });
+  if (a.plating !== b.plating) out.push({ label: "Plating", old: a.plating, now: b.plating || "removed" });
+  return out;
+}
+function pendingCardChanges(r){
+  ensureCardBase(r);
+  return Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || "")).map(it => ({ it, sig: cardSig(it, r) }))
+    .map(x => ({ it: x.it, sig: x.sig, diffs: sigDiffs(r.cardBase[x.it.id], x.sig) })).filter(x => x.diffs.length);
+}
+let ACKS = null, ACKS_AT = 0;
+async function loadAcks(force){
+  if (!sb || !ACCT || (!force && Date.now() - ACKS_AT < 60000)) return; ACKS_AT = Date.now();
+  const { data, error } = await sb.rpc("change_acks_list", { p_account: ACCT.id }); if (error) return;
+  ACKS = new Map(); (data || []).forEach(a => { if (!ACKS.has(a.change_id)) ACKS.set(a.change_id, []); ACKS.get(a.change_id).push(a.name); });
+  if (ST.page === "book" && dlg.open && dlg.dataset.whatsnew) openWhatsNew();
+}
+function openAnnounce(){
+  const r = R(), list = pendingCardChanges(r);
+  if (!list.length) return toast("No recipe changes waiting.");
+  const rows = list.map(x => { const why = el("input",{class:"inp", placeholder:"Why? e.g. We were losing money on every cup"}), on = el("input",{type:"checkbox"}); on.checked = true;
+    return { x, why, on, el: el("div",{class:"ann-row"}, el("label",{class:"row", style:"gap:8px"}, on, el("b",{text:x.it.name})),
+      el("ul",{class:"diffs"}, x.diffs.slice(0, 8).map(d => el("li",null, el("span",{class:"dl", text:d.label + ": "}), d.old ? el("s",{text:d.old}) : null, d.old ? " \u2192 " : "", el("mark",{text:d.now})))), why) }; });
+  openDlg("Tell the team", [el("p",{class:"lead", text:"These recipes changed since the team last saw them. Add one line on why, then announce. Untick small fixes (typos) to skip them."}), ...rows.map(x => x.el)],
+    [el("button",{class:"btn quiet", text:"Skip all (no announcement)", onclick:() => { list.forEach(x => r.cardBase[x.it.id] = x.sig); save(); dlg.close(); render(); }}),
+     el("button",{class:"btn primary", text:"Announce", onclick:() => { const by = (USER && USER.email || "").split("@")[0]; r.changes = r.changes || []; let k = 0;
+       rows.forEach(({ x, why, on }) => { if (on.checked){ r.changes.unshift({ id: uid("ch"), at: new Date().toISOString(), itemId: x.it.id, title: x.it.name, why: why.value.trim(), diffs: x.diffs.slice(0, 12), by, kind:"recipe" }); k++; } r.cardBase[x.it.id] = x.sig; });
+       r.changes = r.changes.slice(0, 200); save(); dlg.close(); render(); toast(k ? "Announced. It's on the tablet and staff phones under What's new." : "Skipped."); }})]);
+}
+function announceNote(){
+  const t = el("input",{class:"inp", placeholder:"e.g. New: label and date every container"}), why = el("textarea",{class:"inp", rows:"3", placeholder:"What to do and why"});
+  openDlg("Announce something", [fld("What changed", t), fld("Details", why)], [el("span"), el("button",{class:"btn primary", text:"Announce", onclick:() => {
+    if (!t.value.trim()) return t.focus(); const r = R(); r.changes = r.changes || [];
+    r.changes.unshift({ id: uid("ch"), at: new Date().toISOString(), itemId: null, title: t.value.trim(), why: why.value.trim(), diffs: [], by: (USER && USER.email || "").split("@")[0], kind:"note" });
+    save(); dlg.close(); render(); toast("Announced under What's new."); }})]);
+}
+function openWhatsNew(){
+  const r = R(); loadAcks(); const people = (schedData(r), r.staff || []).map(p => p.name);
+  const recent = (r.changes || []).filter(c => Date.now() - Date.parse(c.at) < 30 * 864e5);
+  openDlg("What's new", [el("div",{class:"row", style:"gap:8px;margin-bottom:10px"}, el("button",{class:"btn quiet", type:"button", text:"+ Announce something", onclick: announceNote}),
+      pendingCardChanges(r).length ? el("button",{class:"btn primary", type:"button", text:"Tell the team about " + pendingCardChanges(r).length + " recipe change" + (pendingCardChanges(r).length === 1 ? "" : "s"), onclick: openAnnounce}) : null),
+    recent.length ? el("div",{class:"wn-list"}, recent.map(c => { const seen = (ACKS && ACKS.get(c.id)) || [], missing = people.filter(p => !seen.includes(p));
+      return el("div",{class:"wn"}, el("div",{class:"spread"}, el("b",{text: c.title}), el("span",{class:"mini", text: nice(c.at.slice(0, 10)) + (c.by ? " \u00b7 " + c.by : "")})),
+        c.why ? el("p",{class:"wn-why", text: c.why}) : null,
+        c.diffs.length ? el("ul",{class:"diffs"}, c.diffs.slice(0, 8).map(d => el("li",null, el("span",{class:"dl", text:d.label + ": "}), d.old ? el("s",{text:d.old}) : null, d.old ? " \u2192 " : "", el("mark",{text:d.now})))) : null,
+        el("p",{class:"mini", style:"margin:6px 0 0"}, el("b",{text:"Seen by " + seen.length + (people.length ? " of " + people.length : "") + ": "}), seen.join(", ") || "nobody yet",
+          missing.length && seen.length ? el("span",{class:"bad-t", text:"  \u00b7 Not yet: " + missing.join(", ")}) : null),
+        el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { if (!confirm("Take this off What's new?")) return; r.changes = r.changes.filter(x => x !== c); save(); openWhatsNew(); }})); }))
+      : el("p",{class:"mini", text:"Nothing announced in the last 30 days."})], []);
+  dlg.dataset.whatsnew = "1"; dlg.addEventListener("close", () => { delete dlg.dataset.whatsnew; }, { once:true });
+}
 function book(m){
   const r = R(); loadPhotos();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Kitchen book"}), el("p",{class:"lead", text:"Recipe cards for the line: what it looks like, what goes on it, and how to make it."})),
@@ -2799,6 +2869,14 @@ function book(m){
   if (!PHOTOS_READY) m.append(el("div",{class:"card banner"}, el("div",null, el("b",{text:"Photos need a one-time setup."}), " Whoever manages the app runs supabase/002_recipe_photos.sql in Supabase (SQL Editor). Recipe cards work without it; only photos wait."),
     el("button",{class:"btn quiet", text:"Check again", onclick:() => { PHOTOS_READY = true; loadPhotos(true); }})));
   { const ts = todayStrip(r); if (ts){ ts.style.margin = "4px 0 14px"; m.append(ts); } }
+  if (canEditSchedule() || (ACCT && ["owner","manager"].includes(ACCT.role) && !pinLocked())){
+    const pend = pendingCardChanges(r), recent = (r.changes || []).filter(c => Date.now() - Date.parse(c.at) < 14 * 864e5);
+    m.append(el("div",{class:"wn-bar" + (pend.length ? " due" : "")},
+      el("span",null, pend.length ? el("b",{text: pend.length + (pend.length === 1 ? " recipe change isn't" : " recipe changes aren't") + " announced yet. "}) : el("b",{text:"What's new: "}),
+        pend.length ? "Tell the team so they see it on the line." : recent.length + " announced in the last 2 weeks."),
+      el("div",{class:"row", style:"gap:8px"}, pend.length ? el("button",{class:"btn primary sm", type:"button", text:"Tell the team", onclick: openAnnounce}) : null,
+        el("button",{class:"btn quiet sm", type:"button", text:"What's new", onclick: openWhatsNew}))));
+  }
   const all = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
   if (!all.length){ m.append(el("div",{class:"card empty", text:"No menu items yet. Add recipes on Menu & recipes and they appear here as cards."})); return; }
   const order = sectionOrder(r).filter(c => all.some(it => (it.section || "Menu") === c));
@@ -3830,7 +3908,8 @@ function bookSnapshot(r){
   const specials = r.specials.filter(sp => (!sp.end || sp.end >= from) && (!sp.start || sp.start <= evTo)).map(sp => ({ title: sp.title, kind: sp.kind, price: sp.price || null, desc: sp.desc || "", start: sp.start || null, end: sp.end || null, days: sp.days || null, itemId: sp.itemId || null }));
   const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, startAt: l.startAt || null, items: l.items }));
   ideaCards.forEach(c => items.push(c));
-  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, plans, specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
+  const changes = (r.changes || []).filter(c => Date.now() - Date.parse(c.at) < 21 * 864e5).map(c => ({ id: c.id, at: c.at, itemId: c.itemId && items.some(i => i.id === c.itemId) ? c.itemId : null, title: c.title, why: c.why || "", diffs: c.diffs || [], kind: c.kind }));
+  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, plans, changes, specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
     brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Kitchen book" } };
 }
 let BOOK_T = null;

@@ -292,6 +292,18 @@ html, body{max-width:100%;overflow-x:hidden}
   #me{order:6;flex:none}
   main{padding-left:12px !important;padding-right:12px !important}
 }
+.wn-strip{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 18px;margin:0 0 18px;font:inherit;color:var(--ink);cursor:pointer;font-size:1.05rem}
+.wn-strip.due{background:#FFF4D6;border:2px solid var(--mustard)} .wn-strip b{font-family:var(--head);font-weight:800;font-size:1.5rem} .wn-strip .go-arrow{margin-left:auto;font-size:2rem;line-height:1}
+.wn-list{display:grid;gap:14px}
+.wn-card, .chg-banner{background:var(--panel);border:1px solid var(--line);border-left:6px solid var(--mustard);border-radius:16px;padding:14px 16px}
+.chg-banner{background:#FFF8E3;margin-bottom:16px}
+.wn-card.seen{border-left-color:var(--jade);opacity:.85}
+.wn-top{display:flex;align-items:center;justify-content:space-between;gap:10px} .wn-top b{font-size:1.25rem}
+.wn-why{margin:6px 0;font-size:1.08rem;font-style:italic}
+.diffs{margin:6px 0;padding-left:20px;font-size:1.08rem;display:grid;gap:4px} .diffs .dl{font-weight:700} .diffs s{color:var(--muted)} .diffs mark{background:#FFE58A;padding:0 4px;border-radius:4px;font-weight:700}
+.pick .names button.today{border-color:var(--jade);border-width:2px}
+.wn-acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px} .wn-ok{color:var(--jade, #1F6F5C);font-weight:800}
+.card{position:relative} .chg-tag{position:absolute;top:10px;left:10px;z-index:2;background:var(--mustard, #D99A1E);color:#24221F;font-weight:800;font-size:.85rem;padding:4px 10px;border-radius:999px}
 .ev-needs-btn{margin-top:10px;min-height:48px}
 .ev-needs{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px 18px;font-size:1.02rem}
 .ev-needs li{border-bottom:1px dashed var(--line);padding:6px 0}
@@ -369,8 +381,52 @@ html, body{max-width:100%;overflow-x:hidden}
     BOOK.items.filter(it => !it.hidden).forEach(it => { (g[it.section] = g[it.section] || []).push(it); });
     return Object.keys(g).sort((a, b) => (order.indexOf(a) + 1 || 999) - (order.indexOf(b) + 1 || 999)).map(k => ({ name: k, items: g[k].sort((a, b) => a.order - b.order), bar: g[k].filter(x => x.bar).length * 2 > g[k].length }));
   }
+  // ---------- What's new: recipe changes and announcements, with "Got it" ----------
+  let SEEN = new Map(), SEEN_AT = 0;   // change id -> [names]
+  function loadSeen(force){
+    if (!sb || (!force && Date.now() - SEEN_AT < 60000)) return; SEEN_AT = Date.now();
+    sb.rpc("book_change_acks", { p_token: token }).then(({ data, error }) => { if (error) return; SEEN = new Map(); (data || []).forEach(a => { if (!SEEN.has(a.change_id)) SEEN.set(a.change_id, []); SEEN.get(a.change_id).push(a.name); }); render(); });
+  }
+  const recentChanges = days => (BOOK.changes || []).filter(c => Date.now() - Date.parse(c.at) < (days || 14) * 864e5);
+  const changeFor = id => recentChanges(14).find(c => c.itemId === id);
+  const unseen = () => recentChanges(14).filter(c => !(ME && (SEEN.get(c.id) || []).includes(ME.name)));
+  const diffList = c => (c.diffs || []).length ? h("ul", { class:"diffs" }, c.diffs.slice(0, 10).map(d => h("li", null, h("span", { class:"dl", text: d.label + ": " }), d.old ? h("s", { text: d.old }) : null, d.old ? " \u2192 " : "", h("mark", { text: d.now })))) : null;
+  async function gotIt(c){
+    const send = async nm => { const { data } = await sb.rpc("book_change_ack", { p_token: token, p_change: c.id, p_name: nm });
+      if (data){ const l = SEEN.get(c.id) || []; if (!l.includes(nm)) l.push(nm); SEEN.set(c.id, l); flash("Thanks, " + nm.split(" ")[0] + "!"); render(); } };
+    if (ME) return send(ME.name);
+    const sc = S(), today = localDay(), seen = SEEN.get(c.id) || [];
+    const onToday = [...new Set(sc.shifts.filter(x => x.d === today && !x.off).map(x => pname(x.p)).filter(Boolean))];
+    const everyone = [...new Set(onToday.concat((sc.people || []).map(p => p.name)))].filter(nm => !seen.includes(nm));
+    const wrap = h("div", { class:"pick", onclick: e => { if (e.target === wrap) wrap.remove(); } });
+    wrap.replaceChildren(h("div", null, h("h3", { text:"Who's this?" }), h("div", { class:"sub-note", text: c.title }),
+      everyone.length ? h("div", { class:"names" }, everyone.map(nm => h("button", { type:"button", text: nm, class: onToday.includes(nm) ? "today" : "", onclick: () => { wrap.remove(); send(nm); } })))
+        : h("p", { class:"sub-note", text:"Everyone on the schedule has already tapped Got it." }),
+      h("button", { class:"back", type:"button", text:"Cancel", onclick: () => wrap.remove() })));
+    document.body.append(wrap);
+  }
+  function whatsNewStrip(){
+    const list = recentChanges(14); if (!list.length) return null;
+    const k = ME ? unseen().length : list.length;
+    return h("button", { class:"wn-strip" + (k ? " due" : ""), type:"button", onclick: () => { location.hash = "new"; } },
+      h("b", { text: "What's new" }), h("span", { text: ME ? (k ? k + " change" + (k === 1 ? "" : "s") + " for you to see" : "You're all caught up") : list.length + " change" + (list.length === 1 ? "" : "s") + " in the last 2 weeks" }), h("span", { class:"go-arrow", text:"\u203a" }));
+  }
+  function whatsNewView(m){
+    loadSeen();
+    const list = recentChanges(21);
+    m.replaceChildren(h("div", { class:"crumbs" }, h("button", { class:"back", type:"button", text:"\u2190 Recipes", onclick: () => { location.hash = ""; } }), h("h2", { text:"What's new" })),
+      list.length ? h("div", { class:"wn-list" }, list.map(c => { const seen = SEEN.get(c.id) || [], mine = ME && seen.includes(ME.name), it = c.itemId && BOOK.items.find(x => x.id === c.itemId);
+        return h("div", { class:"wn-card" + (mine ? " seen" : "") },
+          h("div", { class:"wn-top" }, h("b", { text: c.title }), h("span", { class:"sub-note", text: new Date(c.at).toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" }) })),
+          c.why ? h("p", { class:"wn-why", text: c.why }) : null, diffList(c),
+          h("div", { class:"wn-acts" }, it ? h("button", { class:"back", type:"button", text:"Open the recipe card", onclick: () => go({ card: it.id }) }) : null,
+            mine ? h("span", { class:"wn-ok", text:"\u2713 You've got it" }) : h("button", { class:"go", type:"button", text:"Got it", onclick: () => gotIt(c) })),
+          h("p", { class:"sub-note", text: seen.length ? "Seen by " + seen.join(", ") : "Nobody's tapped Got it yet." })); }))
+        : h("div", { class:"empty", text:"Nothing new in the last 3 weeks." }), status());
+  }
   function cardGrid(list){
     return h("div", { class:"grid" }, list.map(it => h("button", { class:"card", type:"button", onclick: () => go({ cat: view().cat, card: it.id }) },
+      changeFor(it.id) ? h("span", { class:"chg-tag", text:"Changed" }) : null,
       photoEl(it), h("div", { class:"nm" }, h("b", { text: it.name }), h("span", { text: [it.section, mins((it.card.prepMin || 0) + (it.card.cookMin || 0))].filter(Boolean).join("  ·  ") })))));
   }
   // Printing recipe cards from the tablet: one card per page, photo if it's loaded, ingredients, steps, plating, allergens.
@@ -399,6 +455,12 @@ html, body{max-width:100%;overflow-x:hidden}
   }
   const printBtn = (label, list) => list.length ? h("button", { class:"back print-btn", type:"button", text: label, onclick: () => printItems(list) }) : null;
   function spec(it){
+    const ch = changeFor(it.id), banner = ch ? h("div", { class:"chg-banner" }, h("div", { class:"wn-top" }, h("b", { text: "Changed " + new Date(ch.at).toLocaleDateString(undefined, { month:"short", day:"numeric" }) }),
+        ME && (SEEN.get(ch.id) || []).includes(ME.name) ? h("span", { class:"wn-ok", text:"\u2713 Got it" }) : h("button", { class:"go", type:"button", text:"Got it", onclick: () => gotIt(ch) })),
+      ch.why ? h("p", { class:"wn-why", text: ch.why }) : null, diffList(ch)) : null;
+    return h("div", null, banner, specBody(it));
+  }
+  function specBody(it){
     const c = it.card, total = (c.prepMin || 0) + (c.cookMin || 0);
     const facts = [c.station, c.prepMin ? "Prep " + mins(c.prepMin) : "", c.cookMin ? (it.bar ? "Build " : "Cook ") + mins(c.cookMin) : "", total ? "Total " + mins(total) : "", c.yieldText ? "Makes " + c.yieldText : ""].filter(Boolean);
     return h("div", { class:"spec" },
@@ -837,6 +899,7 @@ html, body{max-width:100%;overflow-x:hidden}
     if (location.hash === "#sched"){ $("kname").textContent = BOOK.name || "Kitchen book"; schedView(m); return; }
     if (location.hash === "#duties"){ $("kname").textContent = BOOK.name || "Kitchen book"; dutiesView(m); return; }
     if (location.hash === "#events"){ $("kname").textContent = BOOK.name || "Kitchen book"; eventsView(m); return; }
+    if (location.hash === "#new"){ $("kname").textContent = BOOK.name || "Kitchen book"; whatsNewView(m); return; }
     if (location.hash === "#build"){ $("kname").textContent = BOOK.name || "Kitchen book"; buildView(m); return; }
     $("kname").textContent = BOOK.name || "Kitchen book"; document.title = (BOOK.name || "Kitchen") + " book";
     const v = view(), secs = sections();
@@ -869,7 +932,8 @@ html, body{max-width:100%;overflow-x:hidden}
     const now = itemsOn(localDay()).filter(x => x.kind !== "note");
     const todayBox = now.length ? h("section", { class:"today-box" }, h("div", { class:"spread-t" }, h("h2", { text:"Today" }), h("button", { class:"back", type:"button", text:"All events", onclick: () => { location.hash = "events"; } })),
       h("div", { class:"evlist compact" }, now.slice(0, 4).map(evRow)), now.length > 4 ? h("p", { class:"sub-note", text:"+" + (now.length - 4) + " more on the Events tab" }) : null) : null;
-    m.replaceChildren(...[todayBox, side("Bar", secs.filter(x => x.bar)), side("Kitchen", secs.filter(x => !x.bar)), BOOK.items.length ? null : h("div", { class:"empty", text:"No recipe cards yet." }), status()].filter(Boolean));
+    loadSeen();
+    m.replaceChildren(...[whatsNewStrip(), todayBox, side("Bar", secs.filter(x => x.bar)), side("Kitchen", secs.filter(x => !x.bar)), BOOK.items.length ? null : h("div", { class:"empty", text:"No recipe cards yet." }), status()].filter(Boolean));
     needPhotos(secs.flatMap(sec => sec.items.filter(it => it.photo).slice(0, 4)));
   }
   function status(){ return h("p", { class:"status", text: UPDATED ? "Updated " + new Date(UPDATED).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) + (navigator.onLine ? "" : "  ·  offline, showing the last copy") : "" }); }
