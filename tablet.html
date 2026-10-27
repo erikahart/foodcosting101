@@ -361,6 +361,25 @@ html, body{max-width:100%;overflow-x:hidden}
 .evbanner{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:#fff;border:0;border-radius:18px;padding:14px 18px;margin:0 0 14px;cursor:pointer;background:linear-gradient(120deg,#7A1F3D,#3B1A4A)}
 .evb-i{font-size:1.7rem} .evb-t{display:grid;gap:2px;flex:1;min-width:0} .evb-t b{font-size:1.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .evb-t span{opacity:.85;font-weight:600} .evb-go{font-size:1.8rem;opacity:.7}
 @media (prefers-reduced-motion: reduce){ .evpop, .evpop-card{animation:none} }
+/* Big section buttons on Home */
+.sec-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;margin:0 0 16px}
+.sec-btn{position:relative;display:grid;justify-items:start;align-content:start;gap:2px;min-height:132px;text-align:left;padding:16px;border-radius:22px;border:0;font:inherit;color:#24221F;cursor:pointer;
+  box-shadow:0 5px 0 rgba(0,0,0,.12), 0 10px 22px rgba(0,0,0,.06);transition:transform .08s, box-shadow .08s;-webkit-tap-highlight-color:transparent}
+.sec-btn:active{transform:translateY(4px);box-shadow:0 1px 0 rgba(0,0,0,.12)}
+.sec-i{display:grid;place-items:center;width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,.75);margin-bottom:8px}
+.sec-btn b{font-family:var(--head);font-weight:800;font-size:1.55rem;line-height:1.05} .sec-s{font-weight:600;opacity:.75;font-size:.95rem}
+.sec-badge{position:absolute;top:12px;right:12px;min-width:28px;height:28px;display:grid;place-items:center;border-radius:999px;background:#B8352A;color:#fff;font-weight:800;font-size:.9rem;padding:0 8px}
+.c-rec{background:#D6EEE3} .c-sched{background:#DCE6F7} .c-duty{background:#E3F0D9} .c-ev{background:#F6DCE4} .c-new{background:#FBE9B8} .c-low{background:#FCE0C8} .c-build{background:#E7E0F5}
+@media (max-width:640px){
+  .sec-grid{grid-template-columns:1fr 1fr;gap:10px} .sec-btn{min-height:120px;padding:14px;border-radius:20px} .sec-btn b{font-size:1.3rem} .sec-i{width:46px;height:46px}
+  header h1, #kname{font-size:1.4rem !important} header .sub, header #ksub{display:none}
+  /* Schedule: names above full-width bars, labels that fit */
+  .tl-head .tl-name{display:none} .tl-head, .tl-row{display:block !important}
+  .tl-row .tl-name{display:flex;gap:6px;align-items:baseline;padding:8px 0 4px;width:auto !important} .tl-row .tl-track{width:100% !important}
+  .tl-axis span{font-size:.75rem}
+  .nowstrip{flex-wrap:wrap;gap:8px} .nowstrip .nowlbl{width:100%} .nowpos{flex:1 1 auto;min-width:0}
+  .day-tabs, .days{gap:6px}
+}
 .ev-needs-btn{margin-top:10px;min-height:48px}
 .ev-needs{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px 18px;font-size:1.02rem}
 .ev-needs li{border-bottom:1px dashed var(--line);padding:6px 0}
@@ -522,16 +541,28 @@ html, body{max-width:100%;overflow-x:hidden}
     const b = h("button", { class:"big-btn " + cls, type:"button", onclick: fn }); const i = document.createElement("span"); i.className = "bb-i"; i.innerHTML = icon;
     b.append(i, h("span", { class:"bb-t" }, h("b", { text: title }), h("span", { text: sub }))); return b;
   }
+  const SEC_ICONS = {"rec": "<svg viewBox=\"0 0 24 24\" width=\"30\" height=\"30\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z\"/><path d=\"M5 17a3 3 0 013-3h11\"/></svg>", "sched": "<svg viewBox=\"0 0 24 24\" width=\"30\" height=\"30\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"5\" width=\"18\" height=\"16\" rx=\"2\"/><path d=\"M3 10h18M8 3v4M16 3v4\"/></svg>", "duty": "<svg viewBox=\"0 0 24 24\" width=\"30\" height=\"30\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"4\" y=\"4\" width=\"16\" height=\"16\" rx=\"3\"/><path d=\"M8 12l3 3 5-6\"/></svg>", "ev": "<svg viewBox=\"0 0 24 24\" width=\"30\" height=\"30\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z\"/></svg>", "new": "<svg viewBox=\"0 0 24 24\" width=\"30\" height=\"30\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M6 8a6 6 0 0112 0c0 7 3 9 3 9H3s3-2 3-9\"/><path d=\"M10.3 21a1.9 1.9 0 003.4 0\"/></svg>", "low": "<svg viewBox=\"0 0 24 24\" width=\"30\" height=\"30\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"3\" y=\"7\" width=\"16\" height=\"10\" rx=\"2\"/><path d=\"M22 11v2\"/><path d=\"M6 10v4\"/></svg>", "build": "<svg viewBox=\"0 0 24 24\" width=\"30\" height=\"30\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><path d=\"M9 3h6M10 3v6l-5 9a2 2 0 002 3h10a2 2 0 002-3l-5-9V3\"/><path d=\"M7 15h10\"/></svg>"};
+  function sectionButtons(){
+    const lows = BOARD.filter(b => b.kind === "low"), newN = (ME ? unseen() : recentChanges(14)).length, today = localDay();
+    const evN = itemsOn(today).filter(x => x.kind !== "note").length;
+    const sc = S(), myToday = ME && (sc.shifts || []).some(x => x.p === ME.key && x.d === today && !x.off);
+    const btn = (cls, icon, title, sub, fn, badge) => { const b = h("button", { class:"sec-btn " + cls, type:"button", onclick: fn }), i = document.createElement("span"); i.className = "sec-i"; i.innerHTML = SEC_ICONS[icon];
+      b.append(...[i, h("b", { text: title }), h("span", { class:"sec-s", text: sub }), badge ? h("span", { class:"sec-badge", text: String(badge) }) : null].filter(Boolean)); return b; };
+    return h("div", { class:"sec-grid" },
+      btn("c-rec", "rec", "Recipes", BOOK.items.filter(x => !x.hidden).length + " cards", () => { location.hash = "recipes"; }),
+      btn("c-sched", "sched", "Schedule", myToday ? "You're on today" : ME ? "Your shifts" : "Who's working", () => { location.hash = "sched"; }),
+      btn("c-duty", "duty", "Duties", "Today's checklists", () => { location.hash = "duties"; }),
+      btn("c-ev", "ev", "Events", evN ? evN + " today" : "Coming up", () => { location.hash = "events"; }, evN || null),
+      btn("c-new", "new", "What's new", newN ? newN + (ME ? " for you" : " this week") : "All caught up", () => { location.hash = "new"; }, newN || null),
+      btn("c-low", "low", "Running low", lows.length ? lows.length + " reported" : "Warn a manager", () => boardPicker("low"), lows.length || null),
+      btn("c-build", "build", "Not on the menu?", "Build a dish or drink", () => { location.hash = "build"; }));
+  }
   function boardStrip(){
     loadBoard();
-    const outs = BOARD.filter(b => b.kind === "86"), lows = BOARD.filter(b => b.kind === "low");
-    const kud = (BOOK.kudos || []).filter(k => Date.now() - Date.parse(k.at) < 48 * 3600e3);
+    const lows = BOARD.filter(b => b.kind === "low"), kud = (BOOK.kudos || []).filter(k => Date.now() - Date.parse(k.at) < 48 * 3600e3);
     return h("div", { class:"board" },
       kud.map(k => h("div", { class:"kudo" }, h("span", { class:"kd-i", text:"\uD83C\uDF89" }), h("div", null, h("b", { text: k.text }), h("span", { class:"sub-note", text: " \u2014 " + k.by + (k.toName ? " to " + k.toName : "") })))),
-      outs.length ? h("div", { class:"b86" }, h("b", { text:"86'd" }), outs.map(b => h("button", { type:"button", class:"b86-i", title:"Tap when it's back", onclick: () => boardClear(b) }, b.name, h("span", { class:"x", text:" \u00d7" })))) : null,
-      lows.length ? h("div", { class:"blow" }, h("b", { text:"Running low" }), lows.map(b => h("span", { class:"blow-i", text: b.name + (b.note ? " (" + b.note + ")" : "") }))) : null,
-      h("div", { class:"b-acts" }, bigBtn("b86-big", ICON86, "86 it", outs.length ? outs.length + " out right now" : "Mark a dish or drink as out", () => boardPicker("86")),
-        bigBtn("blow-big", ICONLOW, "Running low", lows.length ? lows.length + " reported" : "Warn a manager before it runs out", () => boardPicker("low"))));
+      lows.length ? h("div", { class:"blow" }, h("b", { text:"Running low" }), lows.map(b => h("span", { class:"blow-i", text: b.name + (b.note ? " (" + b.note + ")" : "") }))) : null);
   }
   // ---------- Big event pop-up: today's or tomorrow's big events, once per device per day ----------
   const bigEvents = () => { const today = localDay(), tom = addDays(today, 1);
@@ -584,7 +615,7 @@ html, body{max-width:100%;overflow-x:hidden}
   }
   function cardGrid(list){
     return h("div", { class:"grid" }, list.map(it => h("button", { class:"card", type:"button", onclick: () => go({ cat: view().cat, card: it.id }) },
-      out86(it.id) ? h("span", { class:"chg-tag t86", text:"86'd" }) : changeFor(it.id) ? h("span", { class:"chg-tag", text:"Changed" }) : null,
+      changeFor(it.id) ? h("span", { class:"chg-tag", text:"Changed" }) : null,
       photoEl(it), h("div", { class:"nm" }, h("b", { text: it.name }), h("span", { text: [it.section, mins((it.card.prepMin || 0) + (it.card.cookMin || 0))].filter(Boolean).join("  ·  ") })))));
   }
   // Printing recipe cards from the tablet: one card per page, photo if it's loaded, ingredients, steps, plating, allergens.
@@ -616,9 +647,7 @@ html, body{max-width:100%;overflow-x:hidden}
     const ch = changeFor(it.id), banner = ch ? h("div", { class:"chg-banner" }, h("div", { class:"wn-top" }, h("b", { text: "Changed " + new Date(ch.at).toLocaleDateString(undefined, { month:"short", day:"numeric" }) }),
         ME && (SEEN.get(ch.id) || []).includes(ME.name) ? h("span", { class:"wn-ok", text:"\u2713 Got it" }) : h("button", { class:"go", type:"button", text:"Got it", onclick: () => gotIt(ch) })),
       ch.why ? h("p", { class:"wn-why", text: ch.why }) : null, diffList(ch)) : null;
-    const o = out86(it.id), b86 = o ? h("div", { class:"b86-banner" }, h("b", { text: "86'd since " + new Date(o.created_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) + " (" + o.made_by + ")" }),
-      h("button", { class:"go", type:"button", text:"It's back", onclick: () => boardClear(o) })) : h("button", { class:"back b86-btn", type:"button", text:"86 this", onclick: () => boardAdd("86", it.id, it.name) });
-    return h("div", null, b86, banner, specBody(it));
+    return h("div", null, banner, specBody(it));
   }
   function specBody(it){
     const c = it.card, total = (c.prepMin || 0) + (c.cookMin || 0);
@@ -733,7 +762,8 @@ html, body{max-width:100%;overflow-x:hidden}
       const now = new Date(), nowMin = now.getHours() * 60 + now.getMinutes();
       const hours = []; for (let v = lo; v <= hi; v += 60) hours.push(v);
       const showNow = day === today && nowMin >= lo && nowMin <= hi;
-      const axis = h("div", { class:"tl-axis" }, hours.map(v => h("span", { style:"left:" + pct(v) + "%", text: ((v / 60) % 12 || 12) + ((v / 60) >= 12 && (v / 60) < 24 ? "p" : "a") })),
+      const step = window.innerWidth < 640 ? ((hi - lo) / 60 > 10 ? 4 : 3) : 1;
+      const axis = h("div", { class:"tl-axis" }, hours.filter(v => ((v - lo) / 60) % step === 0).map(v => h("span", { style:"left:" + pct(v) + "%", text: ((v / 60) % 12 || 12) + ((v / 60) >= 12 && (v / 60) < 24 ? "p" : "a") })),
         showNow ? h("b", { class:"tl-nowtag", style:"left:" + pct(nowMin) + "%", text:"Now" }) : null);
       const order = g => POSITIONS.indexOf(g) + 1 || 99;
       const sorted = list.slice().sort((a, b) => order(posOf(a)) - order(posOf(b)) || (a.s || "").localeCompare(b.s || ""));
@@ -746,7 +776,7 @@ html, body{max-width:100%;overflow-x:hidden}
         rows.push(h("div", { class:"tl-row" + (onNow ? " now" : "") },
           h("div", { class:"tl-name" }, h("b", { text: pname(x.p) }), lbl ? h("span", { class:"role", text: lbl }) : null),
           h("div", { class:"tl-track", style:"--n:" + (hours.length - 1) }, showNow ? h("i", { class:"tl-nowline", style:"left:" + pct(nowMin) + "%" }) : null, h("div", { class:"tl-bar" + (x.e ? "" : " toclose"), style:"background:" + pc + ";color:" + (g === "Bar" ? "#24221F" : "#fff") + ";left:" + pct(s0) + "%;width:" + Math.max(pct(e0) - pct(s0), 6) + "%" },
-            h("span", { text: t12(x.s) + " \u2013 " + (x.e ? t12(x.e) : "close") })))));
+            h("span", { text: window.innerWidth < 640 ? t12(x.s, true) + "\u2013" + (x.e ? t12(x.e, true) : "close") : t12(x.s) + " \u2013 " + (x.e ? t12(x.e) : "close") })))));
       });
       const tl = h("div", { class:"tl" }, h("div", { class:"tl-head" }, h("div", { class:"tl-name" }), axis), rows);
       if (day === today){ const onNow = list.filter(x => nowMin >= toMin(x.s) && nowMin < (x.e ? toMin(x.e) : 24 * 60));
@@ -1065,8 +1095,8 @@ html, body{max-width:100%;overflow-x:hidden}
     const todayBox = now.length ? h("section", { class:"today-box" }, h("div", { class:"spread-t" }, h("h2", { text:"Today" }), h("button", { class:"back", type:"button", text:"All events", onclick: () => { location.hash = "events"; } })),
       h("div", { class:"evlist compact" }, now.slice(0, 4).map(evRow)), now.length > 4 ? h("p", { class:"sub-note", text:"+" + (now.length - 4) + " more" }) : null) : null;
     if (!homeView.popped){ homeView.popped = true; setTimeout(() => bigEventPopup(), 400); }
-    m.replaceChildren(...[meHero(), bigEventBanner(), boardStrip(), whatsNewStrip(), todayBox,
-      h("button", { class:"home-link", type:"button", onclick: () => { location.hash = "events"; } }, "Events & bookings", h("span", { text:"\u203a" }))].filter(Boolean));
+    m.replaceChildren(...[meHero(), bigEventBanner(), boardStrip(), sectionButtons(), todayBox,
+ ].filter(Boolean));
   }
   function render(){
     const m = $("main"); if (!BOOK) return; markNav();

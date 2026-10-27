@@ -1578,6 +1578,28 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .taste span{font-size:2rem} .taste b{font-size:1.05rem} .taste small{color:var(--muted)} .taste[disabled]{opacity:.45;cursor:not-allowed}
 .taste.good{border-color:#A9CDBF} .taste.fix{border-color:#EBCB88} .taste.drop{border-color:#E7B1AA}
 @media (max-width:900px){ .ib-cols{grid-template-columns:1fr} .taste-btns{grid-template-columns:1fr} }
+/* ---------- Manager on phones: floating tab bar and the Everything sheet ---------- */
+.sx-tool.t5{background:#E8F4EA} .sx-tool.t6{background:#FCEFD2}
+@media (max-width:820px){
+  #appver{display:none !important}
+  #tabbar{left:10px !important;right:10px !important;bottom:calc(10px + env(safe-area-inset-bottom,0px)) !important;border-radius:22px !important;border:1px solid var(--line) !important;
+    box-shadow:0 10px 30px rgba(0,0,0,.18) !important;background:color-mix(in srgb,var(--panel) 92%,transparent) !important;backdrop-filter:blur(12px);padding:6px !important}
+  #tabbar button{border-radius:16px !important;position:relative}
+  #tabbar button[aria-current="page"]{background:var(--jade, #1F6F5C) !important;color:#fff !important}
+  #tabbar button[aria-current="page"] svg{color:#fff}
+  main{padding-bottom:120px !important}
+}
+.m-search{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;border-radius:16px;border:1.5px solid var(--line);background:var(--field);color:var(--muted);font:inherit;font-size:1.02rem;padding:0 16px;cursor:pointer;margin-bottom:14px}
+.mt-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.mt{position:relative;display:grid;justify-items:start;gap:2px;text-align:left;padding:14px 12px;border-radius:18px;border:0;font:inherit;color:var(--ink);cursor:pointer;min-height:112px;transition:transform .1s}
+.mt:active{transform:scale(.96)}
+.mt-i{display:grid;place-items:center;width:42px;height:42px;border-radius:13px;background:#fff;margin-bottom:6px;box-shadow:0 2px 6px rgba(0,0,0,.06)} .mt-i svg{width:22px;height:22px}
+.mt b{font-size:.98rem;line-height:1.15} .mt-s{font-size:.78rem;color:var(--ink-2)}
+.mt-badge{position:absolute;top:8px;right:8px;background:#B8352A;color:#fff;border-radius:999px;font-size:.75rem;font-weight:800;padding:1px 7px}
+.mt.c1{background:#E3F1EB} .mt.c2{background:#FBEBD0} .mt.c3{background:#E6ECF7} .mt.c4{background:#F6E1DD} .mt.c5{background:#EDE8F6} .mt.c6{background:#E2F2F4} .mt.c7{background:#F2EFE6} .mt.c8{background:#FDE7D8} .mt.c9{background:#ECEEEC}
+.ma-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
+.ma{display:grid;justify-items:center;gap:4px;padding:10px 4px;border-radius:14px;border:1px solid var(--line);background:var(--panel);font:inherit;color:var(--ink);cursor:pointer} .ma-i{font-size:1.4rem} .ma b{font-size:.78rem;text-align:center}
+@media (max-width:380px){ .mt-grid{grid-template-columns:repeat(2,1fr)} .ma-row{grid-template-columns:repeat(2,1fr)} }
 </style>
 </head>
 <body>
@@ -2073,7 +2095,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Idea to menu";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Mobile polish";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2182,7 +2204,7 @@ function renderNav(){
   // Phone tab bar: the five pages used most, plus More.
   const tbar = $("tabbar");
   if (tbar){
-    const MAIN = locked ? [["home","Home"],["book","Book"],["lab","Test"],["sched","Schedule"],["events","Events"]] : ACCT && ACCT.role === "member" ? [["book","Book"],["home","Home"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]] : [["home","Home"],["coach","Coach"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]];
+    const MAIN = locked ? [["home","Home"],["book","Book"],["lab","Test"],["sched","Schedule"],["events","Events"]] : ACCT && ACCT.role === "member" ? [["book","Book"],["home","Home"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]] : [["home","Home"],["coach","Coach"],["menu","Menu"],["inbox","Invoices"]];
     const moreIc = document.createElement("span"); moreIc.className = "ic"; moreIc.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
     const onMore = !MAIN.some(([id]) => id === ST.page);
     if (gated){ tbar.replaceChildren(); }
@@ -2376,13 +2398,15 @@ function staffHome(m){
   // 2. Shout-outs and the 86 board
   loadBoardApp();
   kudosNow(r).forEach(k => m.append(el("div",{class:"kudo-app"}, el("span",{text:"\ud83c\udf89"}), el("div",null, el("b",{text:k.text}), el("span",{class:"mini", text:" \u2014 " + k.by + (k.toName ? " to " + k.toName : "")})))));
-  const outs = BOARD.filter(b => b.kind === "86"), lows = BOARD.filter(b => b.kind === "low");
-  if (outs.length) m.append(el("div",{class:"sx-86"}, el("b",{text:"86'd"}), outs.map(b => el("button",{class:"sx-86-i", type:"button", title:"Tap when it's back",
+  const outs = [], lows = BOARD.filter(b => b.kind === "low");
+  if (false) m.append(el("div",{class:"sx-86"}, el("b",{text:"86'd"}), outs.map(b => el("button",{class:"sx-86-i", type:"button", title:"Tap when it's back",
     onclick: async () => { await sb.rpc("board_clear", { p_account: ACCT.id, p_id: b.id, p_by: first || myFirst() }); toast(b.name + " is back on."); loadBoardApp(true); }}, b.name, el("span",{text:" \u00d7"})))));
   if (lows.length) m.append(el("div",{class:"sx-low"}, el("b",{text:"Running low"}), lows.map(b => el("span",{text: b.name}))));
   const big = (cls, icon, title, sub, fn) => { const b = el("button",{class:"sx-big " + cls, type:"button", onclick: fn}), i = el("span",{class:"sx-big-i"}); i.innerHTML = icon; b.append(i, el("span",{class:"sx-big-t"}, el("b",{text:title}), el("span",{text:sub}))); return b; };
-  m.append(el("div",{class:"sx-acts"}, big("r", SX_ICON.b86, "86 it", outs.length ? outs.length + " out right now" : "Mark a dish or drink as out", () => staffBoardPick("86")),
-    big("y", SX_ICON.low, "Running low", lows.length ? lows.length + " reported" : "Warn a manager early", () => staffBoardPick("low"))));
+  m.append(el("div",{class:"sx-tools"}, [["book","Kitchen book","Recipe cards","t1"],["lab","Test kitchen","Try something new","t2"],["sched","Schedule","Shifts & requests","t3"],["events","Events","What's coming up","t4"]].map(([pg, a, b2, c]) =>
+    el("button",{class:"sx-tool " + c, type:"button", onclick:() => { if (pg === "sched") SCV.tab = "week"; go(pg); }}, el("span",{class:"sx-tool-i"}, navIcon(pg)), el("b",{text:a}), el("span",{text:b2}))),
+    el("button",{class:"sx-tool t5", type:"button", onclick:() => { SCV.tab = "lists"; SCV.logDay = t; go("sched"); }}, el("span",{class:"sx-tool-i", text:"\u2705"}), el("b",{text:"Checklists"}), el("span",{text:"Today's duties"})),
+    (() => { const b = el("button",{class:"sx-tool t6", type:"button", onclick:() => staffBoardPick("low")}), i = el("span",{class:"sx-tool-i"}); i.innerHTML = SX_ICON.low; b.append(i, el("b",{text:"Running low"}), el("span",{text: lows.length ? lows.length + " reported" : "Warn a manager"})); return b; })()));
   // 3. What changed (until they tap Got it)
   loadAcks(); const myName = person ? person.name : (UNLOCK && unlocked() ? UNLOCK.name : myFirst());
   const unseen = (r.changes || []).filter(c => Date.now() - Date.parse(c.at) < 14 * 864e5 && !((ACKS && ACKS.get(c.id)) || []).includes(myName));
@@ -2446,9 +2470,7 @@ function staffHome(m){
       heroes.replaceChildren(el("div",{class:"sx-podium"}, top.map(([nm, k], i) => el("div",{class:"sx-pod p" + (i + 1) + (nm === myName ? " me" : "")}, el("span",{class:"sx-medal", text:["\ud83e\udd47","\ud83e\udd48","\ud83e\udd49"][i]}), el("b",{text:nm}), el("span",{text: k + " tasks"})))),
         el("p",{class:"mini", style:"margin:10px 0 0", text: top.some(([nm]) => nm === myName) ? "That's you up there. Nice!" : mineN ? "You: " + mineN + " tasks this week. Keep it up!" : "Check off a duty to get on the board."})); });
   }
-  // 7. Tools
-  m.append(el("div",{class:"sx-tools"}, [["book","Kitchen book","Recipe cards","t1"],["lab","Test kitchen","Try something new","t2"],["sched","Schedule","Shifts & requests","t3"],["events","Events","What's coming up","t4"]].map(([pg, a, b2, c]) =>
-    el("button",{class:"sx-tool " + c, type:"button", onclick:() => { if (pg === "sched") SCV.tab = "week"; go(pg); }}, el("span",{class:"sx-tool-i"}, navIcon(pg)), el("b",{text:a}), el("span",{text:b2})))));
+
 }
 function ensurePinCfg(){ ST.pinLock = ST.pinLock || { on:false, salt: Math.random().toString(36).slice(2) + Date.now().toString(36), pins:[], timeout:15, trusted:[] }; return ST.pinLock; }
 // preset: { userId, name } ties the PIN to a team member's account (shown by their email).
@@ -2637,21 +2659,21 @@ function classLegend(){
   return el("div",{class:"cls-legend", role:"note", "aria-label":"Menu engineering classes"}, Object.entries(CLASS_INFO).map(([k, v]) => el("span",{class:"cls " + v.c, title: v.act}, classIcon(k), el("b",{text:k}), el("span",{class:"mini", text: v.say}))));
 }
 function openMore(){
-  const item = (label, sub, fn) => el("button",{class:"more-row", type:"button", onclick:() => { dlg.close(); fn(); }}, el("b",{text:label}), sub ? el("span",{text:sub}) : null);
   const t = currentTheme(), next = { auto:"dark", dark:"light", light:"auto" }[t];
-  openDlg("More", [el("div",{class:"more-list"},
-    item("Search", "Dishes, supplies, suppliers and actions", () => cmdkOpen()),
-    item("Kitchen book", "Recipe cards with photos and steps for the line", () => go("book")),
-    item("Test kitchen", "Describe something new: recipe, ordering, cost and price", () => go("lab")),
-    item("Ordering", "Order requests, combined into one order by best vendor", () => go("purch")),
-    item("Schedule", "Who's working, plus cleaning and prep duties", () => go("sched")),
-    item("Events", "Bookings, events and specials on a calendar", () => go("events")),
-    isStandalone() ? null : item("Install the app", "Put it on your home screen", () => installHelp()),
-    item("Profit coach", "What to fix first, in dollars per week", () => go("coach")),
-    item("Suppliers", "Who you buy from, and notes for reps", () => go("suppliers")),
-    item("Settings & team", "Logo, colors, cost targets and your team", () => go("brand")),
-    item("Theme: " + { auto:"automatic", dark:"dark", light:"light" }[t], "Tap to switch to " + { auto:"automatic", dark:"dark", light:"light" }[next], () => { try { localStorage.setItem("pm-theme", next); } catch(e){} applyTheme(next); renderUserBox(); toast("Theme: " + next); }),
-    item(window.PM_DEMO ? "Reset the demo" : "Sign out", USER ? USER.email : "", () => signOut()))], []);
+  const tile = (pg, label, sub, c, badge) => el("button",{class:"mt " + c, type:"button", onclick:() => { dlg.close(); go(pg); }}, el("span",{class:"mt-i"}, navIcon(pg)), el("b",{text:label}), el("span",{class:"mt-s", text:sub}), badge ? el("span",{class:"mt-badge", text:badge}) : null);
+  const act = (icon, label, fn) => el("button",{class:"ma", type:"button", onclick:() => { dlg.close(); fn(); }}, el("span",{class:"ma-i", text:icon}), el("b",{text:label}));
+  openDlg("Everything", [
+    el("button",{class:"m-search", type:"button", onclick:() => { dlg.close(); cmdkOpen(); }}, el("span",{text:"\ud83d\udd0d"}), "Search dishes, supplies, suppliers\u2026"),
+    el("div",{class:"mt-grid"},
+      tile("book","Kitchen book","Recipe cards","c1"), tile("lab","Test kitchen","Idea to menu","c2"), tile("sched","Schedule","Shifts & duties","c3"),
+      tile("events","Events","Bookings & promos","c4"), tile("supplies","Supplies","Prices & stock","c5"), tile("purch","Ordering","What to order","c6"),
+      tile("suppliers","Suppliers","Vendors & reps","c7"), tile("coach","Profit coach","What to fix","c8"), tile("brand","Settings","Team & targets","c9")),
+    el("div",{class:"ma-row"},
+      canPreviewStaff() ? act("\ud83d\udc41", VIEW_AS_STAFF ? "Manager view" : "View as staff", () => setViewAsStaff(!VIEW_AS_STAFF)) : null,
+      isStandalone() ? null : act("\ud83d\udcf2", "Install app", () => installHelp()),
+      act(t === "dark" ? "\ud83c\udf19" : t === "light" ? "\u2600\ufe0f" : "\ud83c\udf13", "Theme: " + { auto:"auto", dark:"dark", light:"light" }[t], () => { try { localStorage.setItem("pm-theme", next); } catch(e){} applyTheme(next); render(); }),
+      act("\u21aa", window.PM_DEMO ? "Reset demo" : "Sign out", () => signOut())),
+    el("p",{class:"mini", style:"text-align:center;margin:10px 0 0", text: "Version: " + APP_VERSION})], []);
 }
 // Suggestions as kitchen order tickets hanging on the pass, numbered in the order to work them.
 let RAIL_DROPPED = false;
@@ -5668,13 +5690,13 @@ function giveShoutout(){
 setInterval(() => { if (document.visibilityState === "visible" && ST && ["home"].includes(ST.page)) loadBoardApp(true); }, 60000);
 function teamLine(r){
   loadBoardApp(Date.now() - BOARD_AT > 10000);
-  const outs = BOARD.filter(b => b.kind === "86"), lows = BOARD.filter(b => b.kind === "low");
+  const outs = [], lows = BOARD.filter(b => b.kind === "low");
   const clear = async b => { await sb.rpc("board_clear", { p_account: ACCT.id, p_id: b.id, p_by: myFirst() }); loadBoardApp(true); };
   return el("div",{class:"card team-line"},
     outs.length ? el("div",{class:"tl-86"}, el("b",{text:"86'd"}), outs.map(b => el("button",{class:"tl-chip red", type:"button", title:"Posted by " + b.made_by + ". Tap when it's back.", onclick:() => clear(b)}, b.name, el("span",{class:"x", text:" \u00d7"})))) : null,
     lows.length ? el("div",{class:"tl-86"}, el("b",{text:"Running low"}), lows.map(b => el("span",{class:"tl-chip amber", title:"From " + b.made_by + (b.note ? ": " + b.note : "")}, b.name + " (" + b.made_by + ")",
       el("button",{class:"linkbtn", type:"button", text:"Order", onclick:() => { go("purch"); }}), el("button",{class:"linkbtn", type:"button", text:"Done", onclick:() => clear(b)})))) : null,
-    !outs.length && !lows.length ? el("span",{class:"mini", text:"Nothing 86'd or running low."}) : null,
+    !lows.length ? el("span",{class:"mini", text:"Nothing running low."}) : null,
     el("button",{class:"btn quiet sm", type:"button", text:"\ud83c\udf89 Give a shout-out", onclick: giveShoutout}));
 }
 const kudosNow = r => (r.kudos || []).filter(k => Date.now() - Date.parse(k.at) < 48 * 3600e3);
