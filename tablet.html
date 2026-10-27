@@ -342,6 +342,25 @@ html, body{max-width:100%;overflow-x:hidden}
   main{padding-bottom:110px !important}
   .hs-tip{bottom:84px}
 }
+.evpop{position:fixed;inset:0;z-index:150;display:grid;place-items:center;padding:16px;background:rgba(20,18,16,.62);backdrop-filter:blur(3px);animation:evfade .2s ease}
+@keyframes evfade{from{background:rgba(20,18,16,0)}}
+.evpop-card{width:min(640px,100%);max-height:92vh;overflow:auto;border-radius:26px;padding:26px 24px 22px;color:#fff;background:linear-gradient(140deg,#7A1F3D 0%,#3B1A4A 55%,#24221F 100%);box-shadow:0 30px 70px rgba(0,0,0,.45);animation:evpop .35s cubic-bezier(.2,1.4,.4,1)}
+@keyframes evpop{from{transform:scale(.85) translateY(20px)}to{transform:none}}
+.evpop-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.evpop-when{font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#F2C14E}
+.evpop-big{background:rgba(255,255,255,.14);border-radius:999px;padding:4px 12px;font-weight:800;font-size:.85rem;white-space:nowrap;flex:none}
+.evpop h2{font-family:var(--head);font-weight:800;font-size:clamp(2rem,6vw,3rem);line-height:1.02;margin:10px 0 12px;color:#fff}
+.evpop-facts{display:flex;flex-wrap:wrap;gap:10px 18px;font-size:1.15rem} .evpop-facts b{color:#F2C14E}
+.evpop-menu{margin-top:16px} .evpop-lbl{display:block;font-size:.8rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;opacity:.75;margin-bottom:8px}
+.evpop-chips{display:flex;flex-wrap:wrap;gap:8px} .evpop-chips button{min-height:44px;border-radius:999px;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.1);color:#fff;font:inherit;font-weight:700;padding:0 14px}
+.evpop-chips button.go-chip{cursor:pointer} .evpop-chips button.go-chip:hover{background:rgba(255,255,255,.22)}
+.evpop-notes{margin:16px 0 0;padding:12px 14px;border-radius:14px;background:rgba(255,255,255,.08);font-size:1.02rem;white-space:pre-wrap}
+.evpop-acts{display:grid;grid-template-columns:1.4fr 1fr;gap:10px;margin-top:20px}
+.evpop-ok{min-height:58px;border-radius:16px;border:0;background:#F2C14E;color:#24221F;font:inherit;font-weight:800;font-size:1.2rem;cursor:pointer;box-shadow:0 5px 0 #B98E2A} .evpop-ok:active{transform:translateY(4px);box-shadow:none}
+.evpop-more{min-height:58px;border-radius:16px;border:1.5px solid rgba(255,255,255,.4);background:transparent;color:#fff;font:inherit;font-weight:700;font-size:1.05rem;cursor:pointer}
+.evbanner{display:flex;align-items:center;gap:12px;width:100%;text-align:left;font:inherit;color:#fff;border:0;border-radius:18px;padding:14px 18px;margin:0 0 14px;cursor:pointer;background:linear-gradient(120deg,#7A1F3D,#3B1A4A)}
+.evb-i{font-size:1.7rem} .evb-t{display:grid;gap:2px;flex:1;min-width:0} .evb-t b{font-size:1.15rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .evb-t span{opacity:.85;font-weight:600} .evb-go{font-size:1.8rem;opacity:.7}
+@media (prefers-reduced-motion: reduce){ .evpop, .evpop-card{animation:none} }
 .ev-needs-btn{margin-top:10px;min-height:48px}
 .ev-needs{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px 18px;font-size:1.02rem}
 .ev-needs li{border-bottom:1px dashed var(--line);padding:6px 0}
@@ -513,6 +532,36 @@ html, body{max-width:100%;overflow-x:hidden}
       lows.length ? h("div", { class:"blow" }, h("b", { text:"Running low" }), lows.map(b => h("span", { class:"blow-i", text: b.name + (b.note ? " (" + b.note + ")" : "") }))) : null,
       h("div", { class:"b-acts" }, bigBtn("b86-big", ICON86, "86 it", outs.length ? outs.length + " out right now" : "Mark a dish or drink as out", () => boardPicker("86")),
         bigBtn("blow-big", ICONLOW, "Running low", lows.length ? lows.length + " reported" : "Warn a manager before it runs out", () => boardPicker("low"))));
+  }
+  // ---------- Big event pop-up: today's or tomorrow's big events, once per device per day ----------
+  const bigEvents = () => { const today = localDay(), tom = addDays(today, 1);
+    return [today, tom].flatMap(d => itemsOn(d).filter(x => x.kind === "event" && (n0(x.guests) >= 20 || (x.menu || []).length)).map(x => Object.assign({ day: d }, x))); };
+  const n0 = v => Number(v) || 0;
+  const evKey = x => "fd-evpop-" + localDay() + "-" + x.day + "-" + String(x.title).slice(0, 40);
+  function bigEventPopup(force){
+    const list = bigEvents().filter(x => force || !localStorage.getItem(evKey(x))); if (!list.length) return;
+    const x = list[0], today = localDay(), when = x.day === today ? (x.time && Number(String(x.time).slice(0, 2)) >= 16 ? "Tonight" : "Today") : "Tomorrow";
+    const close = () => { try { localStorage.setItem(evKey(x), "1"); } catch(e){} wrap.remove(); if (!force) setTimeout(() => bigEventPopup(), 300); };
+    const wrap = h("div", { class:"evpop", role:"dialog", "aria-modal":"true", "aria-label": x.title },
+      h("div", { class:"evpop-card" },
+        h("div", { class:"evpop-top" }, h("span", { class:"evpop-when", text: when + (x.time ? " \u00b7 " + t12(x.time) : "") }), h("span", { class:"evpop-big", text:"Big event" })),
+        h("h2", { text: x.title }),
+        h("div", { class:"evpop-facts" }, x.guests ? h("span", null, "\uD83D\uDC65 ", h("b", { text: x.guests + " guests" })) : null, x.where ? h("span", { text: "\uD83D\uDCCD " + x.where }) : null,
+          x.endTime ? h("span", { text: "\u23F0 until " + t12(x.endTime) }) : null),
+        (x.menu || []).length ? h("div", { class:"evpop-menu" }, h("span", { class:"evpop-lbl", text:"On the menu" }),
+          h("div", { class:"evpop-chips" }, x.menu.map(mi => { const it = mi.itemId && BOOK.items.find(z => z.id === mi.itemId);
+            return h("button", { type:"button", class: it ? "go-chip" : "", disabled: it ? null : "", onclick: () => { if (!it) return; close(); go({ card: it.id }); } }, (mi.count ? mi.count + " \u00d7 " : "") + mi.name); }))) : null,
+        x.desc ? h("p", { class:"evpop-notes", text: x.desc }) : null,
+        h("div", { class:"evpop-acts" }, h("button", { class:"evpop-ok", type:"button", text:"Got it \uD83D\uDC4D", onclick: close }),
+          h("button", { class:"evpop-more", type:"button", text:"Open the event", onclick: () => { close(); location.hash = "events"; } }))));
+    document.body.append(wrap);
+  }
+  function bigEventBanner(){
+    const list = bigEvents(); if (!list.length) return null; const today = localDay();
+    return h("button", { class:"evbanner", type:"button", onclick: () => bigEventPopup(true) },
+      h("span", { class:"evb-i", text:"\uD83C\uDF89" }), h("span", { class:"evb-t" }, h("b", { text: list[0].title }),
+        h("span", { text: (list[0].day === today ? "Today" : "Tomorrow") + (list[0].time ? " " + t12(list[0].time) : "") + (list[0].guests ? " \u00b7 " + list[0].guests + " guests" : "") + (list.length > 1 ? " \u00b7 +" + (list.length - 1) + " more" : "") })),
+      h("span", { class:"evb-go", text:"\u203a" }));
   }
   function whatsNewStrip(){
     const list = recentChanges(14); if (!list.length) return null;
@@ -1015,7 +1064,8 @@ html, body{max-width:100%;overflow-x:hidden}
     const now = itemsOn(localDay()).filter(x => x.kind !== "note");
     const todayBox = now.length ? h("section", { class:"today-box" }, h("div", { class:"spread-t" }, h("h2", { text:"Today" }), h("button", { class:"back", type:"button", text:"All events", onclick: () => { location.hash = "events"; } })),
       h("div", { class:"evlist compact" }, now.slice(0, 4).map(evRow)), now.length > 4 ? h("p", { class:"sub-note", text:"+" + (now.length - 4) + " more" }) : null) : null;
-    m.replaceChildren(...[meHero(), boardStrip(), whatsNewStrip(), todayBox,
+    if (!homeView.popped){ homeView.popped = true; setTimeout(() => bigEventPopup(), 400); }
+    m.replaceChildren(...[meHero(), bigEventBanner(), boardStrip(), whatsNewStrip(), todayBox,
       h("button", { class:"home-link", type:"button", onclick: () => { location.hash = "events"; } }, "Events & bookings", h("span", { text:"\u203a" }))].filter(Boolean));
   }
   function render(){
