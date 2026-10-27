@@ -1466,6 +1466,18 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .sh-list .bar{height:8px;border-radius:999px;background:var(--line);overflow:hidden} .sh-list .bar i{display:block;height:100%;background:var(--jade);border-radius:999px}
 .staff-tools{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px} .staff-tools .btn{display:inline-flex;align-items:center;gap:8px}
 .main > .card + .card, main > .card{margin-bottom:12px}
+.promo-card{margin:12px 0}
+.promo-today{margin:6px 0 0;font-weight:700;color:#7A5200}
+.promo-quick{display:grid;gap:8px;margin-top:10px}
+.pq{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;border:1px solid var(--line);border-left:4px solid var(--line-2);border-radius:10px;padding:8px 10px}
+.pq.on{border-left-color:var(--mustard);background:#FFF8E3}
+.st-tabs{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.st-tab{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;border-radius:999px;border:1.5px solid var(--line);background:var(--panel);font:inherit;font-weight:700;color:var(--ink);cursor:pointer}
+.st-tab .ct{font-weight:800;opacity:.75}
+.st-tab.t-bad{border-color:#E7B1AA;color:#9A2B21} .st-tab.t-warn{border-color:#EBCB88;color:#7A5200} .st-tab.t-good{border-color:#A9CDBF;color:#1F6F5C}
+.st-tab[aria-pressed="true"]{background:var(--char, #24221F);border-color:var(--char, #24221F);color:#fff}
+.btn.todo{white-space:nowrap}
+.todo-ok{color:var(--good, #1F6F5C);font-weight:700;white-space:nowrap} .todo-ok.warn{color:#7A5200}
 </style>
 </head>
 <body>
@@ -1961,7 +1973,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Staff home";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Simpler menu page";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2502,6 +2514,7 @@ function home(m){
   m.append(el("h1",{text:r.name}), el("p",{class:"lead", text: ACCT && ACCT.role === "member" ? "What do you need?" : "Here's where your menu stands this " + r.period + "."}));
   if (items.length) m.append(needsYou(r));
   { const ts = todayStrip(r); if (ts) m.append(ts); }
+  if (ACCT && ["owner","manager"].includes(ACCT.role) && !pinLocked()) m.append(promoCard(r));
   if (false){ const t = "", today = [];
     if (today.length) m.append(el("div",{class:"today-strip"}, el("b",{text:"Today"}), today.slice(0, 5).map(it => el("button",{class:"today-chip " + it.kind, style:"--c:" + it.color, type:"button", onclick:() => { EVV.day = t; EVV.month = t.slice(0, 7) + "-01"; go("events"); }},
       (it.kind === "special" ? "\u2605 " : it.time ? t12(it.time, true) + " " : "") + it.title + (it.guests ? " (" + it.guests + ")" : ""))), today.length > 5 ? el("span",{class:"mini", text:"+" + (today.length - 5) + " more"}) : null)); }
@@ -2561,12 +2574,29 @@ function sectionOrder(r){
   const saved = (r.sectionOrder || []).filter(x => present.includes(x));
   return saved.concat(present.filter(x => !saved.includes(x)).sort((a, b) => (Math.min(...Object.values(r.items).filter(i => (i.section || "Menu") === a).map(i => i.order || 0)) - Math.min(...Object.values(r.items).filter(i => (i.section || "Menu") === b).map(i => i.order || 0))) || a.localeCompare(b)));
 }
+// Plain-language groups for the menu page: what to fix, what to watch, what's fine.
+const GROUP_OF = { bad:"fix", noprice:"fix", norecipe:"eye", missing:"eye", warn:"eye", good:"good" };
 const STATUS_FILTERS = [["all","All"],["norecipe","Needs recipe"],["missing","Missing costs"],["bad","Priced too low"],["warn","Watch"],["good","On target"]];
 const SORTS = [["menu","Menu order"],["name","Name A\u2013Z"],["fc","Highest food cost"],["profit","Lowest profit"],["sold","Best sellers"],["price","Highest price"]];
+function todoCell(it, s2, r){
+  const st = s2.status;
+  if (st === "bad" || (st === "warn" && s2.suggested > s2.price)){ const to = s2.suggested;
+    return el("button",{class:"btn " + (st === "bad" ? "primary" : "quiet") + " sm todo", type:"button", title:"Changes the menu price to " + $$(to) + " in this app (update your register too)",
+      text:"Raise to " + $$(to), onclick:() => { if (!confirm("Change " + it.name + " from " + $$(s2.price) + " to " + $$(to) + "? Update the price in Clover too.")) return;
+        it.price = to; save(); render(); toast(it.name + " is now " + $$(to) + ". Change it in Clover too."); }}); }
+  if (st === "norecipe") return el("button",{class:"btn quiet sm todo", type:"button", text:"Add the recipe", onclick:() => openRecipe(it.id)});
+  if (st === "missing") return el("button",{class:"btn quiet sm todo", type:"button", text:"Finish the costs", onclick:() => openRecipe(it.id)});
+  if (st === "noprice") return el("button",{class:"btn quiet sm todo", type:"button", text:"Set a price", onclick:() => openRecipe(it.id)});
+  if (st === "warn") return el("span",{class:"todo-ok warn", text:"Close to the limit"});
+  return el("span",{class:"todo-ok", text:"\u2713 All good"});
+}
 function menu(m){
   const r = R(), eng = engineering();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Menu & recipes"}), el("p",{class:"lead", text:"Tap an item to edit its recipe. Costs update when supplier prices change."})),
-    isPhone() ? el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import", onclick:() => openDlg("Import", [el("div",{class:"more-list"},
+    true ? el("div",{class:"row"}, el("button",{class:"btn quiet", text:"More \u25be", onclick:() => openDlg("More", [el("div",{class:"more-list"},
+        el("button",{class:"more-row", type:"button", onclick:() => { dlg.close(); MV.detail = !MV.detail; render(); }}, el("b",{text: MV.detail ? "Fewer columns" : "More detail"}), el("span",{text: MV.detail ? "Back to the simple view" : "Plate cost, sold per week and menu class"})),
+        el("button",{class:"more-row", type:"button", onclick:() => { dlg.close(); openCategories(); }}, el("b",{text:"Manage categories"}), el("span",{text:"Rename, reorder or merge menu sections"})),
+        el("button",{class:"more-row", type:"button", onclick:() => { dlg.close(); r.setupView = "open"; save(); render(); }}, el("b",{text:"Costing checklist"}), el("span",{text:"Steps to get every recipe costed"})),
         el("button",{class:"more-row", type:"button", onclick:() => openSalesImport()}, el("b",{text:"Sales"}), el("span",{text:"Item sales report from Clover, Toast or Square"})),
         r.salesLast ? el("button",{class:"more-row", type:"button", onclick:() => openRegisterMatches()}, el("b",{text:"Register matches"}), el("span",{text:"Fix which register items count toward each menu item"})) : null,
         el("button",{class:"more-row", type:"button", onclick:() => openSheetImport()}, el("b",{text:"Costing spreadsheet"}), el("span",{text:"Your Excel or CSV costing sheet"})),
@@ -2584,7 +2614,8 @@ function menu(m){
   const q = MV.q.trim().toLowerCase();
   const inCat = it => MV.cat === "all" || (it.section || "Menu") === MV.cat;
   const inQ = it => !q || it.name.toLowerCase().includes(q) || (it.section || "").toLowerCase().includes(q) || (it.lines || []).some(l => (l.label || "").toLowerCase().includes(q) || (l.s && r.supplies[l.s] && r.supplies[l.s].name.toLowerCase().includes(q)));
-  const inSt = it => MV.status === "all" || stKey(it) === MV.status;
+  if (!MV.group) MV.group = all.some(it => GROUP_OF[stKey(it)] === "fix") ? "fix" : "all";
+  const inSt = it => MV.group === "all" || GROUP_OF[stKey(it)] === MV.group;
   const shown = all.filter(it => inCat(it) && inQ(it) && inSt(it));
 
   // Filters
@@ -2596,11 +2627,13 @@ function menu(m){
   const stChip = (key, label) => { const count = all.filter(it => inCat(it) && inQ(it) && (key === "all" || stKey(it) === key)).length;
     if (key !== "all" && !count && MV.status !== key) return null;
     return el("button",{class:"chip" + (key === "bad" ? " st-bad" : key === "warn" || key === "missing" ? " st-warn" : ""), "aria-pressed": String(MV.status === key), onclick:() => { MV.status = key; render(); }}, label, el("span",{class:"ct", text:count})); };
+  const secSel = el("select",{class:"inp", style:"width:auto;min-height:44px", "aria-label":"Section"}, el("option",{value:"all", text:"All sections"}), order.map(c => el("option",{value:c, text: c + " (" + all.filter(i => (i.section || "Menu") === c).length + ")"})));
+  secSel.value = MV.cat; secSel.onchange = () => { MV.cat = secSel.value; render(); };
+  const tabCount = k => all.filter(it => inCat(it) && inQ(it) && (k === "all" || GROUP_OF[stKey(it)] === k)).length;
+  const tab = (k, label, cls) => el("button",{class:"st-tab " + cls, type:"button", "aria-pressed": String(MV.group === k), onclick:() => { MV.group = k; render(); }}, label, el("span",{class:"ct", text: tabCount(k)}));
   m.append(el("div",{class:"filters"},
-    el("div",{class:"row"}, search, sortSel, el("button",{class:"btn quiet", text:"Manage categories", onclick:() => openCategories()}),
-      r.setupView === "hidden" && (unpricedGroups(r).length || all.some(it => !(it.lines || []).length)) ? el("button",{class:"btn quiet", text:"Setup", title:"Show the costing checklist", onclick:() => { r.setupView = "open"; save(); render(); }}) : null),
-    el("div",{class:"chips", role:"group", "aria-label":"Category"}, catChip("all","All", all.length), order.map(c => catChip(c, c, all.filter(i => (i.section || "Menu") === c).length))),
-    el("div",{class:"chips", role:"group", "aria-label":"Status"}, STATUS_FILTERS.map(([k, t]) => stChip(k, t)))));
+    el("div",{class:"row"}, search, secSel),
+    el("div",{class:"st-tabs", role:"group", "aria-label":"Show"}, tab("fix","Fix these","t-bad"), tab("eye","Keep an eye on","t-warn"), tab("good","All good","t-good"), tab("all","Everything",""))));
 
   // Bulk actions
   if (MV.sel.size){
@@ -2615,8 +2648,8 @@ function menu(m){
       el("button",{class:"btn quiet", text:"Delete", onclick:() => { if (!confirm("Delete " + MV.sel.size + " menu items? This can't be undone.")) return; MV.sel.forEach(id => delete r.items[id]); MV.sel.clear(); save(); render(); toast("Deleted"); }}),
       el("button",{class:"btn quiet", text:"Clear", onclick:() => { MV.sel.clear(); render(); }})));
   }
-  if (Object.keys(eng.cls).length) m.append(classLegend());
-  if (!shown.length){ m.append(el("div",{class:"card empty"}, "Nothing matches. ", el("button",{class:"btn quiet", text:"Show everything", onclick:() => { MV.cat = "all"; MV.status = "all"; MV.q = ""; render(); }}))); return; }
+  if (MV.detail && Object.keys(eng.cls).length) m.append(classLegend());
+  if (!shown.length){ m.append(el("div",{class:"card empty"}, "Nothing matches. ", el("button",{class:"btn quiet", text:"Show everything", onclick:() => { MV.cat = "all"; MV.status = "all"; MV.group = "all"; MV.q = ""; render(); }}))); return; }
 
   const sorter = {
     menu: (a, b) => (a.order || 0) - (b.order || 0) || a.name.localeCompare(b.name),
@@ -2641,15 +2674,14 @@ function menu(m){
         el("td",{onclick: e => e.stopPropagation()}, cb),
         el("td",{style:"white-space:normal"}, el("b",{text:it.name}), MV.cat === "all" && MV.sort !== "menu" ? el("div",{class:"mini", text:it.section}) : null),
         el("td",{class:"num", text: s2.price ? $$(s2.price) : "\u2014"}),
-        el("td",{class:"num c-plate"}, none || (s2.missing && !(s2.plate > 0)) ? dash() : s2.missing ? el("span",{title:"Plus " + s2.missing + " ingredient(s) not priced yet"}, $$(s2.plate) + "+") : usesEstimate(it, r) ? el("span",{class:"est", title:"Includes AI-estimated prices"}, "\u2248" + $$(s2.plate)) : $$(s2.plate)),
+        !MV.detail ? null : el("td",{class:"num c-plate"}, none || (s2.missing && !(s2.plate > 0)) ? dash() : s2.missing ? el("span",{title:"Plus " + s2.missing + " ingredient(s) not priced yet"}, $$(s2.plate) + "+") : usesEstimate(it, r) ? el("span",{class:"est", title:"Includes AI-estimated prices"}, "\u2248" + $$(s2.plate)) : $$(s2.plate)),
         el("td",{class:"num"}, none || !s2.price || s2.missing ? dash() : fcCell(s2.fc, targetFor(it, r), s2.status)),
         el("td",{class:"num c-prof"}, none || s2.missing ? dash() : $$(s2.profit)),
-        el("td",{class:"num c-sug"}, s2.status === "bad" || s2.status === "warn" ? $$(s2.suggested) : dash()),
-        el("td",{class:"num c-sold"}, n(it.sold) || dash()),
-        el("td",null, el("span",{class:"pill " + st[1], text:st[0]})),
-        hasSales ? el("td",{class:"c-cls"}, eng.cls[it.id] ? classBadge(eng.cls[it.id]) : dash()) : null));
+        !MV.detail ? null : el("td",{class:"num c-sold"}, n(it.sold) || dash()),
+        el("td",{onclick: e => e.stopPropagation()}, todoCell(it, s2, r)),
+        MV.detail && hasSales ? el("td",{class:"c-cls"}, eng.cls[it.id] ? classBadge(eng.cls[it.id]) : dash()) : null));
     });
-    const heads = [["", ""], ["Item", ""], ["Price", "num"], ["Plate cost", "num c-plate"], [rows.length && rows.every(isDrink) ? "Pour cost" : "Food cost", "num"], ["Profit", "num c-prof"], ["Suggested", "num c-sug"], ["Sold / " + r.period, "num c-sold"], ["Status", ""]].concat(hasSales ? [["Class", "c-cls"]] : []);
+    const heads = [["", ""], ["Item", ""], ["Price", "num"], MV.detail ? ["Plate cost", "num c-plate"] : null, [rows.length && rows.every(isDrink) ? "Pour cost" : "Food cost", "num"], ["Profit each", "num c-prof"], MV.detail ? ["Sold / wk", "num c-sold"] : null, ["What to do", ""], MV.detail && hasSales ? ["Class", ""] : null].filter(Boolean);
     return el("div",{class:"tw"}, el("table",{class:"menu-t"}, el("thead",null, el("tr",null, heads.map(([h, c], i) => el("th",{class:c}, i === 0 ? head : h)))), tb));
   };
   // Grouped by category in menu order; a single flat list for other sorts.
@@ -5368,6 +5400,20 @@ function runPromo(r, p, weekly){
 function stopPromo(r, p){ const t = localDay(new Date()); calData(r);
   r.specials = r.specials.filter(sp => !(sp.promoId === p.id && ((sp.days && sp.days.length) || sp.start >= t)))
     .map(sp => sp); save(); toast(p.name + " stopped. Past dates stay on the calendar."); }
+// Manager Home: one-tap promos.
+function promoCard(r){
+  const list = promoList(r), t = localDay(new Date()), dow = new Date(t + "T12:00:00").getDay();
+  const today = list.filter(p => (r.specials || []).some(sp => sp.promoId === p.id && specialOn(sp, t)));
+  return el("div",{class:"card promo-card"},
+    el("div",{class:"spread"}, el("h2",{style:"margin:0", text:"\u2605 Promos"}), el("button",{class:"linkbtn", type:"button", text:"Edit promos", onclick: openPromos})),
+    today.length ? el("p",{class:"promo-today", text:"On today: " + today.map(p => p.name).join(", ")}) : null,
+    el("div",{class:"promo-quick"}, list.map(p => { const run = promoRunning(r, p), once = promoOnce(r, p);
+      return el("div",{class:"pq " + (run || once.length ? "on" : "")},
+        el("div",null, el("b",{text: p.name}), el("span",{class:"mini", text: run ? " Every " + DAY_NAMES[run.days[0]] : once.length ? " " + once.map(sp => nice(sp.start)).join(", ") : " " + DAY_NAMES[p.day] + "s"})),
+        run || once.length ? el("button",{class:"btn danger sm", type:"button", text:"Stop", onclick:() => { stopPromo(r, p); render(); }})
+          : el("div",{class:"row", style:"gap:6px"}, el("button",{class:"btn primary sm", type:"button", text:"Run every " + DAY_NAMES[p.day], onclick:() => { runPromo(r, p, true); render(); }}),
+              el("button",{class:"btn quiet sm", type:"button", text: p.day === dow ? "Just today" : "Just " + nice(nextDay(p.day)), onclick:() => { runPromo(r, p, false); render(); }}))); })));
+}
 function openPromos(){
   const r = R(), list = promoList(r), box = el("div",{class:"promo-list"});
   const draw = () => box.replaceChildren(...list.map(p => { const run = promoRunning(r, p), once = promoOnce(r, p);
