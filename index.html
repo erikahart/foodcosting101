@@ -1885,7 +1885,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 4-digit PINs";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Staff logins";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2050,12 +2050,13 @@ const unlocked = () => !!(UNLOCK && UNLOCK.acct === (ACCT && ACCT.id) && UNLOCK.
 const trustedDevice = p => { const tok = deviceToken(); return !!(tok && (p.trusted || []).includes(tok)); };
 // Staff mode: the lock is on and nobody with a manager PIN is signed in on this device.
 function pinLocked(){
+  if (ACCT && ACCT.role === "staff") return !(unlocked() && UNLOCK.role !== "staff");
   const p = pinCfg(); if (!p || !p.on || !(p.pins || []).length) return false;
   if (trustedDevice(p)) return false;
   return !(unlocked() && UNLOCK.role !== "staff");
 }
 // Locked out: "Ask for a PIN when the app opens" is on and nobody has entered one yet.
-function gateLocked(){ const p = pinCfg(); return !!(p && p.on && p.gate && (p.pins || []).length && !trustedDevice(p) && !unlocked()); }
+function gateLocked(){ const p = pinCfg(); return !!(ACCT && ACCT.role !== "staff" && p && p.on && p.gate && (p.pins || []).length && !trustedDevice(p) && !unlocked()); }
 function setUnlock(name, role){ const p = pinCfg(); UNLOCK = name ? { acct: ACCT.id, name, role: role || "manager", until: Date.now() + (n(p && p.timeout) || 15) * 60000 } : null;
   try { if (UNLOCK) sessionStorage.setItem("pm-unlock", JSON.stringify(UNLOCK)); else sessionStorage.removeItem("pm-unlock"); } catch(e){} }
 async function pinHash(salt, pin){ const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pin)); return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join(""); }
@@ -2096,6 +2097,7 @@ function staffHome(m){
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text: r.name || (ACCT && ACCT.name) || "Today"}), el("p",{class:"lead", text: new Date().toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" })})),
     el("button",{class:"btn quiet", type:"button", text:"\ud83d\udd12 Manager mode", onclick:() => { ST.page = "coach"; render(); }})));
   if (UNLOCK && unlocked()) m.append(el("p",{class:"lead", style:"margin-top:-6px", text:"Hi " + UNLOCK.name + "."}));
+  else if (ACCT && ACCT.role === "staff" && USER && USER.email) m.append(el("p",{class:"lead", style:"margin-top:-6px", text:"Hi " + USER.email.split("@")[0] + "."}));
   calData(r); loadFeedEvents(r, addDays(t, -7), addDays(t, 35));
   const items = dayItems(r, t);
   m.append(el("div",{class:"card"}, el("h2",{style:"margin:0 0 8px", text:"Today"}), items.length ? el("div",{class:"cal-list"}, items.map(it => el("div",{class:"cal-item", style:"--c:" + it.color},
@@ -5558,7 +5560,7 @@ function brand(m){
       el("button",{class:"btn quiet", text:"Load sample data", onclick:() => { if (confirm("Replace everything in this kitchen with sample data? This affects everyone on your team.")){ ST = freshDemo(); save(); render(); } }}),
       el("button",{class:"btn danger", text:"Clear all data", onclick:() => { if (confirm("Delete every supply, recipe and invoice in this kitchen? This affects everyone on your team and can't be undone.")){ ST = freshEmpty(ACCT.name); save(); render(); toast("Cleared"); } }})));
 }
-const ROLE_LABEL = { owner:"Owner", manager:"Manager", member:"Member" };
+const ROLE_LABEL = { owner:"Owner", manager:"Manager", member:"Member", staff:"Staff" };
 async function drawTeam(box){
   const { data, error } = await sb.rpc("team", { p_account: ACCT.id });
   if (error){ box.replaceChildren(el("p",{style:"margin:0", text:"Couldn't load the team: " + plainErr(error)})); return; }
@@ -5567,7 +5569,7 @@ async function drawTeam(box){
     const actions = el("div",{class:"row"});
     if (t.kind === "invite" && canInvite) actions.append(el("button",{class:"btn quiet", text:"Cancel invite", onclick: async () => { const { error } = await sb.rpc("cancel_invite", { p_invite: t.invite_id }); if (error) toast(plainErr(error)); drawTeam(box); }}));
     if (t.kind === "member" && isOwner && !t.is_me){
-      const sel = el("select",{class:"inp", style:"width:auto;min-height:40px", "aria-label":"Role for " + t.email}, ["owner","manager","member"].map(r => el("option",{value:r, text:ROLE_LABEL[r]}))); sel.value = t.role;
+      const sel = el("select",{class:"inp", style:"width:auto;min-height:40px", "aria-label":"Role for " + t.email}, ["owner","manager","member","staff"].map(r => el("option",{value:r, text:ROLE_LABEL[r]}))); sel.value = t.role;
       sel.onchange = async () => { const { error } = await sb.rpc("set_member_role", { p_account: ACCT.id, p_user: t.user_id, p_role: sel.value }); if (error) toast(plainErr(error)); drawTeam(box); };
       actions.append(sel, el("button",{class:"btn danger", text:"Remove", onclick: async () => { if (!confirm("Remove " + t.email + " from this kitchen?")) return; const { error } = await sb.rpc("remove_member", { p_account: ACCT.id, p_user: t.user_id }); if (error) toast(plainErr(error)); drawTeam(box); }}));
     }
@@ -5588,7 +5590,7 @@ async function drawTeam(box){
   const parts = [el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Person"}), el("th",{text:"Role"}), el("th",{text:""}))), el("tbody",null, rows)))];
   if (canInvite){
     const em = el("input",{class:"inp", type:"email", autocapitalize:"none", autocorrect:"off", spellcheck:"false", placeholder:"cook@example.com"});
-    const rl = el("select",{class:"inp"}, el("option",{value:"member", text:"Member: can edit menu, supplies and invoices"}), el("option",{value:"manager", text:"Manager: also invites people and sets the schedule"}));
+    const rl = el("select",{class:"inp"}, el("option",{value:"staff", text:"Staff: Kitchen book, Test kitchen, Schedule and Events only"}), el("option",{value:"member", text:"Member: can edit menu, supplies and invoices"}), el("option",{value:"manager", text:"Manager: also invites people and sets the schedule"}));
     const msg = el("div");
     const go2 = async () => {
       const { error } = await sb.rpc("invite_member", { p_account: ACCT.id, p_email: em.value.trim().toLowerCase(), p_role: rl.value });
