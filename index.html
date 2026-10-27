@@ -1435,6 +1435,7 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .pin-logo{width:72px;height:72px;margin:0 auto;border-radius:16px}
 .code-in{font-size:1.8rem;letter-spacing:.35em;text-align:center;min-height:58px}
 .shared-pc{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} .shared-pc summary{cursor:pointer;padding:4px 0}
+.viewas-bar{position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--mustard, #D99A1E);color:#24221F;border-radius:12px;padding:10px 14px;margin:0 0 14px;font-weight:600}
 </style>
 </head>
 <body>
@@ -1764,8 +1765,9 @@ function renderUserBox(){
   const who = unlocked() ? UNLOCK.name : null;
   const lockCtl = !pl ? null : el("div",{class:"lockbox"},
     who ? el("button",{class:"btn quiet lockctl", type:"button", title:"Lock the app so the next person can enter their PIN", text:"\ud83d\udd13 " + who + " \u00b7 Switch user", onclick: lockNow}) : null,
-    pinLocked() ? el("button",{class:"btn quiet lockctl", type:"button", text:"\ud83d\udd12 Manager PIN", onclick:() => { ST.page = STAFF_PAGES.includes(ST.page) || ST.page === "home" ? "coach" : ST.page; render(); }}) : null);
-  fillIn(box, pick, lockCtl, el("div",{class:"ubox"}, el("span",{class:"avatar", text:initials}),
+    pinLocked() && !VIEW_AS_STAFF ? el("button",{class:"btn quiet lockctl", type:"button", text:"\ud83d\udd12 Manager PIN", onclick:() => { ST.page = STAFF_PAGES.includes(ST.page) || ST.page === "home" ? "coach" : ST.page; render(); }}) : null);
+  const viewAs = canPreviewStaff() ? el("button",{class:"btn quiet lockctl", type:"button", text: VIEW_AS_STAFF ? "\u21a9 Back to manager view" : "\ud83d\udc41 View as staff", onclick:() => setViewAsStaff(!VIEW_AS_STAFF)}) : null;
+  fillIn(box, pick, lockCtl, viewAs, el("div",{class:"ubox"}, el("span",{class:"avatar", text:initials}),
     el("div",{class:"who"}, el("b",{text:USER.email}), el("span",{text:ACCT ? ACCT.name : ""})), themeButton(), out));
 }
 async function boot(){
@@ -1929,7 +1931,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Tidier settings";
+const APP_VERSION = "Oct 27, 2026 \u00b7 View as staff";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2067,6 +2069,10 @@ function labelTables(root){
 }
 function render(){ if (!ST) return; applyBrand(); renderNav(); renderUserBox(); setTimeout(() => { showInstallBanner(); syncTabletEvents(ST.page === "events"); }, 800); const m = $("main"); m.replaceChildren();
   document.body.classList.toggle("gated", gateLocked());
+  if (VIEW_AS_STAFF && canPreviewStaff()) m.append(el("div",{class:"viewas-bar", role:"status"}, el("span",null, el("b",{text:"Viewing as staff."}), " This is what staff see."),
+    el("button",{class:"btn primary sm", type:"button", text:"Back to manager view", onclick:() => setViewAsStaff(false)})));
+  if (VIEW_AS_STAFF && canPreviewStaff() && !STAFF_PAGES.includes(ST.page) && ST.page !== "home"){ m.append(el("div",{class:"card empty"}, el("p",{text:"Staff can't open this page."}),
+    el("button",{class:"btn primary", type:"button", text:"Back to manager view", onclick:() => setViewAsStaff(false)}))); return; }
   if (gateLocked()){ pinScreen(m, null, true); return; }
   if (pinLocked() && !STAFF_PAGES.includes(ST.page)){ if (ST.page === "home") staffHome(m); else pinScreen(m, ST.page); pageHeader(m); return; }
   ({ home, coach, menu, book, lab, purch, sched, events, supplies, inbox, suppliers, brand })[ST.page](m);
@@ -2093,14 +2099,27 @@ const deviceToken = () => { try { return localStorage.getItem("pm-trust-" + (ACC
 const unlocked = () => !!(UNLOCK && UNLOCK.acct === (ACCT && ACCT.id) && UNLOCK.until > Date.now());
 const trustedDevice = p => { const tok = deviceToken(); return !!(tok && (p.trusted || []).includes(tok)); };
 // Staff mode: the lock is on and nobody with a manager PIN is signed in on this device.
+let VIEW_AS_STAFF = (() => { try { return sessionStorage.getItem("pm-viewas") === "1"; } catch(e){ return false; } })();
+const canPreviewStaff = () => !!(ACCT && ["owner","manager"].includes(ACCT.role));
+function setViewAsStaff(on){
+  VIEW_AS_STAFF = !!on && canPreviewStaff(); try { if (VIEW_AS_STAFF) sessionStorage.setItem("pm-viewas", "1"); else sessionStorage.removeItem("pm-viewas"); } catch(e){}
+  if (dlg.open) dlg.close(); ST.page = "home"; render(); toast(VIEW_AS_STAFF ? "You're seeing what staff see." : "Back to the manager view.");
+}
+async function openStaffPhoneApp(){
+  const w = window.open("about:blank", "_blank");
+  const { data, error } = await sb.rpc("book_share_status", { p_account: ACCT.id });
+  if (error || !data || !data.on || !data.token){ if (w) w.close(); return toast("Turn on the tablet link first: Kitchen book \u2192 Tablet link."); }
+  const url = location.origin + "/tablet/" + data.token; if (w) w.location = url; else location.href = url;
+}
 function pinLocked(){
+  if (VIEW_AS_STAFF && canPreviewStaff()) return true;
   if (ACCT && ACCT.role === "staff") return !(unlocked() && UNLOCK.role !== "staff");
   const p = pinCfg(); if (!p || !p.on || !(p.pins || []).length) return false;
   if (trustedDevice(p)) return false;
   return !(unlocked() && UNLOCK.role !== "staff");
 }
 // Locked out: "Ask for a PIN when the app opens" is on and nobody has entered one yet.
-function gateLocked(){ const p = pinCfg(); return !!(ACCT && ACCT.role !== "staff" && p && p.on && p.gate && (p.pins || []).length && !trustedDevice(p) && !unlocked()); }
+function gateLocked(){ const p = pinCfg(); return !!(ACCT && ACCT.role !== "staff" && !VIEW_AS_STAFF && p && p.on && p.gate && (p.pins || []).length && !trustedDevice(p) && !unlocked()); }
 function setUnlock(name, role){ const p = pinCfg(); UNLOCK = name ? { acct: ACCT.id, name, role: role || "manager", until: Date.now() + (n(p && p.timeout) || 15) * 60000 } : null;
   try { if (UNLOCK) sessionStorage.setItem("pm-unlock", JSON.stringify(UNLOCK)); else sessionStorage.removeItem("pm-unlock"); } catch(e){} }
 async function pinHash(salt, pin){ const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pin)); return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join(""); }
@@ -2139,7 +2158,7 @@ function pinScreen(m, wanted, gate){
 function staffHome(m){
   const r = R(), t = localDay(new Date());
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text: r.name || (ACCT && ACCT.name) || "Today"}), el("p",{class:"lead", text: new Date().toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" })})),
-    el("button",{class:"btn quiet", type:"button", text:"\ud83d\udd12 Manager mode", onclick:() => { ST.page = "coach"; render(); }})));
+    VIEW_AS_STAFF ? null : el("button",{class:"btn quiet", type:"button", text:"\ud83d\udd12 Manager mode", onclick:() => { ST.page = "coach"; render(); }})));
   if (UNLOCK && unlocked()) m.append(el("p",{class:"lead", style:"margin-top:-6px", text:"Hi " + UNLOCK.name + "."}));
   else if (ACCT && ACCT.role === "staff" && USER && USER.email) m.append(el("p",{class:"lead", style:"margin-top:-6px", text:"Hi " + USER.email.split("@")[0] + "."}));
   calData(r); loadFeedEvents(r, addDays(t, -7), addDays(t, 35));
@@ -2277,7 +2296,10 @@ function pinLockCard(){
   return el("div",{class:"card feed-card", style:"margin-top:16px"},
     el("div",{class:"feed-h"}, el("div",null, el("h3",{text:"Staff"}), el("p",{class:"mini", style:"margin:2px 0 0", text:"Send each person their app link by email or text. They pick a 4-digit PIN and use the staff app on their phone."})),
       null),
-    el("div",{class:"row", style:"gap:8px;flex-wrap:wrap;margin:10px 0 8px"},
+    el("div",{class:"row", style:"gap:8px;flex-wrap:wrap;margin:10px 0 4px"},
+      el("button",{class:"btn quiet", type:"button", text:"\ud83d\udc41 View as staff", title:"See this app the way a staff login does", onclick:() => setViewAsStaff(true)}),
+      el("button",{class:"btn quiet", type:"button", text:"\ud83d\udcf1 Open the staff phone app", title:"The app staff get from their app link", onclick: openStaffPhoneApp})),
+    el("div",{class:"row", style:"gap:8px;flex-wrap:wrap;margin:6px 0 8px"},
       el("button",{class:"btn quiet", type:"button", text:"Add everyone from the schedule", onclick: fromSchedule}),
       el("button",{class:"btn quiet", type:"button", text:"+ Add a person", onclick:() => { const nm = prompt("Their name, as it is on the schedule?"); if (!nm || !nm.trim()) return; p.pins.push({ id: uid("pin"), name: nm.trim(), role:"staff", hash: null }); save(); render(); }})),
     el("div",{class:"pin-list"}, p.pins.length ? p.pins.slice().sort((a2, b2) => ((a2.role || "manager") === "manager" ? 0 : 1) - ((b2.role || "manager") === "manager" ? 0 : 1) || a2.name.localeCompare(b2.name)).map(x => el("div",{class:"feed-row"},
@@ -3935,10 +3957,11 @@ const dutiesFor = (r, iso) => (r.duties || []).filter(l => !l.days || !l.days.le
   .map(l => Object.assign({}, l, { items: l.items.filter(x => !everyOther(x.text) || dayNum(iso) % 2 === 0) }));
 const staffName = (r, id) => (r.staff.find(p => p.id === id) || {}).name || "?";
 function sched(m){
+  if (!canEditSchedule() && (SCV.tab === "requests" || SCV.tab === "duties")) SCV.tab = "week";   // staff: Schedule and Checklists only
   const r = schedData(R()); const today = localDay(new Date());
   SCV.week = SCV.week || mondayOf(today);
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Schedule"}), el("p",{class:"lead", text:"Who's working, and the cleaning and prep duties for each shift. Both show on the tablet."})),
-    el("div",{class:"seg", role:"tablist"}, [["week","Schedule"],["requests","Requests"],["lists","Checklists"],["duties","Set up lists"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String(SCV.tab === k), onclick:() => { SCV.tab = k; render(); }}, t,
+    el("div",{class:"seg", role:"tablist"}, [["week","Schedule"],["requests","Requests"],["lists","Checklists"],["duties","Set up lists"]].filter(([k]) => canEditSchedule() || k === "week" || k === "lists").map(([k, t]) => el("button",{type:"button", "aria-pressed": String(SCV.tab === k), onclick:() => { SCV.tab = k; render(); }}, t,
       k === "requests" && SCV.pending ? el("span",{class:"seg-badge", text: SCV.pending}) : null)))));
   refreshPendingRequests();
   const edit = canEditSchedule();
