@@ -1508,6 +1508,34 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .tl-chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font:inherit;font-weight:700;font-size:.9rem;border:1px solid}
 .tl-chip.red{background:#FBE3E0;border-color:#C2463A;color:#9A2B21;cursor:pointer} .tl-chip.amber{background:#FFF4D6;border-color:#EBCB88;color:#7A5200}
 .kudo-app{display:flex;gap:12px;align-items:center;background:#EAF6EF;border:1px solid #BFE0CF;border-radius:14px;padding:12px 16px;margin-bottom:12px;font-size:1.02rem} .kudo-app > span{font-size:1.5rem}
+/* ---------- Staff view ---------- */
+.sx-hero{position:relative;display:flex;align-items:center;gap:20px;flex-wrap:wrap;background:linear-gradient(135deg,#1F6F5C 0%,#174F42 55%,#24221F 100%);color:#fff;border-radius:22px;padding:26px 28px;margin-bottom:14px;box-shadow:0 14px 34px rgba(23,79,66,.25);overflow:hidden}
+.sx-hero::after{content:"";position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(242,193,78,.25),transparent 70%)}
+.sx-hero-main{flex:1;min-width:260px;display:grid;gap:6px;position:relative;z-index:1}
+.sx-date{opacity:.8;font-weight:600} .sx-hero h1{margin:0;color:#fff;font-size:clamp(2rem,4vw,3rem)}
+.sx-shift{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap} .sx-shift span{opacity:.85;font-weight:600} .sx-shift b{font-family:var(--brand-font);font-size:1.9rem;font-weight:800;color:#F2C14E} .sx-shift em{font-style:normal;background:rgba(255,255,255,.14);border-radius:999px;padding:2px 10px;font-weight:700}
+.sx-who span{opacity:.9;font-weight:600} .sx-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.sx-chips button{min-height:44px;border-radius:999px;border:1.5px solid rgba(255,255,255,.4);background:rgba(255,255,255,.1);color:#fff;font:inherit;font-weight:700;padding:0 16px;cursor:pointer} .sx-chips button:hover{background:rgba(255,255,255,.2)}
+.sx-notme{justify-self:start;background:none;border:0;color:#fff;opacity:.7;text-decoration:underline;font:inherit;cursor:pointer;padding:0}
+.sx-ring{position:relative;width:92px;height:92px;flex:none;z-index:1} .sx-ring b{position:absolute;inset:0;display:grid;place-items:center;font-weight:800;font-size:1.15rem}
+.sx-mgr{position:absolute;top:14px;right:16px;z-index:2;background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:999px;padding:6px 12px;font:inherit;font-weight:700;cursor:pointer}
+.sx-acts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+.sx-big{display:flex;align-items:center;gap:14px;min-height:90px;padding:14px 18px;border-radius:20px;border:0;font:inherit;text-align:left;cursor:pointer;color:#fff;box-shadow:0 6px 0 rgba(0,0,0,.2),0 10px 22px rgba(0,0,0,.1);transition:transform .08s,box-shadow .08s}
+.sx-big:active{transform:translateY(5px);box-shadow:0 1px 0 rgba(0,0,0,.2)}
+.sx-big.r{background:linear-gradient(135deg,#D9473A,#A8281E)} .sx-big.y{background:linear-gradient(135deg,#E5A92B,#C47F0A);color:#24221F}
+.sx-big-i{display:grid;place-items:center;width:54px;height:54px;border-radius:16px;background:rgba(255,255,255,.18);flex:none} .sx-big.y .sx-big-i{background:rgba(0,0,0,.08)}
+.sx-big-t{display:grid;gap:2px} .sx-big-t b{font-family:var(--brand-font);font-weight:800;font-size:1.7rem;line-height:1} .sx-big-t span{opacity:.9;font-weight:600;font-size:.92rem}
+.sx-86{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#FBE3E0;border:2px solid #C2463A;border-radius:16px;padding:10px 14px;margin-bottom:12px} .sx-86 > b{font-family:var(--brand-font);font-weight:800;font-size:1.4rem;color:#9A2B21;margin-right:4px}
+.sx-86-i{min-height:46px;border-radius:14px;border:2px solid #C2463A;background:#fff;color:#9A2B21;font:inherit;font-weight:800;padding:0 14px;cursor:pointer}
+.sx-low{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#FFF4D6;border:1px solid #EBCB88;border-radius:14px;padding:8px 14px;margin-bottom:12px} .sx-low b{color:#7A5200} .sx-low span{font-weight:700}
+.sx-party{display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#EAF6EF,#D6EEE3);border:1px solid #BFE0CF;border-radius:16px;padding:16px 18px;margin-top:10px;font-size:1.1rem} .sx-party > span{font-size:2rem}
+.sx-done{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px} .sx-done span{background:#EAF6EF;color:#1F6F5C;border-radius:999px;padding:4px 12px;font-weight:700;font-size:.88rem}
+.sx-tools{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-top:6px}
+.sx-tool{display:grid;gap:4px;justify-items:start;text-align:left;padding:18px;border-radius:20px;border:0;font:inherit;cursor:pointer;color:var(--ink);transition:transform .12s}
+.sx-tool:hover{transform:translateY(-3px)} .sx-tool b{font-family:var(--brand-font);font-weight:800;font-size:1.35rem} .sx-tool > span:last-child{color:var(--ink-2);font-size:.9rem}
+.sx-tool-i{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:#fff;margin-bottom:6px} .sx-tool-i svg{width:24px;height:24px}
+.sx-tool.t1{background:#E3F1EB} .sx-tool.t2{background:#FBEBD0} .sx-tool.t3{background:#E6ECF7} .sx-tool.t4{background:#F6E1DD}
+@media (max-width:640px){ .sx-hero{padding:20px} .sx-shift b{font-size:1.5rem} .sx-big{flex-direction:column;align-items:flex-start;min-height:104px} .sx-tools{grid-template-columns:1fr 1fr} }
 </style>
 </head>
 <body>
@@ -2003,7 +2031,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 86 board and shout-outs";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Cool staff view";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2240,49 +2268,83 @@ function pickMe(r){
     el("div",{class:"who-pick"}, r.staff.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => el("button",{class:"btn quiet", type:"button", text:p.name, onclick:() => {
       try { localStorage.setItem("pm-me-" + (USER && USER.id) + "-" + ACCT.id, p.id); } catch(e){} dlg.close(); render(); }})))], []);
 }
+function staffBoardPick(kind){
+  const r = R(), q = el("input",{class:"inp", type:"search", placeholder: kind === "86" ? "Which dish or drink?" : "What are we low on?"}), list = el("div",{class:"who-pick"});
+  const by = () => { const id = myStaffId(r), p = id && r.staff.find(x => x.id === id); return p ? p.name : (UNLOCK && unlocked() ? UNLOCK.name : myFirst()); };
+  const post = async (itemId, name) => { const { data, error } = await sb.rpc("board_add", { p_account: ACCT.id, p_kind: kind, p_item_id: itemId, p_name: name, p_note: null, p_by: by() });
+    dlg.close(); if (error || !data) return toast(error && /function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "Ask a manager to run 018_board.sql." : "Couldn't post that. Try again.");
+    toast(kind === "86" ? name + " is 86'd. Everyone sees it now." : "Managers will see you're low on " + name + "."); loadBoardApp(true); render(); };
+  const draw = () => { const k = q.value.trim().toLowerCase();
+    const pool = kind === "86" ? Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || "")).map(it => ({ id: it.id, name: it.name })) : Object.values(r.supplies).map(su => ({ id: null, name: supName(su) }));
+    const hits = pool.filter(x => !k || x.name.toLowerCase().includes(k)).sort((a, b) => a.name.localeCompare(b.name)).slice(0, 16);
+    list.replaceChildren(...hits.map(x => el("button",{class:"btn quiet", type:"button", text:x.name, onclick:() => post(x.id, x.name)})),
+      k && !hits.some(x => x.name.toLowerCase() === k) ? el("button",{class:"btn primary", type:"button", text:"\u201c" + q.value.trim() + "\u201d", onclick:() => post(null, q.value.trim())}) : null); };
+  q.oninput = draw; draw();
+  openDlg(kind === "86" ? "86 something" : "We're low on\u2026", [el("p",{class:"lead", text: kind === "86" ? "Everyone's phone and the tablet will show it's out." : "A manager gets a heads-up before it runs out."}), q, list], []);
+  setTimeout(() => q.focus(), 50);
+}
+const SX_ICON = {
+  b86: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.6 5.6l12.8 12.8"/></svg>',
+  low: '<svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="7" width="16" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 10v4"/></svg>'
+};
 function staffHome(m){
   const r = schedData(R()), t = localDay(new Date()), me = myStaffId(r), person = me && r.staff.find(p => p.id === me);
   const first = person ? person.name.split(" ")[0] : (UNLOCK && unlocked() ? UNLOCK.name.split(" ")[0] : "");
+  const hr = new Date().getHours(), hello = hr < 12 ? "Good morning" : hr < 17 ? "Good afternoon" : "Good evening";
   const whenLabel = d => d === t ? "Today" : d === addDays(t, 1) ? "Tomorrow" : DOW[new Date(d + "T12:00:00").getDay()] + " " + nice(d);
-  const shiftText = x => t12(x.start) + " \u2013 " + t12(x.end) + (x.role ? " \u00b7 " + (r.roleCodes[x.role] || x.role) : "");
-  // 1. Me: hello and my next shift
-  const mine = me ? r.shifts.filter(x => x.staff === me && x.date >= t).sort((a, b) => a.date.localeCompare(b.date) || String(a.start || "").localeCompare(String(b.start || ""))) : [];
-  const nextWork = mine.find(x => !x.off), offToday = me && !mine.some(x => x.date === t && !x.off);
-  m.append(el("div",{class:"sh-hero"},
-    el("div",null, el("h1",{text: first ? "Hi " + first + "!" : (r.name || "Today")}), el("p",{class:"lead", text: new Date().toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" })})),
-    person ? el("div",{class:"sh-next" + (nextWork && nextWork.date === t ? " today" : "")},
-        el("span",{class:"mini", text: nextWork && nextWork.date === t ? "You're on today" : offToday ? "You're off today" : "Your next shift"}),
-        nextWork ? el("b",{text: (nextWork.date === t ? "" : whenLabel(nextWork.date) + ", ") + shiftText(nextWork)}) : el("b",{text:"Nothing on the schedule yet"}),
-        nextWork && nextWork.date !== t && mine.filter(x => !x.off).length > 1 ? el("span",{class:"mini", text:"Then " + mine.filter(x => !x.off).slice(1, 3).map(x => whenLabel(x.date)).join(", ")}) : null,
-        el("button",{class:"linkbtn", type:"button", text:"Not " + first + "?", onclick:() => pickMe(r)}))
-      : r.staff.length ? el("button",{class:"btn primary", type:"button", text:"Which one is you?", onclick:() => pickMe(r)}) : null,
-    VIEW_AS_STAFF ? null : el("button",{class:"btn quiet", type:"button", text:"\ud83d\udd12 Manager mode", onclick:() => { ST.page = "coach"; render(); }})));
-  // 1b. Shout-outs and the 86 board
+  const roleTxt = x => x.role ? (r.roleCodes[x.role] || x.role) : "";
+  const toMin = hhmm => { if (!hhmm) return null; const [a, b] = hhmm.split(":").map(Number); return a * 60 + b; };
+  const todayShifts = r.shifts.filter(x => x.date === t && !x.off);
+  // 1. Welcome card
+  const mine = me ? r.shifts.filter(x => x.staff === me && x.date >= t && !x.off).sort((a, b) => a.date.localeCompare(b.date) || String(a.start || "").localeCompare(String(b.start || ""))) : [];
+  const nx = mine[0], onToday = nx && nx.date === t;
+  let ring = null;
+  if (onToday){ const s0 = toMin(nx.start), e0 = toMin(nx.end) || 23 * 60, nowM = hr * 60 + new Date().getMinutes(), pct = s0 == null ? 0 : Math.max(0, Math.min(1, (nowM - s0) / Math.max(1, e0 - s0)));
+    const C = 2 * Math.PI * 34; ring = el("div",{class:"sx-ring", title: Math.round(pct * 100) + "% through your shift"});
+    ring.innerHTML = '<svg viewBox="0 0 80 80" width="92" height="92"><circle cx="40" cy="40" r="34" fill="none" stroke="rgba(255,255,255,.18)" stroke-width="8"/><circle cx="40" cy="40" r="34" fill="none" stroke="#F2C14E" stroke-width="8" stroke-linecap="round" stroke-dasharray="' + (C * pct).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 40 40)"/></svg><b>' + (nowM < s0 ? "Soon" : pct >= 1 ? "Done" : Math.round(pct * 100) + "%") + '</b>'; }
+  const crewNames = [...new Set(todayShifts.map(x => (r.staff.find(p => p.id === x.staff) || {}).name).filter(Boolean))];
+  const pickNames = crewNames.length ? crewNames : r.staff.map(p => p.name);
+  m.append(el("div",{class:"sx-hero"},
+    el("div",{class:"sx-hero-main"},
+      el("span",{class:"sx-date", text: new Date().toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" })}),
+      el("h1",{text: hello + (first ? ", " + first : "") + "!"}),
+      person ? (nx ? el("div",{class:"sx-shift"}, el("span",{text: onToday ? "You're on today" : "Next shift \u00b7 " + whenLabel(nx.date)}), el("b",{text: t12(nx.start) + " \u2013 " + t12(nx.end)}), roleTxt(nx) ? el("em",{text: roleTxt(nx)}) : null)
+          : el("div",{class:"sx-shift"}, el("span",{text:"No shifts on the schedule yet"})))
+        : el("div",{class:"sx-who"}, el("span",{text: crewNames.length ? "Who's this? Tap your name:" : "Tap your name:"}),
+            el("div",{class:"sx-chips"}, pickNames.slice(0, 12).map(nm => el("button",{type:"button", text:nm, onclick:() => { const p = r.staff.find(x => x.name === nm); try { localStorage.setItem("pm-me-" + (USER && USER.id) + "-" + ACCT.id, p.id); } catch(e){} render(); }})),
+              pickNames.length > 12 ? el("button",{type:"button", text:"More\u2026", onclick:() => pickMe(r)}) : null)),
+      person ? el("button",{class:"sx-notme", type:"button", text:"Not " + first + "?", onclick:() => pickMe(r)}) : null),
+    ring,
+    VIEW_AS_STAFF ? null : el("button",{class:"sx-mgr", type:"button", text:"\ud83d\udd12 Manager", onclick:() => { ST.page = "coach"; render(); }})));
+  // 2. Shout-outs and the 86 board
   loadBoardApp();
   kudosNow(r).forEach(k => m.append(el("div",{class:"kudo-app"}, el("span",{text:"\ud83c\udf89"}), el("div",null, el("b",{text:k.text}), el("span",{class:"mini", text:" \u2014 " + k.by + (k.toName ? " to " + k.toName : "")})))));
-  if (BOARD.some(b => b.kind === "86")) m.append(el("div",{class:"tl-86 card", style:"margin-bottom:12px"}, el("b",{text:"86'd"}), BOARD.filter(b => b.kind === "86").map(b => el("span",{class:"tl-chip red", text:b.name}))));
-  // 2. What changed (until they tap Got it)
-  loadAcks(); const myName = person ? person.name : (UNLOCK && unlocked() ? UNLOCK.name : (USER && USER.email || "").split("@")[0]);
+  const outs = BOARD.filter(b => b.kind === "86"), lows = BOARD.filter(b => b.kind === "low");
+  if (outs.length) m.append(el("div",{class:"sx-86"}, el("b",{text:"86'd"}), outs.map(b => el("button",{class:"sx-86-i", type:"button", title:"Tap when it's back",
+    onclick: async () => { await sb.rpc("board_clear", { p_account: ACCT.id, p_id: b.id, p_by: first || myFirst() }); toast(b.name + " is back on."); loadBoardApp(true); }}, b.name, el("span",{text:" \u00d7"})))));
+  if (lows.length) m.append(el("div",{class:"sx-low"}, el("b",{text:"Running low"}), lows.map(b => el("span",{text: b.name}))));
+  const big = (cls, icon, title, sub, fn) => { const b = el("button",{class:"sx-big " + cls, type:"button", onclick: fn}), i = el("span",{class:"sx-big-i"}); i.innerHTML = icon; b.append(i, el("span",{class:"sx-big-t"}, el("b",{text:title}), el("span",{text:sub}))); return b; };
+  m.append(el("div",{class:"sx-acts"}, big("r", SX_ICON.b86, "86 it", outs.length ? outs.length + " out right now" : "Mark a dish or drink as out", () => staffBoardPick("86")),
+    big("y", SX_ICON.low, "Running low", lows.length ? lows.length + " reported" : "Warn a manager early", () => staffBoardPick("low"))));
+  // 3. What changed (until they tap Got it)
+  loadAcks(); const myName = person ? person.name : (UNLOCK && unlocked() ? UNLOCK.name : myFirst());
   const unseen = (r.changes || []).filter(c => Date.now() - Date.parse(c.at) < 14 * 864e5 && !((ACKS && ACKS.get(c.id)) || []).includes(myName));
   if (unseen.length) m.append(el("div",{class:"card sh-new"}, el("h2",{text:"What changed (" + unseen.length + ")"}),
     unseen.slice(0, 3).map(c => el("div",{class:"wn"}, el("div",{class:"spread"}, el("b",{text: c.title}),
         el("button",{class:"btn primary sm", type:"button", text:"Got it", onclick: async ev => { ev.currentTarget.disabled = true;
           const { error } = await sb.rpc("change_ack", { p_account: ACCT.id, p_change: c.id, p_name: myName });
           if (error){ toast(/function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "Ask a manager to run 017_change_acks.sql." : plainErr(error)); ev.currentTarget.disabled = false; return; }
-          if (!ACKS) ACKS = new Map(); ACKS.set(c.id, ((ACKS.get(c.id)) || []).concat([myName])); toast("Thanks, " + (first || "you") + "!"); render(); }})),
+          if (!ACKS) ACKS = new Map(); ACKS.set(c.id, ((ACKS.get(c.id)) || []).concat([myName])); toast("Thanks" + (first ? ", " + first : "") + "!"); render(); }})),
       c.why ? el("p",{class:"wn-why", text: c.why}) : null,
-      c.diffs.length ? el("ul",{class:"diffs"}, c.diffs.slice(0, 6).map(d => el("li",null, el("span",{class:"dl", text:d.label + ": "}), d.old ? el("s",{text:d.old}) : null, d.old ? " \u2192 " : "", el("mark",{text:d.now})))) : null,
-      c.itemId && r.items[c.itemId] ? el("button",{class:"linkbtn", type:"button", text:"Open the recipe card", onclick:() => { go("book"); setTimeout(() => openCard(c.itemId), 50); }}) : null)),
-    unseen.length > 3 ? el("p",{class:"mini", text:"+" + (unseen.length - 3) + " more"}) : null));
-  // 3. Today: what to sell and what's coming in
+      c.diffs.length ? el("ul",{class:"diffs"}, c.diffs.slice(0, 6).map(d => el("li",null, el("span",{class:"dl", text:d.label + ": "}), d.old ? el("s",{text:d.old}) : null, d.old ? " \u2192 " : "", el("mark",{text:d.now})))) : null))));
+  // 4. Today (only when there's something)
   calData(r); loadFeedEvents(r, addDays(t, -7), addDays(t, 35));
   const items = dayItems(r, t);
-  m.append(el("div",{class:"card"}, el("h2",{style:"margin:0 0 8px", text:"Today"}), items.length ? el("div",{class:"cal-list"}, items.map(it => el("div",{class:"cal-item", style:"--c:" + it.color},
+  if (items.length) m.append(el("div",{class:"card"}, el("h2",{style:"margin:0 0 8px", text:"Today"}), el("div",{class:"cal-list"}, items.map(it => el("div",{class:"cal-item", style:"--c:" + it.color},
     el("div",{class:"cal-when", text: it.kind === "special" ? "\u2605 Sell today" : it.kind === "note" ? "Note" : it.time ? t12(it.time) : "All day"}),
     el("div",{class:"cal-what"}, el("b",{text:it.title}), it.guests ? el("span",{class:"pill", style:"margin-left:8px", text: it.guests + " guests"}) : null, it.where ? el("div",{class:"mini", text:"@ " + it.where}) : null,
-      it.desc ? el("div",{class:"cal-desc", text: it.desc}) : null)))) : el("p",{class:"mini", text:"Nothing special on today."})));
-  // 4. Who's on today
-  const todayShifts = r.shifts.filter(x => x.date === t && !x.off);
+      it.desc ? el("div",{class:"cal-desc", text: it.desc}) : null))))));
+  // 5. Crew
   if (todayShifts.length){
     const groups = {}; todayShifts.forEach(x => { const pos = posOfShift(r, x) || "Team"; (groups[pos] = groups[pos] || []).push(x); });
     m.append(el("div",{class:"card"}, el("h2",{style:"margin:0 0 8px", text: me && todayShifts.some(x => x.staff === me) ? "Working with you today" : "Working today"}),
@@ -2290,21 +2352,26 @@ function staffHome(m){
         el("ul",null, list.sort((a, b) => String(a.start || "").localeCompare(String(b.start || ""))).map(x => { const p = r.staff.find(y => y.id === x.staff);
           return el("li",{class: x.staff === me ? "me" : ""}, el("b",{text: p ? p.name : "?"}), " " + t12(x.start, true) + "\u2013" + t12(x.end, true)); })))))));
   }
-  // 5. Today's checklists, with progress
-  const lists = dutiesFor(r, t); if (lists.length){
-    const box = el("div",{class:"sh-lists"}, lists.map(l => el("div",{class:"mini", text: l.name})));
+  // 6. Checklists: celebrate when done; unfinished first
+  const lists = dutiesFor(r, t);
+  if (lists.length){
+    const box = el("div",null, el("div",{class:"spin"}));
     m.append(el("div",{class:"card"}, el("div",{class:"spread"}, el("h2",{style:"margin:0", text:"Today's checklists"}),
       el("button",{class:"btn quiet sm", type:"button", text:"Open checklists", onclick:() => { SCV.tab = "lists"; SCV.logDay = t; go("sched"); }})), box));
     sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: t, p_to: t }).then(({ data }) => {
       const done = new Set((data || []).filter(c => c.status === "done" || c.status === "excused").map(c => c.list_id + "|" + c.item_id));
-      box.replaceChildren(...lists.map(l => { const k = l.items.filter(x => done.has(l.id + "|" + x.id)).length, pct = l.items.length ? Math.round(k / l.items.length * 100) : 0;
-        return el("button",{class:"sh-list", type:"button", onclick:() => { SCV.tab = "lists"; SCV.logDay = t; go("sched"); }},
-          el("div",{class:"spread"}, el("b",{text: l.name}), el("span",{class:"mini", text: k + " of " + l.items.length + (k === l.items.length && k ? " \u2713" : "")})),
-          el("div",{class:"bar"}, el("i",{style:"width:" + pct + "%"}))); })); });
+      const st = lists.map(l => ({ l, k: l.items.filter(x => done.has(l.id + "|" + x.id)).length })), open = st.filter(x => x.k < x.l.items.length), fin = st.filter(x => x.k >= x.l.items.length);
+      const openList = () => { SCV.tab = "lists"; SCV.logDay = t; go("sched"); };
+      box.replaceChildren(...[
+        !open.length ? el("div",{class:"sx-party"}, el("span",{text:"\ud83c\udf89"}), el("div",null, el("b",{text:"All " + lists.length + " checklists done today."}), el("span",{text:" Nice work, team!"}))) : null,
+        open.length ? el("div",{class:"sh-lists"}, open.map(({ l, k }) => { const pct = Math.round(k / l.items.length * 100);
+          return el("button",{class:"sh-list", type:"button", onclick: openList}, el("div",{class:"spread"}, el("b",{text: l.name}), el("span",{class:"mini", text: k + " of " + l.items.length})),
+            el("div",{class:"bar"}, el("i",{style:"width:" + pct + "%"}))); })) : null,
+        fin.length && open.length ? el("div",{class:"sx-done"}, fin.map(({ l }) => el("span",{text:"\u2713 " + l.name}))) : null].filter(Boolean)); });
   }
-  // 6. Tools
-  m.append(el("div",{class:"staff-tools"}, [["book","Kitchen book"],["lab","Test kitchen"],["sched","Schedule"],["events","Events"]].map(([pg, a]) =>
-    el("button",{class:"btn quiet", type:"button", onclick:() => { if (pg === "sched") SCV.tab = "week"; go(pg); }}, navIcon(pg), a))));
+  // 7. Tools
+  m.append(el("div",{class:"sx-tools"}, [["book","Kitchen book","Recipe cards","t1"],["lab","Test kitchen","Try something new","t2"],["sched","Schedule","Shifts & requests","t3"],["events","Events","What's coming up","t4"]].map(([pg, a, b2, c]) =>
+    el("button",{class:"sx-tool " + c, type:"button", onclick:() => { if (pg === "sched") SCV.tab = "week"; go(pg); }}, el("span",{class:"sx-tool-i"}, navIcon(pg)), el("b",{text:a}), el("span",{text:b2})))));
 }
 function ensurePinCfg(){ ST.pinLock = ST.pinLock || { on:false, salt: Math.random().toString(36).slice(2) + Date.now().toString(36), pins:[], timeout:15, trusted:[] }; return ST.pinLock; }
 // preset: { userId, name } ties the PIN to a team member's account (shown by their email).
