@@ -1436,6 +1436,11 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .code-in{font-size:1.8rem;letter-spacing:.35em;text-align:center;min-height:58px}
 .shared-pc{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} .shared-pc summary{cursor:pointer;padding:4px 0}
 .viewas-bar{position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--mustard, #D99A1E);color:#24221F;border-radius:12px;padding:10px 14px;margin:0 0 14px;font-weight:600}
+.promo-list{display:grid;gap:10px}
+.promo{border:1px solid var(--line);border-left:5px solid var(--line-2);border-radius:12px;padding:12px 14px;background:var(--panel)}
+.promo.on{border-left-color:var(--mustard)}
+.promo-h{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.promo-ex{display:grid;gap:6px;max-height:220px;overflow:auto;margin-top:8px}
 </style>
 </head>
 <body>
@@ -1931,7 +1936,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 View as staff";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Promos";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -4599,7 +4604,7 @@ function events(m){
   const days = [...Array(42)].map((_, i) => addDays(gridStart, i)), monthKey = first.slice(0, 7);
   loadFeedEvents(r, days[0], days[41]); loadPhotos();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Events"}), el("p",{class:"lead", text:"Bookings from your calendars, events and specials. Staff see today's on the tablet."})),
-    el("div",{class:"row"}, evTabs(), edit ? el("button",{class:"btn quiet", type:"button", text:"+ Special", onclick:() => editSpecial(r)}) : null, edit ? el("button",{class:"btn primary", type:"button", text:"+ Event", onclick:() => editEvent(r, null, EVV.day)}) : null,
+    el("div",{class:"row"}, evTabs(), boss ? el("button",{class:"btn primary", type:"button", text:"\u2605 Promos", onclick: openPromos}) : null, edit ? el("button",{class:"btn quiet", type:"button", text:"+ Special", onclick:() => editSpecial(r)}) : null, edit ? el("button",{class:"btn primary", type:"button", text:"+ Event", onclick:() => editEvent(r, null, EVV.day)}) : null,
       boss ? el("button",{class:"btn quiet", type:"button", text:"Connected calendars" + (r.calFeeds.length ? " (" + r.calFeeds.length + ")" : ""), onclick:() => openCalFeeds(r)}) : null)));
   if (!r.calFeeds.length && boss) m.append(el("div",{class:"card feed-card", style:"margin-bottom:12px"}, el("div",{class:"spread"}, el("div",null, el("b",{text:"Show your bookings here"}),
     el("p",{class:"mini", style:"margin:2px 0 0", text:"Connect the calendar your booking page adds reservations to, and they'll show up here and on the tablet automatically."})),
@@ -5167,6 +5172,76 @@ async function quoteSheet(q, r, mode){
     fr.contentDocument.write('<!doctype html><title>Quote</title><style>@page{margin:10mm}html,body{margin:0}img{width:100%;display:block}</style><img src="' + url + '">'); fr.contentDocument.close();
     const im = fr.contentDocument.querySelector("img"); im.onload = () => { fr.contentWindow.focus(); fr.contentWindow.print(); setTimeout(() => { fr.remove(); URL.revokeObjectURL(url); }, 60000); };
   } else { const a = el("a",{href:url, download:file}); document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 30000); toast("Saved " + file); }
+}
+
+/* ================= Promos: one tap to run a saved deal (BOGO Wednesday and friends) ================= */
+const PROMO_PRESETS = [
+  { key:"bogo", name:"BOGO", day:3, rules:"Buy one, get one of equal or lesser value free. Dine-in only. One free item per item bought.", noAlcohol:true, excludeNames:["wings $1", "$1 wings", "smothered chicken melt"] },
+  { key:"halfapps", name:"Half-price appetizers", day:2, rules:"Appetizers half off with an entrée. Dine-in only.", noAlcohol:true, excludeNames:[] },
+  { key:"kids", name:"Kids eat free", day:1, rules:"One free kids meal with each adult entrée. Dine-in only.", noAlcohol:true, excludeNames:[] },
+  { key:"wings", name:"Wing night", day:4, rules:"Wing specials all night. Dine-in only.", noAlcohol:false, excludeNames:[] }
+];
+const DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+function promoList(r){
+  r.promos = r.promos || [];
+  if (!r.promos.length) PROMO_PRESETS.forEach(p => { const ex = Object.values(r.items).filter(it => p.excludeNames.some(n => it.name.toLowerCase().includes(n))).map(it => it.id);
+    r.promos.push({ id: uid("pr"), name: p.name, day: p.day, rules: p.rules, noAlcohol: p.noAlcohol, exclude: ex }); });
+  return r.promos;
+}
+const promoRunning = (r, p) => (r.specials || []).find(sp => sp.promoId === p.id && sp.days && sp.days.length);
+const promoOnce = (r, p) => (r.specials || []).filter(sp => sp.promoId === p.id && !(sp.days && sp.days.length) && sp.start >= localDay(new Date()));
+function nextDay(dow){ const t = new Date(localDay(new Date()) + "T12:00:00"); const k = (dow - t.getDay() + 7) % 7; t.setDate(t.getDate() + k); return localDay(t); }
+function promoText(r, p){
+  const ex = (p.exclude || []).map(id => r.items[id] && r.items[id].name).filter(Boolean);
+  const not = [p.noAlcohol ? "alcohol" : "", ...ex].filter(Boolean);
+  return p.rules + (not.length ? " Not included: " + not.join(", ") + "." : "") + " Ring it with the " + p.name + " discount in Clover.";
+}
+function runPromo(r, p, weekly){
+  calData(r);
+  const d = nextDay(p.day), title = p.name + " " + DAY_NAMES[p.day];
+  if (weekly){ r.specials = r.specials.filter(sp => !(sp.promoId === p.id && sp.days && sp.days.length));
+    r.specials.push({ id: uid("sp"), promoId: p.id, title, kind:"food", price:null, desc: promoText(r, p), start: localDay(new Date()), end: null, days:[p.day] }); }
+  else r.specials.push({ id: uid("sp"), promoId: p.id, title: p.name, kind:"food", price:null, desc: promoText(r, p), start: d, end: d, days:null });
+  save(); toast(weekly ? title + " runs every " + DAY_NAMES[p.day] + ", starting " + nice(d) + "." : p.name + " is on for " + nice(d) + ".");
+}
+function stopPromo(r, p){ const t = localDay(new Date()); calData(r);
+  r.specials = r.specials.filter(sp => !(sp.promoId === p.id && ((sp.days && sp.days.length) || sp.start >= t)))
+    .map(sp => sp); save(); toast(p.name + " stopped. Past dates stay on the calendar."); }
+function openPromos(){
+  const r = R(), list = promoList(r), box = el("div",{class:"promo-list"});
+  const draw = () => box.replaceChildren(...list.map(p => { const run = promoRunning(r, p), once = promoOnce(r, p);
+    const status = run ? "Running every " + DAY_NAMES[run.days[0]] : once.length ? "On " + once.map(sp => nice(sp.start)).join(", ") : "Off";
+    return el("div",{class:"promo " + (run || once.length ? "on" : "")},
+      el("div",{class:"promo-h"}, el("b",{text:p.name}), el("span",{class:"pill " + (run || once.length ? "good" : ""), text: status})),
+      el("p",{class:"mini", style:"margin:4px 0 8px", text: promoText(r, p)}),
+      el("div",{class:"row", style:"gap:8px;flex-wrap:wrap"},
+        run ? el("button",{class:"btn danger sm", type:"button", text:"Stop", onclick:() => { stopPromo(r, p); draw(); }})
+          : el("button",{class:"btn primary", type:"button", text:"Run every " + DAY_NAMES[p.day], onclick:() => { runPromo(r, p, true); draw(); }}),
+        run ? null : el("button",{class:"btn quiet sm", type:"button", text:"Just " + nice(nextDay(p.day)), onclick:() => { runPromo(r, p, false); draw(); }}),
+        !run && once.length ? el("button",{class:"linkbtn", type:"button", text:"Cancel", onclick:() => { stopPromo(r, p); draw(); }}) : null,
+        el("button",{class:"linkbtn", type:"button", text:"Edit", onclick:() => editPromo(r, p, draw)}))); }),
+    el("button",{class:"btn quiet", type:"button", text:"+ New promo", onclick:() => { const p = { id: uid("pr"), name:"New promo", day:3, rules:"", noAlcohol:true, exclude:[] }; list.push(p); save(); editPromo(r, p, draw); }}));
+  draw();
+  openDlg("Promos", [el("p",{class:"lead", text:"Tap Run to put a deal on the calendar, the Today strip, the tablet and staff phones, with its rules spelled out for servers."}), box,
+    el("p",{class:"mini", text:"The discount itself is rung in Clover. Set up a matching discount button there once."})], []);
+}
+function editPromo(r, p, after){
+  const nm = el("input",{class:"inp", value:p.name}), rules = el("textarea",{class:"inp", rows:"3"}); rules.value = p.rules || "";
+  const day = el("select",{class:"inp"}, DAY_NAMES.map((d, i) => el("option",{value:i, text:d}))); day.value = String(p.day);
+  const alc = el("input",{type:"checkbox"}); alc.checked = !!p.noAlcohol;
+  const ex = new Set(p.exclude || []), q = el("input",{class:"inp", placeholder:"Search the menu to exclude items"}), lst = el("div",{class:"promo-ex"});
+  const drawEx = () => { const k = q.value.trim().toLowerCase();
+    lst.replaceChildren(...Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || "") && (ex.has(it.id) || (k && it.name.toLowerCase().includes(k)))).sort((a, b) => (ex.has(b.id) - ex.has(a.id)) || a.name.localeCompare(b.name)).slice(0, 30)
+      .map(it => { const cb = el("input",{type:"checkbox"}); cb.checked = ex.has(it.id); cb.onchange = () => { if (cb.checked) ex.add(it.id); else ex.delete(it.id); drawEx(); };
+        return el("label",{class:"row", style:"gap:8px"}, cb, it.name, el("span",{class:"mini", text: it.section || ""})); })); };
+  q.oninput = drawEx; drawEx();
+  openDlg("Edit promo", [el("div",{class:"g2"}, fld("Name", nm), fld("Day", day)), fld("Rules for servers", rules),
+    el("label",{class:"row", style:"gap:8px;font-weight:600;margin:6px 0"}, alc, "No alcohol (in Ohio, buy-one-get-one on drinks isn't allowed)"),
+    el("h3",{style:"margin:10px 0 4px", text:"Not included"}), q, lst],
+    [el("button",{class:"btn danger", text:"Delete promo", onclick:() => { if (!confirm("Delete this promo?")) return; stopPromo(r, p); r.promos = r.promos.filter(x => x !== p); save(); dlg.close(); openPromos(); }}),
+     el("button",{class:"btn primary", text:"Save", onclick:() => { Object.assign(p, { name: nm.value.trim() || p.name, rules: rules.value.trim(), day: +day.value, noAlcohol: alc.checked, exclude: [...ex] });
+       (r.specials || []).forEach(sp => { if (sp.promoId === p.id && (sp.days && sp.days.length || sp.start >= localDay(new Date()))){ sp.desc = promoText(r, p); if (sp.days && sp.days.length){ sp.days = [p.day]; sp.title = p.name + " " + DAY_NAMES[p.day]; } } });
+       save(); dlg.close(); openPromos(); }})]);
 }
 /* ================= Backup & restore ================= */
 async function downloadBackup(){
