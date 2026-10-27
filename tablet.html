@@ -326,6 +326,22 @@ html, body{max-width:100%;overflow-x:hidden}
 .pick .names button.today{border-color:var(--jade);border-width:2px}
 .wn-acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px} .wn-ok{color:var(--jade, #1F6F5C);font-weight:800}
 .card{position:relative} .chg-tag{position:absolute;top:10px;left:10px;z-index:2;background:var(--mustard, #D99A1E);color:#24221F;font-weight:800;font-size:.85rem;padding:4px 10px;border-radius:999px}
+/* ---------- Super simple: clean header, big bottom tabs on phones ---------- */
+#q, #custom, #nav-ev{display:none !important}
+@media (max-width:900px){ #wake{display:none !important} }
+.tabs button{display:inline-flex;align-items:center;gap:8px}
+.rec-top{display:flex;gap:10px;align-items:center;margin:0 0 16px;flex-wrap:wrap}
+.search-big{flex:1;min-width:220px;min-height:56px;border-radius:16px;border:1.5px solid var(--line);background:var(--panel);color:var(--ink);font:inherit;font-size:1.15rem;padding:0 18px}
+.home-link{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:58px;margin-top:14px;padding:0 18px;border-radius:16px;border:1px solid var(--line);background:var(--panel);font:inherit;font-weight:700;font-size:1.05rem;color:var(--ink);cursor:pointer}
+.home-link span{font-size:1.6rem;color:var(--muted)}
+@media (max-width:640px){
+  header .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid !important;grid-template-columns:repeat(4,1fr);gap:0;width:auto;order:0;
+    background:var(--char, #24221F);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));border-top:1px solid #3A3631;overflow:visible}
+  header .tabs button{flex-direction:column;gap:3px;min-height:58px;padding:0;border:0;border-radius:12px;font-size:.78rem;color:#C9C3BA;background:transparent}
+  header .tabs button[aria-current="page"]{background:rgba(255,255,255,.12);color:#fff}
+  main{padding-bottom:110px !important}
+  .hs-tip{bottom:84px}
+}
 .ev-needs-btn{margin-top:10px;min-height:48px}
 .ev-needs{list-style:none;padding:0;margin:10px 0 0;display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px 18px;font-size:1.02rem}
 .ev-needs li{border-bottom:1px dashed var(--line);padding:6px 0}
@@ -359,7 +375,7 @@ html, body{max-width:100%;overflow-x:hidden}
 <body>
 <header class="top">
   <div><h1 id="kname">Kitchen book</h1><div class="sub">Kitchen tablet</div></div>
-  <nav class="tabs" aria-label="Sections"><button id="nav-rec" type="button">Recipes</button><button id="nav-sched" type="button">Schedule</button><button id="nav-duty" type="button">Duties</button><button id="nav-ev" type="button">Events</button></nav>
+<nav class="tabs" aria-label="Sections"><button id="nav-home" type="button"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg><span>Home</span></button><button id="nav-rec" type="button"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11"/></svg><span>Recipes</span></button><button id="nav-sched" type="button"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Schedule</span></button><button id="nav-duty" type="button"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></svg><span>Duties</span></button><button id="nav-ev" type="button" hidden>Events</button></nav>
   <div class="grow"></div>
   <input id="q" class="search" type="search" placeholder="Search drinks and dishes" aria-label="Search" autocomplete="off">
   <button id="custom" class="tbtn custom" type="button">Not on the menu?</button>
@@ -386,7 +402,7 @@ html, body{max-width:100%;overflow-x:hidden}
   const mins = v => v > 0 ? Math.round(v) + " min" : "";
 
   function view(){ const p = new URLSearchParams(location.hash.slice(1)); return { cat: p.get("cat"), card: p.get("card") }; }
-  function go(v){ const p = new URLSearchParams(); if (v.cat) p.set("cat", v.cat); if (v.card) p.set("card", v.card); location.hash = p.toString(); }
+  function go(v){ const p = new URLSearchParams(); if (v.cat) p.set("cat", v.cat); if (v.card) p.set("card", v.card); location.hash = p.toString() || "recipes"; }
   window.addEventListener("hashchange", () => { render(); window.scrollTo(0, 0); });
 
   function photoEl(it, big){
@@ -507,7 +523,7 @@ html, body{max-width:100%;overflow-x:hidden}
   function whatsNewView(m){
     loadSeen();
     const list = recentChanges(21);
-    m.replaceChildren(h("div", { class:"crumbs" }, h("button", { class:"back", type:"button", text:"\u2190 Recipes", onclick: () => { location.hash = ""; } }), h("h2", { text:"What's new" })),
+    m.replaceChildren(h("div", { class:"crumbs" }, h("button", { class:"back", type:"button", text:"\u2190 Home", onclick: () => { location.hash = ""; } }), h("h2", { text:"What's new" })),
       list.length ? h("div", { class:"wn-list" }, list.map(c => { const seen = SEEN.get(c.id) || [], mine = ME && seen.includes(ME.name), it = c.itemId && BOOK.items.find(x => x.id === c.itemId);
         return h("div", { class:"wn-card" + (mine ? " seen" : "") },
           h("div", { class:"wn-top" }, h("b", { text: c.title }), h("span", { class:"sub-note", text: new Date(c.at).toLocaleDateString(undefined, { weekday:"short", month:"short", day:"numeric" }) })),
@@ -988,9 +1004,23 @@ html, body{max-width:100%;overflow-x:hidden}
     m.replaceChildren(...parts, status());
     clearInterval(checkTimer); checkTimer = setInterval(() => { if (location.hash === "#duties") loadChecks(); else clearInterval(checkTimer); }, 60000);
   }
-  function markNav(){ const hsh = location.hash; $("nav-ev").setAttribute("aria-current", hsh === "#events" ? "page" : "false"); $("nav-rec").setAttribute("aria-current", hsh === "#sched" || hsh === "#duties" || hsh === "#events" ? "false" : "page"); $("nav-sched").setAttribute("aria-current", hsh === "#sched" ? "page" : "false"); $("nav-duty").setAttribute("aria-current", hsh === "#duties" ? "page" : "false"); }
+  function markNav(){ const hsh = location.hash || "#", home = hsh === "#" || hsh === "#new" || hsh === "#events", rec = !home && !["#sched", "#duties"].includes(hsh);
+    $("nav-home").setAttribute("aria-current", home ? "page" : "false"); $("nav-rec").setAttribute("aria-current", rec ? "page" : "false");
+    $("nav-sched").setAttribute("aria-current", hsh === "#sched" ? "page" : "false"); $("nav-duty").setAttribute("aria-current", hsh === "#duties" ? "page" : "false"); }
+  const SEARCH = h("input", { class:"search-big", type:"search", placeholder:"Search recipes or ingredients", "aria-label":"Search recipes", autocomplete:"off" });
+  SEARCH.addEventListener("input", () => { Q = SEARCH.value.trim(); if (location.hash !== "#recipes" && !/^#(cat|card)=/.test(location.hash)) location.hash = "recipes"; else { location.hash = "recipes"; render(); } SEARCH.focus(); });
+  const recipesTop = () => h("div", { class:"rec-top" }, SEARCH, h("button", { class:"back", type:"button", text:"Not on the menu?", onclick: () => { location.hash = "build"; } }));
+  function homeView(m){
+    loadFeed(); loadSeen();
+    const now = itemsOn(localDay()).filter(x => x.kind !== "note");
+    const todayBox = now.length ? h("section", { class:"today-box" }, h("div", { class:"spread-t" }, h("h2", { text:"Today" }), h("button", { class:"back", type:"button", text:"All events", onclick: () => { location.hash = "events"; } })),
+      h("div", { class:"evlist compact" }, now.slice(0, 4).map(evRow)), now.length > 4 ? h("p", { class:"sub-note", text:"+" + (now.length - 4) + " more" }) : null) : null;
+    m.replaceChildren(...[meHero(), boardStrip(), whatsNewStrip(), todayBox,
+      h("button", { class:"home-link", type:"button", onclick: () => { location.hash = "events"; } }, "Events & bookings", h("span", { text:"\u203a" }))].filter(Boolean));
+  }
   function render(){
     const m = $("main"); if (!BOOK) return; markNav();
+    if (!location.hash || location.hash === "#"){ $("kname").textContent = BOOK.name || "Kitchen book"; homeView(m); return; }
     if (location.hash === "#sched"){ $("kname").textContent = BOOK.name || "Kitchen book"; schedView(m); return; }
     if (location.hash === "#duties"){ $("kname").textContent = BOOK.name || "Kitchen book"; dutiesView(m); return; }
     if (location.hash === "#events"){ $("kname").textContent = BOOK.name || "Kitchen book"; eventsView(m); return; }
@@ -1004,9 +1034,9 @@ html, body{max-width:100%;overflow-x:hidden}
       m.replaceChildren(h("div", { class:"crumbs" }, h("button", { class:"back", type:"button", text:"\u2190 " + (v.cat || "Back"), onclick: () => history.back() }), h("h2", { text: it.name }), printBtn("Print", [it])), spec(it), status());
       needPhotos([it]); return;
     }
-    if (Q){
+    if (Q && location.hash === "#recipes"){
       const q = Q.toLowerCase(), hits = BOOK.items.filter(it => !it.hidden && (it.name + " " + it.section + " " + it.ings.map(x => x.name).join(" ")).toLowerCase().includes(q));
-      m.replaceChildren(h("div", { class:"crumbs" }, h("h2", { text: hits.length + (hits.length === 1 ? " match" : " matches") })), hits.length ? cardGrid(hits) : h("div", { class:"empty", text:"Nothing matches \u201c" + Q + "\u201d." }), status());
+      m.replaceChildren(recipesTop(), h("div", { class:"crumbs" }, h("h2", { text: hits.length + (hits.length === 1 ? " match" : " matches") })), hits.length ? cardGrid(hits) : h("div", { class:"empty", text:"Nothing matches \u201c" + Q + "\u201d." }), status());
       needPhotos(hits); return;
     }
     if (v.cat){
@@ -1028,7 +1058,7 @@ html, body{max-width:100%;overflow-x:hidden}
     const todayBox = now.length ? h("section", { class:"today-box" }, h("div", { class:"spread-t" }, h("h2", { text:"Today" }), h("button", { class:"back", type:"button", text:"All events", onclick: () => { location.hash = "events"; } })),
       h("div", { class:"evlist compact" }, now.slice(0, 4).map(evRow)), now.length > 4 ? h("p", { class:"sub-note", text:"+" + (now.length - 4) + " more on the Events tab" }) : null) : null;
     loadSeen();
-    m.replaceChildren(...[meHero(), boardStrip(), whatsNewStrip(), todayBox, side("Bar", secs.filter(x => x.bar)), side("Kitchen", secs.filter(x => !x.bar)), BOOK.items.length ? null : h("div", { class:"empty", text:"No recipe cards yet." }), status()].filter(Boolean));
+    m.replaceChildren(...[recipesTop(), side("Bar", secs.filter(x => x.bar)), side("Kitchen", secs.filter(x => !x.bar)), BOOK.items.length ? null : h("div", { class:"empty", text:"No recipe cards yet." }), status()].filter(Boolean));
     needPhotos(secs.flatMap(sec => sec.items.filter(it => it.photo).slice(0, 4)));
   }
   function status(){ return h("p", { class:"status", text: UPDATED ? "Updated " + new Date(UPDATED).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) + (navigator.onLine ? "" : "  ·  offline, showing the last copy") : "" }); }
@@ -1061,7 +1091,8 @@ html, body{max-width:100%;overflow-x:hidden}
   try { JSON.parse(localStorage.getItem(CACHE + "-ph") || "[]").forEach(([k, v]) => PH.set(k, v)); } catch(e){}
   $("q").addEventListener("input", e => { Q = e.target.value.trim(); if (location.hash === "#build") location.hash = ""; render(); });
   $("custom").onclick = () => { location.hash = "build"; };
-  $("nav-rec").onclick = () => { location.hash = ""; };
+  $("nav-home").onclick = () => { location.hash = ""; };
+  $("nav-rec").onclick = () => { location.hash = "recipes"; };
   $("nav-sched").onclick = () => { location.hash = "sched"; };
   $("nav-duty").onclick = () => { location.hash = "duties"; };
   $("nav-ev").onclick = () => { location.hash = "events"; };
