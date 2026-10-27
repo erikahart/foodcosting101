@@ -1560,6 +1560,24 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 @keyframes sxin{from{transform:translateY(10px)}to{transform:none}}
 @media (prefers-reduced-motion: reduce){ .confetti{display:none} }
 @media (max-width:640px){ .sx-tl{--nw:84px} .sx-podium{gap:6px} }
+.ib{margin-top:18px}
+.ib-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:start}
+.ib-col{background:var(--field);border-radius:16px;padding:10px;display:grid;gap:10px;min-height:120px}
+.ib-h{display:flex;justify-content:space-between;align-items:center;padding:2px 4px} .ib-h b{font-size:1.02rem} .ib-ct{background:var(--panel);border-radius:999px;padding:1px 9px;font-weight:800;font-size:.85rem}
+.ib-idea{border-top:4px solid #E5A92B} .ib-testing{border-top:4px solid #2F5DA8} .ib-approved{border-top:4px solid #1F6F5C}
+.ib-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:10px;display:grid;gap:6px;box-shadow:0 2px 6px rgba(0,0,0,.04)}
+.ib-img{width:100%;height:110px;object-fit:cover;border-radius:10px}
+.ib-name{background:none;border:0;padding:0;text-align:left;font:inherit;color:var(--ink);cursor:pointer} .ib-name b{font-size:1.08rem}
+.ib-nums{display:flex;gap:10px;font-size:.88rem;color:var(--ink-2)} .ib-nums span:first-child{font-weight:800;color:var(--ink)}
+.ib-from{font-size:.82rem;font-weight:700;color:#7A5200} .ib-note{margin:0;font-size:.85rem;font-style:italic;color:var(--ink-2)}
+.ib-card .next{width:100%;min-height:46px;font-size:1rem}
+.ib-more{display:flex;gap:10px;flex-wrap:wrap;font-size:.82rem} .ib-empty{margin:4px;color:var(--muted);font-size:.88rem}
+.ib-done{margin-top:12px} .ib-done summary{cursor:pointer;font-weight:700} .ib-done-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px} .ib-done-list span{background:#EAF6EF;color:#1F6F5C;border-radius:999px;padding:3px 10px;font-weight:700;font-size:.85rem}
+.taste-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+.taste{display:grid;justify-items:center;gap:4px;padding:16px 8px;border-radius:16px;border:2px solid var(--line);background:var(--panel);font:inherit;color:var(--ink);cursor:pointer}
+.taste span{font-size:2rem} .taste b{font-size:1.05rem} .taste small{color:var(--muted)} .taste[disabled]{opacity:.45;cursor:not-allowed}
+.taste.good{border-color:#A9CDBF} .taste.fix{border-color:#EBCB88} .taste.drop{border-color:#E7B1AA}
+@media (max-width:900px){ .ib-cols{grid-template-columns:1fr} .taste-btns{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -2055,7 +2073,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Even better staff view";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Idea to menu";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -3718,7 +3736,7 @@ function tabletBuildsBox(){
   (async () => {
     const { data, error } = await sb.rpc("tablet_builds_list", { p_account: ACCT.id });
     if (error || !data || !data.length) return;
-    box.replaceChildren(el("div",{class:"sect-h"}, el("h2",{text:"From the tablet"}), el("span",{class:"mini", text:"Custom builds made for guests. Cost one to see if it belongs on the menu."})),
+    box.replaceChildren(el("div",{class:"sect-h"}, el("h2",{text:"Suggested by staff"}), el("span",{class:"mini", text:"Made for guests from the tablet. Cost it and it joins Ideas on the board."})),
       el("div",{class:"lab-saved"}, data.map(b => { const d = b.data || {};
         return el("div",{class:"lab-idea"}, el("div",{class:"lab-idea-main", style:"cursor:default"}, el("b",{text: d.name || b.prompt}),
             el("span",{class:"mini", text: (d.kind === "food" ? "Dish" : "Drink") + ", asked for \u201c" + (b.prompt || "") + "\u201d, " + new Date(b.created_at).toLocaleDateString(undefined, { month:"short", day:"numeric" })})),
@@ -3726,7 +3744,8 @@ function tabletBuildsBox(){
             const rec = { name: d.name, description: d.description, glass: d.glass, garnish: d.garnish, ingredients: d.ingredients, steps: d.steps, notes: d.notes, allergens: d.allergens };
             LAB.kind = d.kind === "food" ? "food" : "liquor";
             await labRun("The bar made this for a guest from the tablet:\n" + JSON.stringify(rec) + "\nWrite it up as a menu item: same drink or dish, matched to their supplies with amounts in your units, plus how to make it" + (d.kind === "food" ? "" : " (glass and garnish go in plating)") + ".", null, b.prompt || d.name);
-            if (LAB.draft && !LAB.err){ await sb.rpc("tablet_build_delete", { p_account: ACCT.id, p_id: b.id }); render(); window.scrollTo({ top: 0, behavior:"smooth" }); }
+            if (LAB.draft && !LAB.err){ await saveDraftAsIdea(LAB.draft, R(), { from: b.made_by || d.by || "the tablet" }); await sb.rpc("tablet_build_delete", { p_account: ACCT.id, p_id: b.id });
+              toast("Costed and added to Ideas" + (b.made_by || d.by ? ", credited to " + (b.made_by || d.by) : "") + "."); render(); window.scrollTo({ top: 0, behavior:"smooth" }); }
           }}),
           el("button",{class:"linkbtn", type:"button", text:"Dismiss", onclick: async () => { await sb.rpc("tablet_build_delete", { p_account: ACCT.id, p_id: b.id }); render(); }})); })));
   })();
@@ -3899,6 +3918,60 @@ function labStats(dr, r){
   const st = stats(it, r, sups), price = st.price;
   return { it, sups, st, target, price, base: it.price, pct: price ? st.plate / price : null, profit: price - st.plate };
 }
+// ---------- Idea -> Testing -> Approved -> On the menu: one next step per card ----------
+const STAGES = [["idea","\ud83d\udca1 Ideas"],["testing","\ud83e\uddea Testing"],["approved","\u2705 Approved"]];
+function openIdeaInLab(idea){
+  const ph = PHOTOS.get("idea_" + idea.id);
+  LAB.draft = JSON.parse(JSON.stringify(idea.draft)); LAB.draft.ideaId = idea.id; LAB.draft.prompt = LAB.draft.prompt || idea.prompt || ""; LAB.prompt = "";
+  if (ph){ LAB.draft.photo = ph; labKeepPhoto(LAB.draft); } labPersist(true); render(); window.scrollTo({ top: 0, behavior:"smooth" });
+}
+function tasteCheck(idea, r){
+  const note = el("input",{class:"inp", placeholder:"How was it? e.g. great, needs more salt, too big a portion"});
+  const who = (USER && USER.email || "").split("@")[0], add = () => { if (note.value.trim()){ idea.notes = idea.notes || []; idea.notes.push({ at: today(), by: who, text: note.value.trim() }); } };
+  const mgr = !pinLocked();
+  openDlg("How did " + idea.draft.name + " taste?", [note, el("div",{class:"taste-btns"},
+      el("button",{class:"taste good", type:"button", disabled: mgr ? null : "", title: mgr ? "" : "A manager approves", onclick:() => { add(); idea.stage = "approved"; save(); dlg.close(); render(); toast("Approved. Next: Put it on the menu."); }}, el("span",{text:"\ud83d\udc4d"}), el("b",{text:"Approve"}), el("small",{text: mgr ? "Ready for the menu" : "Managers only"})),
+      el("button",{class:"taste fix", type:"button", onclick:() => { add(); save(); dlg.close(); openIdeaInLab(idea); toast("Make your changes, then Save changes. It stays in Testing."); }}, el("span",{text:"\u270f\ufe0f"}), el("b",{text:"Needs changes"}), el("small",{text:"Opens the recipe"})),
+      el("button",{class:"taste drop", type:"button", disabled: mgr ? null : "", onclick:() => { if (!confirm("Drop " + idea.draft.name + "?")) return; add(); r.ideas = r.ideas.filter(i => i !== idea); save(); dlg.close(); render(); toast("Dropped."); }}, el("span",{text:"\ud83d\udc4e"}), el("b",{text:"Drop it"}), el("small",{text:"Not for us"})))], []);
+}
+function putOnMenu(idea, r){
+  const dr = JSON.parse(JSON.stringify(idea.draft)); dr.ideaId = idea.id; const x = labStats(dr, r);
+  const sec = el("input",{class:"inp", list:"pm-secs", value: dr.section || ""}), price = el("input",{class:"inp", type:"number", step:"0.25", min:"0", inputmode:"decimal", value: (n(dr.price) || x.base || 0).toFixed(2)});
+  const tell = el("input",{type:"checkbox"}); tell.checked = true; const why = el("input",{class:"inp", value:"New on the menu. Check the card for how to make it."});
+  openDlg("Put " + dr.name + " on the menu", [el("div",{class:"g2"}, fld("Menu section", sec), fld("Price ($)", price)), el("datalist",{id:"pm-secs"}, sectionOrder(r).map(c => el("option",{value:c}))),
+      el("label",{class:"row", style:"gap:8px;font-weight:600;margin:6px 0"}, tell, "Tell the team (What's new on the tablet and phones)"), fld("Message to the team", why),
+      el("p",{class:"mini", text:"Its recipe card goes in the Kitchen book right away."})],
+    [el("span"), el("button",{class:"btn primary", text:"Put it on the menu", onclick:() => { const ph = PHOTOS.get("idea_" + idea.id); if (ph) dr.photo = ph;
+      const it = addDraftToMenu(dr, r, { section: sec.value.trim() || dr.section || "Specials", price: price.value, announce: tell.checked, why: why.value.trim() });
+      dlg.close(); render(); toast(it.name + " is on the menu" + (tell.checked ? " and the team's been told" : "") + "."); }})]);
+}
+function ideaBoard(r){
+  const mgr = !pinLocked(), live = r.ideas.filter(i => (i.stage || "idea") !== "menu"), done = r.ideas.filter(i => i.stage === "menu").slice(-8).reverse();
+  const card = idea => { const st = idea.stage || "idea", x = labStats(idea.draft, r), ph = PHOTOS.get("idea_" + idea.id), last = (idea.notes || []).slice(-1)[0];
+    const next = st === "idea" ? el("button",{class:"btn primary next", type:"button", text:"\ud83e\uddea Test it", onclick:() => { idea.stage = "testing"; save(); ideaSheet(idea.draft, r, "print", ph); render(); toast("In Testing. The recipe sheet is printing for the kitchen."); }})
+      : st === "testing" ? el("button",{class:"btn primary next", type:"button", text:"\ud83d\udc45 How did it taste?", onclick:() => tasteCheck(idea, r)})
+      : mgr ? el("button",{class:"btn primary next", type:"button", text:"\ud83c\udf7d Put it on the menu", onclick:() => putOnMenu(idea, r)}) : el("span",{class:"mini", text:"A manager puts it on the menu."});
+    return el("div",{class:"ib-card"},
+      ph ? el("img",{class:"ib-img", src: ph, alt:""}) : null,
+      el("button",{class:"ib-name", type:"button", title:"Open the recipe", onclick:() => openIdeaInLab(idea)}, el("b",{text: idea.draft.name})),
+      el("div",{class:"ib-nums"}, el("span",{text: $$(x.price)}), el("span",{text: (x.pct != null ? pc(x.pct) : "\u2014") + (idea.draft.kind !== "food" ? " pour" : " food") + " cost"})),
+      idea.from ? el("span",{class:"ib-from", text:"\ud83d\udca1 from " + idea.from}) : null,
+      last ? el("p",{class:"ib-note", text:"\u201c" + last.text + "\u201d \u2014 " + last.by}) : null,
+      next,
+      el("div",{class:"ib-more"}, el("button",{class:"linkbtn", type:"button", text:"Open", onclick:() => openIdeaInLab(idea)}),
+        el("button",{class:"linkbtn", type:"button", text:"Print", onclick:() => ideaSheet(idea.draft, r, "print", ph)}),
+        el("button",{class:"linkbtn", type:"button", text:"Order list", onclick:() => labOrder(idea.draft, r)}),
+        st !== "idea" ? el("button",{class:"linkbtn", type:"button", text:"\u2190 Back", onclick:() => { idea.stage = st === "approved" ? "testing" : "idea"; save(); render(); }}) : null,
+        el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { if (!confirm("Remove " + idea.draft.name + "?")) return; r.ideas = r.ideas.filter(i => i !== idea); save(); render();
+          if (idea.hasPhoto){ sb.rpc("delete_photo", { p_account: ACCT.id, p_item: "idea_" + idea.id }); PHOTOS.delete("idea_" + idea.id); } }}))); };
+  return el("section",{class:"ib"},
+    el("div",{class:"sect-h"}, el("h2",{text:"From idea to menu"}), el("span",{class:"mini", text:"Each card shows its next step."})),
+    el("div",{class:"ib-cols"}, STAGES.map(([k, label]) => { const list = live.filter(i => (i.stage || "idea") === k);
+      return el("div",{class:"ib-col ib-" + k}, el("div",{class:"ib-h"}, el("b",{text: label}), el("span",{class:"ib-ct", text: list.length})),
+        list.length ? list.map(card) : el("p",{class:"ib-empty", text: k === "idea" ? "Build something above, or cost a staff suggestion." : k === "testing" ? "Tap Test it on an idea." : "Approved dishes wait here."})); })),
+    done.length ? el("details",{class:"ib-done"}, el("summary",null, "\ud83c\udf7d On the menu (" + r.ideas.filter(i => i.stage === "menu").length + ")"),
+      el("div",{class:"ib-done-list"}, done.map(i => el("span",{text: i.draft.name + " \u00b7 " + nice(i.menuAt || i.saved)})))) : null);
+}
 function lab(m){
   const r = R(); r.ideas = r.ideas || []; labRestore(); loadPhotos();
   if (LAB.draft && !LAB.draft.photo && LAB.draft.hasPhoto && PHOTOS.get(labPhotoKey())) LAB.draft.photo = PHOTOS.get(labPhotoKey());
@@ -3918,18 +3991,7 @@ function lab(m){
   if (LAB.err) m.append(el("div",{class:"msg bad", text:LAB.err}));
   if (LAB.draft && !LAB.busy) m.append(labResult(LAB.draft, r));
   m.append(tabletBuildsBox());
-  if (r.ideas.length){
-    m.append(el("div",{class:"sect-h"}, el("h2",{text:"Saved ideas"})));
-    m.append(el("div",{class:"lab-saved"}, r.ideas.slice().reverse().map(idea => { const x = labStats(idea.draft, r);
-      const ph = PHOTOS.get("idea_" + idea.id);
-      return el("div",{class:"lab-idea"}, ph ? el("img",{class:"lab-idea-img", src:ph, alt:""}) : null, el("button",{class:"lab-idea-main", type:"button", onclick:() => { if (LAB.draft && !LAB.draft.ideaId && LAB.draft !== idea.draft && !confirm("Open this idea? The recipe you're working on isn't saved.")) return;
-        LAB.draft = JSON.parse(JSON.stringify(idea.draft)); LAB.draft.ideaId = idea.id; LAB.draft.prompt = LAB.draft.prompt || idea.prompt || ""; LAB.prompt = "";
-        if (ph){ LAB.draft.photo = ph; labKeepPhoto(LAB.draft); } labPersist(true); render(); window.scrollTo({ top: 0, behavior:"smooth" }); }},
-          el("b",{text:idea.draft.name}), el("span",{class:"mini", text: "Cost " + $$(x.st.plate) + ", charge " + $$(x.price) + ", saved " + nice(idea.saved)})),
-        el("button",{class:"btn quiet", type:"button", text:"Order summary", onclick:() => labOrder(idea.draft, r)}),
-        el("button",{class:"btn quiet", type:"button", text:"Image", title:"Save as a JPG recipe sheet", onclick:() => ideaSheet(idea.draft, r, "save", ph)}),
-        el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { r.ideas = r.ideas.filter(i => i !== idea); save(); render(); if (idea.hasPhoto){ sb.rpc("delete_photo", { p_account: ACCT.id, p_item: "idea_" + idea.id }); PHOTOS.delete("idea_" + idea.id); } }})); })));
-  }
+  if (r.ideas.length) m.append(ideaBoard(r));
 }
 function labEditor(dr, r){
   const sups = Object.values(r.supplies).sort((a, b) => supName(a).localeCompare(supName(b)));
@@ -3985,6 +4047,35 @@ function labEditor(dr, r){
         el("div",{class:"field"}, el("span",{class:"q", text:"Allergens"}), al))));
 }
 function labOrder(dr, r){ const y = labStats(dr, r); openOrderSummary([{ name: dr.name, lines: dr.lines.filter(l => l.s), portions: dr.servings, sups: y.sups, qty: dr.servings, unitWord: dr.kind === "food" ? "servings" : "drinks" }], "Order summary: " + dr.name); }
+function addDraftToMenu(dr, r, opt){
+  opt = opt || {}; if (opt.section) dr.section = opt.section;
+    const ids = {}; const x = labStats(dr, r);
+    Object.values(dr.est).forEach(e => { if (!dr.lines.some(l => l.s === e.id)) return; const id = uid("s"); ids[e.id] = id;
+      const short = e.name.replace(/,\s*[^,]*\d[^,]*$/, "").trim();
+      r.supplies[id] = { id, name: e.name, title: short !== e.name ? short : undefined, cat: e.cat, supplier: e.supplier, code:"", caseQty: e.caseQty, unit: e.unit, yield: 1, price: e.price, estimated: true, history:[{ date: today(), price: e.price, src:"estimate" }] }; });
+    const order = Math.max(0, ...Object.values(r.items).map(i => i.order || 0)) + 1;
+    const it = { id: uid("m"), name: dr.name.trim() || "New item", section: dr.section, price: n(opt.price) || n(dr.price) || x.base, sold: 0, portions: dr.servings, order, desc: dr.desc,
+      lines: dr.lines.filter(l => l.s).map(l => Object.assign({ s: ids[l.s] || l.s, label: l.label, qty: l.qty, unit: l.unit }, l.choice ? { choice: l.choice, extra: n(l.extra) || 0, pick: !!l.pick } : {})).concat(dr.lines.filter(l => !l.s).map(l => Object.assign({ s: null, label: l.label, qty: l.qty, unit: l.unit }, l.choice ? { choice: l.choice, extra: n(l.extra) || 0 } : {}))),
+      card: Object.assign({}, dr.card, { drafted: true }) };
+    if (dr.kind !== "food") it.drinkType = dr.kind;
+    r.items[it.id] = it; if (!r.sectionOrder) r.sectionOrder = []; if (!r.sectionOrder.includes(it.section)) r.sectionOrder.push(it.section);
+    save();
+    if (dr.photo){ const m2 = dr.photo.match(/^data:([^;]+);base64,(.*)$/); if (m2) storePhoto(it, b64ToBlob(m2[2], m2[1]), "ai").then(() => save()).catch(() => {}); }
+    if (dr.ideaId){ const idea = (r.ideas || []).find(i => i.id === dr.ideaId); if (idea){ idea.stage = "menu"; idea.menuItemId = it.id; idea.menuAt = today(); } save(); }
+  if (opt.announce !== false){ ensureCardBase(r); r.cardBase[it.id] = cardSig(it, r); r.changes = r.changes || [];
+    r.changes.unshift({ id: uid("ch"), at: new Date().toISOString(), itemId: it.id, title: "New: " + it.name, why: opt.why || "New on the menu. Check the card for how to make it.", diffs: [], by: (USER && USER.email || "").split("@")[0], kind:"new" }); save(); }
+  return it;
+}
+async function saveDraftAsIdea(dr, r, extra){
+  r.ideas = r.ideas || [];
+  const keep = JSON.parse(JSON.stringify(Object.assign({}, dr, { photo: undefined, photoBusy: undefined, photoErr: undefined, editing: undefined })));
+  const old = dr.ideaId && r.ideas.find(i => i.id === dr.ideaId), id = old ? old.id : uid("i"); dr.ideaId = id; keep.ideaId = id;
+  if (old) Object.assign(old, { prompt: LAB.prompt || old.prompt, saved: today(), draft: keep, hasPhoto: !!dr.photo || old.hasPhoto });
+  else r.ideas.push(Object.assign({ id, prompt: LAB.prompt, saved: today(), draft: keep, hasPhoto: !!dr.photo, stage:"idea", notes: [] }, extra || {}));
+  save();
+  if (dr.photo){ const { error } = await sb.rpc("save_photo", { p_account: ACCT.id, p_item: "idea_" + id, p_data: dr.photo }); if (!error) PHOTOS.set("idea_" + id, dr.photo); }
+  return old;
+}
 function labResult(dr, r){
   let x = labStats(dr, r); const drink = dr.kind !== "food"; labPersist();
   if (!n(dr.price) && x.base){ dr.price = x.base; x = labStats(dr, r); }   // fix the base price; choosing an option no longer moves it
@@ -4005,20 +4096,8 @@ function labResult(dr, r){
   const nameIn = el("input",{class:"inp"}); nameIn.value = dr.name; nameIn.oninput = () => { dr.name = nameIn.value; labPersist(); };
   const anyEst = dr.lines.some(l => !l.have && l.s), missing = dr.lines.filter(l => !l.s).length;
   const addBtn = el("button",{class:"btn primary", type:"button", text:"Add to menu", onclick:() => {
-    dr.section = secIn.value.trim() || dr.section; const ids = {};
-    Object.values(dr.est).forEach(e => { if (!dr.lines.some(l => l.s === e.id)) return; const id = uid("s"); ids[e.id] = id;
-      const short = e.name.replace(/,\s*[^,]*\d[^,]*$/, "").trim();
-      r.supplies[id] = { id, name: e.name, title: short !== e.name ? short : undefined, cat: e.cat, supplier: e.supplier, code:"", caseQty: e.caseQty, unit: e.unit, yield: 1, price: e.price, estimated: true, history:[{ date: today(), price: e.price, src:"estimate" }] }; });
-    const order = Math.max(0, ...Object.values(r.items).map(i => i.order || 0)) + 1;
-    const it = { id: uid("m"), name: dr.name.trim() || "New item", section: dr.section, price: n(priceIn.value) || x.base, sold: 0, portions: dr.servings, order, desc: dr.desc,
-      lines: dr.lines.filter(l => l.s).map(l => Object.assign({ s: ids[l.s] || l.s, label: l.label, qty: l.qty, unit: l.unit }, l.choice ? { choice: l.choice, extra: n(l.extra) || 0, pick: !!l.pick } : {})).concat(dr.lines.filter(l => !l.s).map(l => Object.assign({ s: null, label: l.label, qty: l.qty, unit: l.unit }, l.choice ? { choice: l.choice, extra: n(l.extra) || 0 } : {}))),
-      card: Object.assign({}, dr.card, { drafted: true }) };
-    if (dr.kind !== "food") it.drinkType = dr.kind;
-    r.items[it.id] = it; if (!r.sectionOrder) r.sectionOrder = []; if (!r.sectionOrder.includes(it.section)) r.sectionOrder.push(it.section);
-    save();
-    if (dr.photo){ const m2 = dr.photo.match(/^data:([^;]+);base64,(.*)$/); if (m2) storePhoto(it, b64ToBlob(m2[2], m2[1]), "ai").then(() => save()).catch(() => {}); }
-    if (dr.ideaId){ r.ideas = (r.ideas || []).filter(i => i.id !== dr.ideaId); sb.rpc("delete_photo", { p_account: ACCT.id, p_item: "idea_" + dr.ideaId }); PHOTOS.delete("idea_" + dr.ideaId); save(); }
-    labReset(it.name + " is on your menu" + (anyEst ? ". New ingredients are tagged \u201cAI estimate\u201d until an invoice brings real prices." : "."));
+    const anyEst2 = dr.lines.some(l => !l.have && l.s), it = addDraftToMenu(dr, r, { section: secIn.value.trim() || dr.section, price: priceIn.value });
+    labReset(it.name + " is on your menu and the team has been told" + (anyEst2 ? ". New ingredients are tagged \u201cAI estimate\u201d until an invoice brings real prices." : "."));
     openRecipe(it.id);
   }});
   const photo = el("div",{class:"lab-photo"},
@@ -4058,13 +4137,8 @@ function labResult(dr, r){
         el("button",{class:"btn quiet", type:"button", text:"Make it fancier", onclick:() => labBuild("Make it a more premium version worth a higher price")}),
         el("button",{class:"btn quiet", type:"button", text:"Save as image", onclick:() => ideaSheet(dr, r, "save")}),
         el("button",{class:"btn quiet", type:"button", text:"Print", onclick:() => ideaSheet(dr, r, "print")}),
-        el("button",{class:"btn quiet", type:"button", text:"Save idea", onclick: async () => { r.ideas = r.ideas || []; dr.price = n(priceIn.value) || x.price;
-          const keep = JSON.parse(JSON.stringify(Object.assign({}, dr, { photo: undefined, photoBusy: undefined, photoErr: undefined, editing: undefined })));
-          const old = dr.ideaId && r.ideas.find(i => i.id === dr.ideaId), id = old ? old.id : uid("i"); dr.ideaId = id; keep.ideaId = id;
-          if (old) Object.assign(old, { prompt: LAB.prompt, saved: today(), draft: keep, hasPhoto: !!dr.photo }); else r.ideas.push({ id, prompt: LAB.prompt, saved: today(), draft: keep, hasPhoto: !!dr.photo });
-          save();
-          if (dr.photo){ const { error } = await sb.rpc("save_photo", { p_account: ACCT.id, p_item: "idea_" + id, p_data: dr.photo }); if (!error) PHOTOS.set("idea_" + id, dr.photo); }
-          labReset((old ? "Idea updated" : "Saved") + ". It's under Saved ideas below whenever you want it."); }})),
+        el("button",{class:"btn quiet", type:"button", text: dr.ideaId ? "Save changes" : "Save to ideas", onclick: async () => { dr.price = n(priceIn.value) || x.price; const old = await saveDraftAsIdea(dr, r);
+          labReset((old ? "Changes saved" : "Saved") + ". It's on the board below: next step, Test it."); }})),
       pinLocked() ? el("span",{class:"mini", text:"A manager can add this to the menu."}) : el("div",{class:"row"}, el("label",{class:"lab-sec"}, "Section ", secIn), el("datalist",{id:"lab-secs"}, sectionOrder(r).map(sct => el("option",{value:sct}))), addBtn)));
 }
 /* ================= Recipe packs: ready-made recipes with cards and photos ================= */
@@ -5083,7 +5157,7 @@ function menuPicker(r, holder){
   const quoteSel = el("select",{class:"inp"}, el("option",{value:"", text:"No quote: choose the menu below"}), (r.quotes || []).map(q => el("option",{value:q.id, text: q.title + (q.date ? " (" + nice(q.date) + ")" : "") + ", " + (q.items || []).length + " items"})));
   quoteSel.value = holder.quoteId || "";
   const opts = [...Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || "")).sort((a, b) => a.name.localeCompare(b.name)).map(it => ({ v: "i:" + it.id, t: it.name + " (" + (it.section || "Menu") + ")" })),
-    ...(r.ideas || []).filter(i => !Object.values(r.items).some(it => it.name.trim().toLowerCase() === String(i.draft.name || "").trim().toLowerCase())).map(i => ({ v: "d:" + i.id, t: i.draft.name + " (Test kitchen idea)" }))];
+    ...(r.ideas || []).filter(i => i.stage !== "menu" && !Object.values(r.items).some(it => it.name.trim().toLowerCase() === String(i.draft.name || "").trim().toLowerCase())).map(i => ({ v: "d:" + i.id, t: i.draft.name + " (Test kitchen idea)" }))];
   const pick = el("select",{class:"inp"}, el("option",{value:"", text:"Add a menu item or idea\u2026"}), opts.map(o => el("option",{value:o.v, text:o.t})));
   const draw = () => {
     if (holder.quoteId){ const q = (r.quotes || []).find(x => x.id === holder.quoteId);
@@ -5255,7 +5329,7 @@ function editOrderReq(r, q){
   const title = el("input",{class:"inp", value:req.title, placeholder:"e.g. Friday catering, Weekend specials"}), need = el("input",{class:"inp", type:"date", value:req.neededBy || ""}), note = el("input",{class:"inp", value:req.note || "", placeholder:"Anything purchasing should know"});
   const list = el("div",{class:"oreq-ents"});
   const opts = [...Object.values(r.items).filter(it => (it.lines || []).length && !SUMMARY_SECTION.test(it.section || "")).sort((a, b) => a.name.localeCompare(b.name)).map(it => ({ v: "i:" + it.id, t: it.name + " (" + (it.section || "Menu") + ")" })),
-    ...(r.ideas || []).map(i => ({ v: "d:" + i.id, t: i.draft.name + " (Test kitchen idea)" }))];
+    ...(r.ideas || []).filter(i => i.stage !== "menu").map(i => ({ v: "d:" + i.id, t: i.draft.name + " (Test kitchen idea)" }))];
   const draw = () => list.replaceChildren(...req.entries.map((e, i) => { const qn = el("input",{class:"inp", type:"number", min:"0", step:"1", value:e.qty, style:"max-width:110px"}); qn.oninput = () => e.qty = n(qn.value) || 0;
       return el("div",{class:"oreq-ent"}, el("b",{text: e.name || (r.items[e.refId] || {}).name || "Recipe"}), e.type === "idea" ? el("span",{class:"pill", text:"Test kitchen"}) : el("span"), qn, el("span",{class:"mini", text: e.unitWord || "servings"}),
         el("button",{class:"btn quiet lab-x", type:"button", text:"\u00d7", "aria-label":"Remove", onclick:() => { req.entries.splice(i, 1); draw(); }})); }),
@@ -5459,7 +5533,7 @@ function quoteEditor(m, r, q){
       : [el("p",{class:"mini", text:"Nothing added yet. Pick from your menu or Test kitchen ideas below."})]));
   };
   const opts = [...Object.values(r.items).filter(it => (it.lines || []).length && !SUMMARY_SECTION.test(it.section || "")).sort((a, b) => a.name.localeCompare(b.name)).map(it => ({ v: "i:" + it.id, t: it.name + " (" + (it.section || "Menu") + ")" })),
-    ...(r.ideas || []).map(i => ({ v: "d:" + i.id, t: i.draft.name + " (Test kitchen idea)" }))];
+    ...(r.ideas || []).filter(i => i.stage !== "menu").map(i => ({ v: "d:" + i.id, t: i.draft.name + " (Test kitchen idea)" }))];
   const pick = el("select",{class:"inp"}, el("option",{value:"", text:"Add a menu item or idea\u2026"}), opts.map(o => el("option",{value:o.v, text:o.t})));
   pick.onchange = () => { const v = pick.value; if (!v) return; const ty = v.startsWith("i:") ? "item" : "idea", id = v.slice(2);
     const nm = ty === "item" ? r.items[id].name : (r.ideas.find(i => i.id === id) || {}).draft.name;
