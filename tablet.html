@@ -295,6 +295,16 @@ html, body{max-width:100%;overflow-x:hidden}
 .me-hero{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-left:7px solid var(--jade);border-radius:18px;padding:16px 18px;margin:0 0 14px;cursor:pointer}
 .me-hero.today{background:color-mix(in srgb,var(--jade) 10%,var(--panel))}
 .mh-hi{font-family:var(--head);font-weight:800;font-size:2rem;line-height:1.1} .mh-k{color:var(--ink-2);font-weight:600} .mh-s{font-family:var(--head);font-weight:800;font-size:1.6rem}
+.board{display:grid;gap:10px;margin:0 0 14px}
+.kudo{display:flex;gap:12px;align-items:center;background:#EAF6EF;border:1px solid #BFE0CF;border-radius:16px;padding:12px 16px;font-size:1.05rem} .kd-i{font-size:1.6rem}
+.b86{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#FBE3E0;border:2px solid #C2463A;border-radius:16px;padding:10px 14px}
+.b86 > b{font-family:var(--head);font-weight:800;font-size:1.5rem;color:#9A2B21;margin-right:6px}
+.b86-i{min-height:44px;border-radius:999px;border:1px solid #C2463A;background:#fff;color:#9A2B21;font:inherit;font-weight:800;padding:0 14px;cursor:pointer} .b86-i .x{opacity:.6}
+.blow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:#FFF4D6;border:1px solid #EBCB88;border-radius:14px;padding:8px 14px} .blow > b{color:#7A5200} .blow-i{font-weight:700}
+.b-acts{display:flex;gap:10px;flex-wrap:wrap} .b-acts .back{min-height:48px}
+.chg-tag.t86{background:#C2463A;color:#fff}
+.b86-banner{display:flex;align-items:center;justify-content:space-between;gap:12px;background:#FBE3E0;border:2px solid #C2463A;border-radius:16px;padding:12px 16px;margin-bottom:14px;color:#9A2B21}
+.b86-btn{margin:0 0 12px}
 .wn-strip{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 18px;margin:0 0 18px;font:inherit;color:var(--ink);cursor:pointer;font-size:1.05rem}
 .wn-strip.due{background:#FFF4D6;border:2px solid var(--mustard)} .wn-strip b{font-family:var(--head);font-weight:800;font-size:1.5rem} .wn-strip .go-arrow{margin-left:auto;font-size:2rem;line-height:1}
 .wn-list{display:grid;gap:14px}
@@ -421,6 +431,58 @@ html, body{max-width:100%;overflow-x:hidden}
       nx ? h("b", { class:"mh-s", text: label(nx) }) : null,
       mine.length > 1 ? h("span", { class:"mh-k", text: "Then " + mine.slice(1, 3).map(x => when(x.d)).join(", ") }) : null);
   }
+  // ---------- 86 board (live) and shout-outs ----------
+  let BOARD = [], BOARD_AT = 0;
+  function loadBoard(force){
+    if (!sb || (!force && Date.now() - BOARD_AT < 45000)) return; BOARD_AT = Date.now();
+    sb.rpc("book_board", { p_token: token }).then(({ data, error }) => { if (error) return; const was = JSON.stringify(BOARD.map(b => b.id)); BOARD = data || []; if (JSON.stringify(BOARD.map(b => b.id)) !== was) render(); });
+  }
+  setInterval(() => { if (document.visibilityState === "visible") loadBoard(); }, 60000);
+  const out86 = id => BOARD.find(b => b.kind === "86" && b.item_id === id);
+  function whoThen(title, then){
+    if (ME) return then(ME.name);
+    const sc = S(), today = localDay(), onToday = [...new Set(sc.shifts.filter(x => x.d === today && !x.off).map(x => pname(x.p)).filter(Boolean))];
+    const everyone = [...new Set(onToday.concat((sc.people || []).map(p => p.name)))];
+    const wrap = h("div", { class:"pick", onclick: e => { if (e.target === wrap) wrap.remove(); } });
+    wrap.replaceChildren(h("div", null, h("h3", { text:"Who's this?" }), h("div", { class:"sub-note", text: title }),
+      h("div", { class:"names" }, everyone.map(nm => h("button", { type:"button", text: nm, class: onToday.includes(nm) ? "today" : "", onclick: () => { wrap.remove(); then(nm); } }))),
+      h("button", { class:"back", type:"button", text:"Cancel", onclick: () => wrap.remove() })));
+    document.body.append(wrap);
+  }
+  async function boardAdd(kind, itemId, name, note){
+    whoThen((kind === "86" ? "86: " : "Low on: ") + name, async by => {
+      const { data, error } = await sb.rpc("book_board_add", { p_token: token, p_kind: kind, p_item_id: itemId || null, p_name: name, p_note: note || null, p_by: by });
+      if (error || !data) return flash(error && /function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "Ask a manager to run 018_board.sql." : "Couldn't post that. Try again.");
+      flash(kind === "86" ? name + " is 86'd. Everyone sees it now." : "Managers will see you're low on " + name + ".");
+      loadBoard(true); });
+  }
+  function boardClear(b){
+    whoThen(b.name + " is back", async by => { await sb.rpc("book_board_clear", { p_token: token, p_id: b.id, p_by: by }); flash(b.name + " is back on."); loadBoard(true); });
+  }
+  function boardPicker(kind){
+    const q = h("input", { class:"why-in", type:"search", placeholder: kind === "86" ? "Which dish or drink?" : "What are we low on?" });
+    const list = h("div", { class:"names" }), wrap = h("div", { class:"pick", onclick: e => { if (e.target === wrap) wrap.remove(); } });
+    const draw = () => { const k = q.value.trim().toLowerCase();
+      const pool = kind === "86" ? BOOK.items.filter(it => !it.hidden).map(it => ({ id: it.id, name: it.name })) : (BOOK.stock || []).map(s => ({ id: null, name: typeof s === "string" ? s : s.name })).filter(x => x.name);
+      const hits = pool.filter(x => !k || x.name.toLowerCase().includes(k)).slice(0, 18);
+      list.replaceChildren(...hits.map(x => h("button", { type:"button", text: x.name, onclick: () => { wrap.remove(); boardAdd(kind, x.id, x.name); } })),
+        k && !hits.some(x => x.name.toLowerCase() === k) ? h("button", { type:"button", class:"today", text: "\u201c" + q.value.trim() + "\u201d", onclick: () => { wrap.remove(); boardAdd(kind, null, q.value.trim()); } }) : null); };
+    q.oninput = draw; draw();
+    wrap.replaceChildren(h("div", { class:"req-panel" }, h("h3", { text: kind === "86" ? "86 something" : "We're low on\u2026" }),
+      h("p", { class:"sub-note", text: kind === "86" ? "Everyone's phone and the tablet will show it's out." : "A manager gets a heads-up before it runs out." }), q, list,
+      h("button", { class:"back", type:"button", text:"Cancel", onclick: () => wrap.remove() })));
+    document.body.append(wrap); setTimeout(() => q.focus(), 50);
+  }
+  function boardStrip(){
+    loadBoard();
+    const outs = BOARD.filter(b => b.kind === "86"), lows = BOARD.filter(b => b.kind === "low");
+    const kud = (BOOK.kudos || []).filter(k => Date.now() - Date.parse(k.at) < 48 * 3600e3);
+    return h("div", { class:"board" },
+      kud.map(k => h("div", { class:"kudo" }, h("span", { class:"kd-i", text:"\uD83C\uDF89" }), h("div", null, h("b", { text: k.text }), h("span", { class:"sub-note", text: " \u2014 " + k.by + (k.toName ? " to " + k.toName : "") })))),
+      outs.length ? h("div", { class:"b86" }, h("b", { text:"86'd" }), outs.map(b => h("button", { type:"button", class:"b86-i", title:"Tap when it's back", onclick: () => boardClear(b) }, b.name, h("span", { class:"x", text:" \u00d7" })))) : null,
+      lows.length ? h("div", { class:"blow" }, h("b", { text:"Running low" }), lows.map(b => h("span", { class:"blow-i", text: b.name + (b.note ? " (" + b.note + ")" : "") }))) : null,
+      h("div", { class:"b-acts" }, h("button", { class:"back", type:"button", text:"86 something", onclick: () => boardPicker("86") }), h("button", { class:"back", type:"button", text:"We're low on\u2026", onclick: () => boardPicker("low") })));
+  }
   function whatsNewStrip(){
     const list = recentChanges(14); if (!list.length) return null;
     const k = ME ? unseen().length : list.length;
@@ -442,7 +504,7 @@ html, body{max-width:100%;overflow-x:hidden}
   }
   function cardGrid(list){
     return h("div", { class:"grid" }, list.map(it => h("button", { class:"card", type:"button", onclick: () => go({ cat: view().cat, card: it.id }) },
-      changeFor(it.id) ? h("span", { class:"chg-tag", text:"Changed" }) : null,
+      out86(it.id) ? h("span", { class:"chg-tag t86", text:"86'd" }) : changeFor(it.id) ? h("span", { class:"chg-tag", text:"Changed" }) : null,
       photoEl(it), h("div", { class:"nm" }, h("b", { text: it.name }), h("span", { text: [it.section, mins((it.card.prepMin || 0) + (it.card.cookMin || 0))].filter(Boolean).join("  ·  ") })))));
   }
   // Printing recipe cards from the tablet: one card per page, photo if it's loaded, ingredients, steps, plating, allergens.
@@ -474,7 +536,9 @@ html, body{max-width:100%;overflow-x:hidden}
     const ch = changeFor(it.id), banner = ch ? h("div", { class:"chg-banner" }, h("div", { class:"wn-top" }, h("b", { text: "Changed " + new Date(ch.at).toLocaleDateString(undefined, { month:"short", day:"numeric" }) }),
         ME && (SEEN.get(ch.id) || []).includes(ME.name) ? h("span", { class:"wn-ok", text:"\u2713 Got it" }) : h("button", { class:"go", type:"button", text:"Got it", onclick: () => gotIt(ch) })),
       ch.why ? h("p", { class:"wn-why", text: ch.why }) : null, diffList(ch)) : null;
-    return h("div", null, banner, specBody(it));
+    const o = out86(it.id), b86 = o ? h("div", { class:"b86-banner" }, h("b", { text: "86'd since " + new Date(o.created_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) + " (" + o.made_by + ")" }),
+      h("button", { class:"go", type:"button", text:"It's back", onclick: () => boardClear(o) })) : h("button", { class:"back b86-btn", type:"button", text:"86 this", onclick: () => boardAdd("86", it.id, it.name) });
+    return h("div", null, b86, banner, specBody(it));
   }
   function specBody(it){
     const c = it.card, total = (c.prepMin || 0) + (c.cookMin || 0);
@@ -949,7 +1013,7 @@ html, body{max-width:100%;overflow-x:hidden}
     const todayBox = now.length ? h("section", { class:"today-box" }, h("div", { class:"spread-t" }, h("h2", { text:"Today" }), h("button", { class:"back", type:"button", text:"All events", onclick: () => { location.hash = "events"; } })),
       h("div", { class:"evlist compact" }, now.slice(0, 4).map(evRow)), now.length > 4 ? h("p", { class:"sub-note", text:"+" + (now.length - 4) + " more on the Events tab" }) : null) : null;
     loadSeen();
-    m.replaceChildren(...[meHero(), whatsNewStrip(), todayBox, side("Bar", secs.filter(x => x.bar)), side("Kitchen", secs.filter(x => !x.bar)), BOOK.items.length ? null : h("div", { class:"empty", text:"No recipe cards yet." }), status()].filter(Boolean));
+    m.replaceChildren(...[meHero(), boardStrip(), whatsNewStrip(), todayBox, side("Bar", secs.filter(x => x.bar)), side("Kitchen", secs.filter(x => !x.bar)), BOOK.items.length ? null : h("div", { class:"empty", text:"No recipe cards yet." }), status()].filter(Boolean));
     needPhotos(secs.flatMap(sec => sec.items.filter(it => it.photo).slice(0, 4)));
   }
   function status(){ return h("p", { class:"status", text: UPDATED ? "Updated " + new Date(UPDATED).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) + (navigator.onLine ? "" : "  ·  offline, showing the last copy") : "" }); }

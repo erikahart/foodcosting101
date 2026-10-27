@@ -1502,6 +1502,12 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .att-dot{width:10px;height:10px;border-radius:50%;background:var(--line-2)} .att-row.bad .att-dot{background:#C2463A} .att-row.warn .att-dot{background:#D99A1E} .att-row.good .att-dot{background:#2E8B6A}
 .att-pct{color:var(--ink-2);font-size:.92rem} .att-fix{font-weight:800;color:#9A2B21;background:#F6D6D2;border-radius:999px;padding:2px 10px;font-size:.85rem} .att-go{color:var(--muted);font-size:1.3rem}
 @media (max-width:640px){ .att-row{grid-template-columns:10px 1fr auto 12px} .att-pct{grid-column:2/3;grid-row:2;font-size:.82rem} }
+.team-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 16px;margin:0 0 12px}
+.team-line > .btn{margin-left:auto}
+.tl-86{display:flex;align-items:center;gap:6px;flex-wrap:wrap} .tl-86 > b{font-weight:800}
+.tl-chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:3px 10px;font:inherit;font-weight:700;font-size:.9rem;border:1px solid}
+.tl-chip.red{background:#FBE3E0;border-color:#C2463A;color:#9A2B21;cursor:pointer} .tl-chip.amber{background:#FFF4D6;border-color:#EBCB88;color:#7A5200}
+.kudo-app{display:flex;gap:12px;align-items:center;background:#EAF6EF;border:1px solid #BFE0CF;border-radius:14px;padding:12px 16px;margin-bottom:12px;font-size:1.02rem} .kudo-app > span{font-size:1.5rem}
 </style>
 </head>
 <body>
@@ -1997,7 +2003,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Calmer home";
+const APP_VERSION = "Oct 27, 2026 \u00b7 86 board and shout-outs";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2251,6 +2257,10 @@ function staffHome(m){
         el("button",{class:"linkbtn", type:"button", text:"Not " + first + "?", onclick:() => pickMe(r)}))
       : r.staff.length ? el("button",{class:"btn primary", type:"button", text:"Which one is you?", onclick:() => pickMe(r)}) : null,
     VIEW_AS_STAFF ? null : el("button",{class:"btn quiet", type:"button", text:"\ud83d\udd12 Manager mode", onclick:() => { ST.page = "coach"; render(); }})));
+  // 1b. Shout-outs and the 86 board
+  loadBoardApp();
+  kudosNow(r).forEach(k => m.append(el("div",{class:"kudo-app"}, el("span",{text:"\ud83c\udf89"}), el("div",null, el("b",{text:k.text}), el("span",{class:"mini", text:" \u2014 " + k.by + (k.toName ? " to " + k.toName : "")})))));
+  if (BOARD.some(b => b.kind === "86")) m.append(el("div",{class:"tl-86 card", style:"margin-bottom:12px"}, el("b",{text:"86'd"}), BOARD.filter(b => b.kind === "86").map(b => el("span",{class:"tl-chip red", text:b.name}))));
   // 2. What changed (until they tap Got it)
   loadAcks(); const myName = person ? person.name : (UNLOCK && unlocked() ? UNLOCK.name : (USER && USER.email || "").split("@")[0]);
   const unseen = (r.changes || []).filter(c => Date.now() - Date.parse(c.at) < 14 * 864e5 && !((ACKS && ACKS.get(c.id)) || []).includes(myName));
@@ -2538,7 +2548,7 @@ function home(m){
   m.append(el("h1",{text:r.name}), el("p",{class:"lead", text: ACCT && ACCT.role === "member" ? "What do you need?" : "Here's where your menu stands this " + r.period + "."}));
   if (items.length) m.append(needsYou(r));
   { const ts = todayStrip(r); if (ts) m.append(ts); }
-  if (ACCT && ["owner","manager"].includes(ACCT.role) && !pinLocked()) m.append(promoCard(r));
+  if (ACCT && ["owner","manager"].includes(ACCT.role) && !pinLocked()){ m.append(promoCard(r)); m.append(teamLine(r)); }
   if (false){ const t = "", today = [];
     if (today.length) m.append(el("div",{class:"today-strip"}, el("b",{text:"Today"}), today.slice(0, 5).map(it => el("button",{class:"today-chip " + it.kind, style:"--c:" + it.color, type:"button", onclick:() => { EVV.day = t; EVV.month = t.slice(0, 7) + "-01"; go("events"); }},
       (it.kind === "special" ? "\u2605 " : it.time ? t12(it.time, true) + " " : "") + it.title + (it.guests ? " (" + it.guests + ")" : ""))), today.length > 5 ? el("span",{class:"mini", text:"+" + (today.length - 5) + " more"}) : null)); }
@@ -4054,7 +4064,7 @@ function bookSnapshot(r){
   const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, startAt: l.startAt || null, items: l.items }));
   ideaCards.forEach(c => items.push(c));
   const changes = (r.changes || []).filter(c => Date.now() - Date.parse(c.at) < 21 * 864e5).map(c => ({ id: c.id, at: c.at, itemId: c.itemId && items.some(i => i.id === c.itemId) ? c.itemId : null, title: c.title, why: c.why || "", diffs: c.diffs || [], kind: c.kind }));
-  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, plans, changes, specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
+  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, plans, changes, kudos: kudosNow(r).map(k => ({ at: k.at, text: k.text, by: k.by, toName: k.toName })), specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
     brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Kitchen book" } };
 }
 let BOOK_T = null;
@@ -5439,6 +5449,35 @@ function runPromo(r, p, weekly){
 function stopPromo(r, p){ const t = localDay(new Date()); calData(r);
   r.specials = r.specials.filter(sp => !(sp.promoId === p.id && ((sp.days && sp.days.length) || sp.start >= t)))
     .map(sp => sp); save(); toast(p.name + " stopped. Past dates stay on the calendar."); }
+// ---------- 86 board and shout-outs (app side) ----------
+let BOARD = [], BOARD_AT = 0;
+async function loadBoardApp(force){
+  if (!sb || !ACCT || (!force && Date.now() - BOARD_AT < 45000)) return; BOARD_AT = Date.now();
+  const { data, error } = await sb.rpc("board_list", { p_account: ACCT.id }); if (error) return;
+  const was = JSON.stringify(BOARD.map(b => b.id)); BOARD = data || []; if (JSON.stringify(BOARD.map(b => b.id)) !== was && ST.page === "home") render();
+}
+const myFirst = () => (USER && USER.email || "").split("@")[0];
+function giveShoutout(){
+  const r = schedData(R()), who = el("select",{class:"inp"}, el("option",{value:"", text:"The whole team"}), r.staff.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => el("option",{value:p.name, text:p.name})));
+  const txt = el("input",{class:"inp", maxlength:"140", placeholder:"e.g. Great close last night, Mike. Line was spotless."});
+  openDlg("Give a shout-out", [el("p",{class:"lead", text:"Shows on everyone's phone, the tablet and Home for 2 days. Specific praise works best: say what they did."}), fld("To", who), fld("Message", txt)],
+    [el("span"), el("button",{class:"btn primary", text:"Send it \ud83c\udf89", onclick:() => { const t2 = txt.value.trim(); if (!t2) return txt.focus();
+      r.kudos = (r.kudos || []).filter(k => Date.now() - Date.parse(k.at) < 14 * 864e5); r.kudos.unshift({ id: uid("kd"), at: new Date().toISOString(), toName: who.value || "", text: t2, by: myFirst() });
+      save(); dlg.close(); render(); toast("Shout-out sent."); }})]);
+}
+setInterval(() => { if (document.visibilityState === "visible" && ST && ["home"].includes(ST.page)) loadBoardApp(true); }, 60000);
+function teamLine(r){
+  loadBoardApp(Date.now() - BOARD_AT > 10000);
+  const outs = BOARD.filter(b => b.kind === "86"), lows = BOARD.filter(b => b.kind === "low");
+  const clear = async b => { await sb.rpc("board_clear", { p_account: ACCT.id, p_id: b.id, p_by: myFirst() }); loadBoardApp(true); };
+  return el("div",{class:"card team-line"},
+    outs.length ? el("div",{class:"tl-86"}, el("b",{text:"86'd"}), outs.map(b => el("button",{class:"tl-chip red", type:"button", title:"Posted by " + b.made_by + ". Tap when it's back.", onclick:() => clear(b)}, b.name, el("span",{class:"x", text:" \u00d7"})))) : null,
+    lows.length ? el("div",{class:"tl-86"}, el("b",{text:"Running low"}), lows.map(b => el("span",{class:"tl-chip amber", title:"From " + b.made_by + (b.note ? ": " + b.note : "")}, b.name + " (" + b.made_by + ")",
+      el("button",{class:"linkbtn", type:"button", text:"Order", onclick:() => { go("purch"); }}), el("button",{class:"linkbtn", type:"button", text:"Done", onclick:() => clear(b)})))) : null,
+    !outs.length && !lows.length ? el("span",{class:"mini", text:"Nothing 86'd or running low."}) : null,
+    el("button",{class:"btn quiet sm", type:"button", text:"\ud83c\udf89 Give a shout-out", onclick: giveShoutout}));
+}
+const kudosNow = r => (r.kudos || []).filter(k => Date.now() - Date.parse(k.at) < 48 * 3600e3);
 // Manager Home: one-tap promos.
 function promoCard(r){
   const list = promoList(r), t = localDay(new Date());
