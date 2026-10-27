@@ -1441,6 +1441,13 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .promo.on{border-left-color:var(--mustard)}
 .promo-h{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .promo-ex{display:grid;gap:6px;max-height:220px;overflow:auto;margin-top:8px}
+/* Selection bar (Supplies, Menu): readable controls on the dark bar */
+.bulk{color:#fff !important}
+.bulk b{color:#fff}
+.bulk select{background:#fff !important;color:var(--char, #24221F) !important;border:0 !important;min-height:38px;padding:6px 10px;font-weight:600}
+.bulk .btn{background:transparent !important;color:#fff !important;border:1.5px solid rgba(255,255,255,.55) !important;min-height:38px}
+.bulk .btn:hover{background:rgba(255,255,255,.12) !important}
+.bulk .btn.danger{background:#B8352A !important;border-color:#B8352A !important;color:#fff !important}
 </style>
 </head>
 <body>
@@ -1936,7 +1943,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Promos";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Readable selection bar";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -5523,7 +5530,7 @@ function supplies(m){
     supMove.onchange = () => { let to = supMove.value; if (!to) return; if (to === "__new"){ to = (prompt("Supplier name?") || "").trim(); if (!to) return; }
       SV.sel.forEach(id => { if (r.supplies[id]) r.supplies[id].supplier = to; }); toast("Set supplier for " + SV.sel.size); SV.sel.clear(); save(); render(); };
     m.append(el("div",{class:"bulk"}, el("b",{text: SV.sel.size + " selected"}), catMove, supMove,
-      el("button",{class:"btn quiet", text:"Delete", onclick:() => {
+      el("button",{class:"btn danger", text:"Delete", onclick:() => {
         const inUse = [...SV.sel].filter(id => used.get(id)).length;
         if (!confirm("Delete " + SV.sel.size + " supplies?" + (inUse ? " " + inUse + " are used in recipes; those ingredients will show as not priced." : "") + " This can't be undone.")) return;
         SV.sel.forEach(id => { const su = r.supplies[id]; if (!su) return; Object.values(r.items).forEach(it => (it.lines || []).forEach(l => { if (l.s === id){ l.label = l.label || su.name; l.s = null; } })); delete r.supplies[id]; });
