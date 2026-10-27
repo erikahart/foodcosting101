@@ -1928,7 +1928,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Sign in with a code";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Staff app links";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2173,9 +2173,51 @@ function openPinDialog(existing, preset){
       if (existing){ existing.name = name.value.trim(); existing.hash = h; existing.role = role.value; } else p.pins.push({ id: uid("pin"), name: name.value.trim(), hash: h, role: role.value, userId: tied || null, email: preset && preset.email || null, staffId: preset && preset.staffId || null });
       save(); dlg.close(); render(); toast("PIN saved"); }})]);
 }
+// Staff app links: a personal link (email or text) where the person picks their PIN for the staff app on their phone.
+let STAFF_LINKS = null, STAFF_LINKS_AT = 0;
+async function loadStaffLinks(force){
+  if (!sb || !ACCT || (!force && Date.now() - STAFF_LINKS_AT < 60000)) return; STAFF_LINKS_AT = Date.now();
+  const { data, error } = await sb.rpc("staff_link_status", { p_account: ACCT.id }); if (error) return;
+  STAFF_LINKS = new Map((data || []).map(x => [x.staff_key, x])); if (ST.page === "brand") render();
+}
+function sendAppLink(x){
+  const key = x.staffId || ("name:" + x.name.toLowerCase()), first = x.name.split(" ")[0];
+  const email = el("input",{class:"inp", type:"email", inputmode:"email", autocapitalize:"none", value: x.contactEmail || "", placeholder:"name@example.com"});
+  const phone = el("input",{class:"inp", type:"tel", inputmode:"tel", value: x.contactPhone || "", placeholder:"(440) 555-0123"});
+  const out = el("div"); let link = null;
+  const say = (k, t) => out.replaceChildren(el("div",{class:"msg " + k, text:t}));
+  const make = async () => { if (link) return link;
+    const { data, error } = await sb.rpc("staff_invite_create", { p_account: ACCT.id, p_staff_key: key, p_name: x.name });
+    if (error){ const m = /tablet link/i.test(error.message || "") ? "Turn on the tablet link first: Kitchen book \u2192 Tablet link \u2192 Create tablet link." : /function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "One-time setup: run supabase/016_staff_links.sql in Supabase." : plainErr(error); say("bad", m); return null; }
+    link = data; return link; };
+  const url = t => location.origin + "/join/" + t;
+  const msgText = t => "Hi " + first + "! Here's your " + ((ST.brand && ST.brand.product) || "staff app") + ": " + url(t) + " Open it, pick a 4-digit PIN, then add it to your home screen.";
+  const remember = () => { x.contactEmail = email.value.trim() || x.contactEmail; x.contactPhone = phone.value.trim() || x.contactPhone; save(); };
+  openDlg("Send " + first + " the staff app", [
+    el("p",{class:"lead", text: first + " opens the link on their phone, picks a 4-digit PIN, and adds the app to their home screen. Then they open it with that PIN. The link works once."}),
+    el("div",{class:"g2"}, fld("Email", email), fld("Cell phone (for a text)", phone)), out,
+    el("div",{class:"row", style:"gap:8px;flex-wrap:wrap;margin-top:6px"},
+      el("button",{class:"btn primary", type:"button", text:"Email it", onclick: async ev => { const em = email.value.trim().toLowerCase();
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return email.focus(); const b = ev.currentTarget; b.disabled = true;
+        const t = await make(); if (!t){ b.disabled = false; return; }
+        try { await apiPost("/api/staff-link-email", { account: ACCT.id, link: t, email: em }); remember(); say("good", "Sent to " + em + ". It may take a minute; tell them to check spam too."); }
+        catch(e){ say("bad", e.code === "unavailable" ? "Upload netlify/functions/staff-link-email.mjs to send emails." : (e.message || "Couldn't send the email.")); }
+        b.disabled = false; }}),
+      el("button",{class:"btn primary", type:"button", text:"Text it", onclick: async () => { const ph = phone.value.replace(/[^\d+]/g, "");
+        if (ph.replace(/\D/g, "").length < 10) return phone.focus(); const t = await make(); if (!t) return; remember();
+        location.href = "sms:" + ph + (/iphone|ipad|ipod|mac/i.test(navigator.userAgent) ? "&" : "?") + "body=" + encodeURIComponent(msgText(t));
+        say("good", "Your Messages app should open with the text ready. If it doesn't (on a computer), use Copy link and text it from your phone."); }}),
+      el("button",{class:"btn quiet", type:"button", text:"Copy link", onclick: async () => { const t = await make(); if (!t) return;
+        try { await navigator.clipboard.writeText(msgText(t)); say("good", "Copied. Paste it into a text or email to " + first + "."); } catch(e){ say("good", url(t)); } }})),
+    STAFF_LINKS && STAFF_LINKS.get(key) && STAFF_LINKS.get(key).phones ? el("p",{class:"mini", style:"margin-top:12px"}, first + " is set up on " + STAFF_LINKS.get(key).phones + (STAFF_LINKS.get(key).phones === 1 ? " phone. " : " phones. "),
+      el("button",{class:"linkbtn", type:"button", text:"Sign " + first + " out of every phone", onclick: async () => { if (!confirm("Sign " + first + " out of the staff app on every phone? They'll need a new link.")) return;
+        const { error } = await sb.rpc("staff_link_revoke", { p_account: ACCT.id, p_staff_key: key }); if (error) return toast(plainErr(error)); dlg.close(); loadStaffLinks(true); toast(first + " is signed out of every phone."); }})) : null
+  ], []);
+}
 function pinLockCard(){
   const can = ACCT && ["owner","manager"].includes(ACCT.role); if (!can) return null;
   const p = ensurePinCfg(), tok = deviceToken(), trusted = !!(tok && (p.trusted || []).includes(tok));
+  loadStaffLinks();
   // Managers: just their own PIN. Owners: the whole lock.
   if (ACCT.role !== "owner"){
     const mine = p.pins.find(x => x.userId && USER && x.userId === USER.id);
@@ -2244,6 +2286,8 @@ function pinLockCard(){
       (() => { const rs = el("select",{class:"inp", style:"min-height:34px;width:auto", "aria-label":"What " + x.name + " can see"}, el("option",{value:"staff", text:"Staff"}), el("option",{value:"manager", text:"Manager"}));
         rs.value = x.role || "manager"; rs.onchange = () => { if (rs.value === "staff" && p.pins.filter(y => (y.role || "manager") === "manager" && y.hash).length <= 1 && (x.role || "manager") === "manager") { rs.value = "manager"; return toast("Keep at least one manager PIN."); } x.role = rs.value; save(); }; return rs; })(),
       el("span",{class:"mini " + (x.hash ? "" : "bad-t"), style:"min-width:62px;text-align:center", text: x.hash ? "\u2022\u2022\u2022\u2022" : "No PIN yet"}),
+      (() => { const st = STAFF_LINKS && STAFF_LINKS.get(x.staffId || ("name:" + x.name.toLowerCase())); return st && st.phones ? el("span",{class:"pill good", title:"Set up on their phone", text:"\ud83d\udcf1 On phone"}) : null; })(),
+      el("button",{class:"btn quiet sm", type:"button", text:"Send app link", onclick:() => sendAppLink(x)}),
       el("button",{class:"linkbtn", type:"button", text: x.hash ? "Change" : "Set PIN", onclick:() => addPin(x)}),
       el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { if (p.pins.length === 1 && p.on) return toast("Turn the lock off before removing the last PIN."); if (!confirm("Remove " + x.name + "'s PIN?")) return; p.pins = p.pins.filter(y => y !== x); save(); render(); }}))) : [el("p",{class:"mini", text:"No PINs yet."})]),
     el("button",{class:"btn quiet", type:"button", style:"margin-top:6px", text:"+ Add a person", onclick:() => openPinDialog(null, { role:"staff", name:"" })}),

@@ -49,6 +49,12 @@
   external_node_modules = ["ssh2-sftp-client", "ssh2", "cpu-features"]
 
 # The no-login tablet Kitchen book: /tablet/<link code> opens tablet.html
+# Personal staff app links: /join/<code> opens the staff app's "pick your PIN" screen
+[[redirects]]
+  from = "/join/*"
+  to = "/tablet.html"
+  status = 200
+
 [[redirects]]
   from = "/tablet/*"
   to = "/tablet.html"
