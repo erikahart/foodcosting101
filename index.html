@@ -1434,6 +1434,7 @@ tr.have-row td{background:var(--field)} tr.have-row td b{color:var(--muted)}
 body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox, body.gated #tabbar{display:none !important}
 .pin-logo{width:72px;height:72px;margin:0 auto;border-radius:16px}
 .code-in{font-size:1.8rem;letter-spacing:.35em;text-align:center;min-height:58px}
+.shared-pc{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} .shared-pc summary{cursor:pointer;padding:4px 0}
 </style>
 </head>
 <body>
@@ -1928,7 +1929,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Staff app links";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Tidier settings";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2005,7 +2006,7 @@ const isPhone = () => window.matchMedia("(max-width: 700px)").matches;
 const isNarrow = () => window.matchMedia("(max-width: 900px)").matches;
 // Redraw when crossing the phone/desktop line (rotation, resizing a window).
 ["(max-width: 700px)", "(max-width: 900px)"].forEach(q => { const mq = window.matchMedia(q); const fn = () => { if (typeof ST !== "undefined" && ST) render(); }; mq.addEventListener ? mq.addEventListener("change", fn) : mq.addListener(fn); });
-const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["book","Kitchen book"],["lab","Test kitchen"],["purch","Ordering"],["sched","Schedule"],["events","Events"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Brand & accounts"]];
+const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["book","Kitchen book"],["lab","Test kitchen"],["purch","Ordering"],["sched","Schedule"],["events","Events"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Settings & team"]];
 const NAV_ICONS = {
   home:'<path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
   coach:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
@@ -2249,7 +2250,7 @@ function pinLockCard(){
   const r0 = R(); schedData(r0);
   const fromSchedule = () => { const have = new Set(p.pins.map(x => (x.staffId || "") + "|" + x.name.toLowerCase())); let k = 0;
     r0.staff.forEach(st => { if (p.pins.some(x => x.staffId === st.id || x.name.toLowerCase() === st.name.toLowerCase())) return; p.pins.push({ id: uid("pin"), name: st.name, staffId: st.id, role:"staff", hash: null }); k++; });
-    save(); render(); toast(k ? "Added " + k + " people. Now set their PINs (Paste PINs does them all at once)." : "Everyone on the schedule is already listed."); };
+    save(); render(); toast(k ? "Added " + k + " people. Now tap Send app link for each person." : "Everyone on the schedule is already listed."); };
   const pastePins = () => {
     const ta = el("textarea",{class:"inp", rows:"10", placeholder:"Nina, 4821\nJenna 5530\nDonna M., 7310, manager\nMike - 2266"}), out = el("div");
     openDlg("Paste PINs", [el("p",{class:"lead", text:"One person per line: their name and PIN. Add \u201cmanager\u201d for managers. Names are matched to the people listed; anyone new is added."}), ta, out],
@@ -2274,23 +2275,24 @@ function pinLockCard(){
   };
   const tsel = el("select",{class:"inp", style:"max-width:180px"}, [5,15,30,60].map(v => el("option",{value:v, text: v + " minutes"}))); tsel.value = String(p.timeout || 15); tsel.onchange = () => { p.timeout = +tsel.value; save(); };
   return el("div",{class:"card feed-card", style:"margin-top:16px"},
-    el("div",{class:"feed-h"}, el("div",null, el("h3",{text:"PINs and who sees what"}), el("p",{class:"mini", style:"margin:2px 0 0", text:"Staff PINs open the Kitchen book, Test kitchen, Schedule and Events. Manager PINs open everything, including editing schedules, costs, invoices and settings."})),
-      el("span",{class:"pill " + (p.on ? "good" : ""), text: p.on ? "On" : "Off"})),
-    el("label",{class:"row", style:"gap:8px;font-weight:600;margin:10px 0 4px"}, on, "Use PINs (the management side needs a manager PIN)"),
-    el("label",{class:"row", style:"gap:8px;font-weight:600;margin:0 0 10px" + (p.on ? "" : ";opacity:.5")}, gate, "Ask for a PIN when the app opens (everyone signs in with their PIN)"),
-    el("div",{class:"row", style:"gap:8px;flex-wrap:wrap;margin-bottom:8px"},
+    el("div",{class:"feed-h"}, el("div",null, el("h3",{text:"Staff"}), el("p",{class:"mini", style:"margin:2px 0 0", text:"Send each person their app link by email or text. They pick a 4-digit PIN and use the staff app on their phone."})),
+      null),
+    el("div",{class:"row", style:"gap:8px;flex-wrap:wrap;margin:10px 0 8px"},
       el("button",{class:"btn quiet", type:"button", text:"Add everyone from the schedule", onclick: fromSchedule}),
-      el("button",{class:"btn primary", type:"button", text:"Paste PINs", onclick: pastePins})),
+      el("button",{class:"btn quiet", type:"button", text:"+ Add a person", onclick:() => { const nm = prompt("Their name, as it is on the schedule?"); if (!nm || !nm.trim()) return; p.pins.push({ id: uid("pin"), name: nm.trim(), role:"staff", hash: null }); save(); render(); }})),
     el("div",{class:"pin-list"}, p.pins.length ? p.pins.slice().sort((a2, b2) => ((a2.role || "manager") === "manager" ? 0 : 1) - ((b2.role || "manager") === "manager" ? 0 : 1) || a2.name.localeCompare(b2.name)).map(x => el("div",{class:"feed-row"},
       el("div",{style:"flex:1"}, el("b",{text:x.name}), x.email ? el("div",{class:"mini", text:x.email}) : null),
       (() => { const rs = el("select",{class:"inp", style:"min-height:34px;width:auto", "aria-label":"What " + x.name + " can see"}, el("option",{value:"staff", text:"Staff"}), el("option",{value:"manager", text:"Manager"}));
         rs.value = x.role || "manager"; rs.onchange = () => { if (rs.value === "staff" && p.pins.filter(y => (y.role || "manager") === "manager" && y.hash).length <= 1 && (x.role || "manager") === "manager") { rs.value = "manager"; return toast("Keep at least one manager PIN."); } x.role = rs.value; save(); }; return rs; })(),
-      el("span",{class:"mini " + (x.hash ? "" : "bad-t"), style:"min-width:62px;text-align:center", text: x.hash ? "\u2022\u2022\u2022\u2022" : "No PIN yet"}),
+      p.on ? el("span",{class:"mini " + (x.hash ? "" : "bad-t"), style:"min-width:62px;text-align:center", title:"Shared-computer PIN", text: x.hash ? "\u2022\u2022\u2022\u2022" : "No PIN"}) : null,
       (() => { const st = STAFF_LINKS && STAFF_LINKS.get(x.staffId || ("name:" + x.name.toLowerCase())); return st && st.phones ? el("span",{class:"pill good", title:"Set up on their phone", text:"\ud83d\udcf1 On phone"}) : null; })(),
       el("button",{class:"btn quiet sm", type:"button", text:"Send app link", onclick:() => sendAppLink(x)}),
-      el("button",{class:"linkbtn", type:"button", text: x.hash ? "Change" : "Set PIN", onclick:() => addPin(x)}),
+      p.on ? el("button",{class:"linkbtn", type:"button", text: x.hash ? "Change PIN" : "Set PIN", onclick:() => addPin(x)}) : null,
       el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { if (p.pins.length === 1 && p.on) return toast("Turn the lock off before removing the last PIN."); if (!confirm("Remove " + x.name + "'s PIN?")) return; p.pins = p.pins.filter(y => y !== x); save(); render(); }}))) : [el("p",{class:"mini", text:"No PINs yet."})]),
-    el("button",{class:"btn quiet", type:"button", style:"margin-top:6px", text:"+ Add a person", onclick:() => openPinDialog(null, { role:"staff", name:"" })}),
+    el("details",{class:"shared-pc", open: p.on ? "" : null}, el("summary",null, el("b",{text:"Shared computer"}), el("span",{class:"mini", text:"  PIN lock for a computer or phone the whole team uses" + (p.on ? " (on)" : "")})),
+    el("label",{class:"row", style:"gap:8px;font-weight:600;margin:10px 0 4px"}, on, "Use PINs on shared devices (the management side needs a manager PIN)"),
+    el("label",{class:"row", style:"gap:8px;font-weight:600;margin:0 0 10px" + (p.on ? "" : ";opacity:.5")}, gate, "Ask for a PIN when the app opens"),
+    p.on ? el("button",{class:"btn quiet", type:"button", text:"Paste PINs", onclick: pastePins}) : null,
     el("div",{class:"g2", style:"margin-top:12px"}, fld("Lock again after no use for", tsel),
       el("div",{class:"field"}, el("span",{class:"q", text:"This device"}),
         el("div",{class:"row"}, el("span",{class:"mini", text: trusted ? "Trusted: never asks for a PIN." : "Asks for a PIN."}),
@@ -2299,7 +2301,7 @@ function pinLockCard(){
             else { const t2 = Math.random().toString(36).slice(2) + Date.now().toString(36); p.trusted = (p.trusted || []).concat([t2]).slice(-20); try { localStorage.setItem("pm-trust-" + ACCT.id, t2); } catch(e){} }
             save(); render(); }})))),
     (p.trusted || []).length ? el("button",{class:"linkbtn", type:"button", style:"margin-top:6px", text:"Forget all trusted devices (" + p.trusted.length + ")", onclick:() => { if (!confirm("Every device will ask for a PIN again. Continue?")) return; p.trusted = []; save(); render(); }}) : null,
-    el("p",{class:"mini", style:"margin-top:10px", text:"Trust your own phone and laptop. Leave shared devices (the office computer, a phone that stays at the restaurant) untrusted. For full separation, give staff their own logins with the Member role."}));
+    el("p",{class:"mini", style:"margin-top:10px", text:"Trust your own phone and laptop so they never ask. Leave the shared computer untrusted."})));
 }
 /* ================= Pages ================= */
 const insKey = i => (i.tag || "") + "|" + (i.title || "");
@@ -2343,7 +2345,7 @@ function openMore(){
     isStandalone() ? null : item("Install the app", "Put it on your home screen", () => installHelp()),
     item("Profit coach", "What to fix first, in dollars per week", () => go("coach")),
     item("Suppliers", "Who you buy from, and notes for reps", () => go("suppliers")),
-    item("Brand & accounts", "Logo, colors, cost targets and your team", () => go("brand")),
+    item("Settings & team", "Logo, colors, cost targets and your team", () => go("brand")),
     item("Theme: " + { auto:"automatic", dark:"dark", light:"light" }[t], "Tap to switch to " + { auto:"automatic", dark:"dark", light:"light" }[next], () => { try { localStorage.setItem("pm-theme", next); } catch(e){} applyTheme(next); renderUserBox(); toast("Theme: " + next); }),
     item(window.PM_DEMO ? "Reset the demo" : "Sign out", USER ? USER.email : "", () => signOut()))], []);
 }
@@ -3940,7 +3942,7 @@ function sched(m){
       k === "requests" && SCV.pending ? el("span",{class:"seg-badge", text: SCV.pending}) : null)))));
   refreshPendingRequests();
   const edit = canEditSchedule();
-  if (!edit) m.append(el("div",{class:"msg", style:"margin-bottom:12px", text:"View only. Owners, managers, and people given \u201cCan edit the schedule\u201d (Brand & accounts \u2192 Team) can change the schedule and checklists."}));
+  if (!edit) m.append(el("div",{class:"msg", style:"margin-bottom:12px", text:"View only. Owners, managers, and people given \u201cCan edit the schedule\u201d (Settings & team \u2192 Team) can change the schedule and checklists."}));
   if (SCV.tab === "duties") return schedDuties(m, r, edit);
   if (SCV.tab === "lists" || SCV.tab === "log") return schedChecklists(m, r, today);
   if (SCV.tab === "requests") return schedRequests(m, r, today, edit);
@@ -5598,7 +5600,7 @@ function repNote(v){
 }
 function brand(m){
   const b = ST.brand;
-  m.append(el("h1",{text:"Brand & accounts"}), el("p",{class:"lead", text:"Make it yours. Every restaurant you sign up sees your name, logo and color."}));
+  m.append(el("h1",{text:"Settings & team"}), el("p",{class:"lead", text:"Your app's name and logo, backups, cost targets, and who's on the team."}));
   const name = el("input",{class:"inp"}); name.value = b.product; name.oninput = () => { b.product = name.value; save(); applyBrand(); prev(); };
   const tag = el("input",{class:"inp"}); tag.value = b.tagline; tag.oninput = () => { b.tagline = tag.value; save(); applyBrand(); prev(); };
   const dom = el("input",{class:"inp", placeholder:"app.yourbrand.com"}); dom.value = b.domain || ""; dom.oninput = () => { b.domain = dom.value; save(); prev(); };
@@ -5610,16 +5612,9 @@ function brand(m){
   const pv = el("div",{class:"preview"});
   function prev(){ const lg = el("div",{class:"logo"}); paintLogo(lg); pv.replaceChildren(el("div",{class:"ph"}, lg, el("div",null, el("b",{text:b.product || "Your product"}), el("div",{class:"mini", style:"color:inherit;opacity:.85", text:b.domain || ""}))), el("div",{class:"pb"}, el("p",{style:"margin:0 0 10px", text: previewLine()}), el("button",{class:"btn primary", text:"See what to fix", onclick:() => go("coach")}))); }
   prev();
-  m.append(brandKitCard());
-  m.append(el("div",{class:"grid", style:"grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))"},
-    el("div",{class:"card"},
-      el("div",{class:"field"}, el("label",{text:"Product name"}), name), el("div",{class:"field"}, el("label",{text:"Tagline"}), tag),
-      el("div",{class:"field"}, el("span",{class:"q", text:"Logo"}), el("div",{class:"row"}, el("label",{class:"btn quiet"}, "Upload logo", file), b.logo ? el("button",{class:"btn quiet", text:"Remove", onclick:() => { b.logo = ""; save(); render(); }}) : null)),
-      el("div",{class:"field"}, el("span",{class:"q", text:"Brand color"}), el("div",{class:"row"}, col, sw),
-        usableBrand(b.color) ? null : el("div",{class:"msg bad brand-light", style:"margin-top:8px", text:"That color is too light for buttons, so the app is using green instead. Pick one of the darker swatches, or a darker shade in the color box."})),
-      el("div",{class:"field"}, el("label",{text:"Your web address"}), el("span",{class:"hint", text:"Customers log in here. Set up once with your host."}), dom),
-      el("label",{class:"row", style:"font-weight:700"}, pw, "Show \u201cPowered by\u201d in the menu")),
-    el("div",null, el("div",{class:"mini", style:"margin-bottom:6px", text:"What your customers see"}), pv)));
+  m.append(el("div",{class:"card", style:"max-width:640px"},
+      el("div",{class:"g2"}, el("div",{class:"field"}, el("label",{text:"App name"}), name), el("div",{class:"field"}, el("label",{text:"Under the name"}), tag)),
+      el("div",{class:"field"}, el("span",{class:"q", text:"Logo"}), el("div",{class:"row"}, el("label",{class:"btn quiet"}, "Upload logo", file), b.logo ? el("button",{class:"btn quiet", text:"Remove", onclick:() => { b.logo = ""; save(); render(); }}) : null))));
   m.append(el("h2",{text:"Backup"}));
   m.append(el("div",{class:"card", style:"display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:space-between"},
     el("div",{style:"flex:1 1 300px"}, el("b",{text:"Keep a copy of your kitchens."}), " Downloads one file with every kitchen you belong to: supplies, recipes, cards, photos, invoices, sales and matches. Use it to move to a new database or as a safety copy."),
@@ -5638,14 +5633,12 @@ function brand(m){
       el("p",{class:"mini", style:"margin:10px 0 0", text:"Drinks are recognized from their menu section (Bar, Beer, Wine, Cocktails…) and name. Set a recipe's Type to override."}))); }
   m.append(el("h2",{text:"Team"}));
   const teamBox = el("div",{class:"card"}, el("div",{class:"spin"})); m.append(teamBox); drawTeam(teamBox);
-  m.append(el("h2",{text:"Locations"}));
-  const tb = el("tbody");
-  Object.values(ST.restaurants).forEach(r => { const live = SUPPLIERS.filter(s => r.conn[s.id] && r.conn[s.id].status === "active").length;
-    tb.append(el("tr",{onclick:() => { ST.current = r.id; go("home"); }}, el("td",null, el("b",{text:r.name})), el("td",{class:"num", text:Object.keys(r.items).length}), el("td",{class:"num", text:Object.keys(r.supplies).length}), el("td",{class:"num", text:live}), el("td",null, el("span",{class:"pill good", text:"Active"})))); });
-  m.append(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Restaurant","Recipes","Supplies","Live feeds","Plan"].map((h, i) => el("th",{class: i && i < 4 ? "num" : "", text:h})))), tb)),
-    el("div",{class:"row", style:"margin-top:12px"}, el("button",{class:"btn quiet", text:"+ Add a restaurant", onclick:() => { const nm = prompt("Restaurant name?"); if (nm && nm.trim()){ const r = emptyRestaurant(nm.trim()); ST.restaurants[r.id] = r; save(); render(); } }}),
-      el("button",{class:"btn quiet", text:"Load sample data", onclick:() => { if (confirm("Replace everything in this kitchen with sample data? This affects everyone on your team.")){ ST = freshDemo(); save(); render(); } }}),
-      el("button",{class:"btn danger", text:"Clear all data", onclick:() => { if (confirm("Delete every supply, recipe and invoice in this kitchen? This affects everyone on your team and can't be undone.")){ ST = freshEmpty(ACCT.name); save(); render(); toast("Cleared"); } }})));
+  if (Object.keys(ST.restaurants).length > 1){
+    m.append(el("h2",{text:"Locations"}));
+    m.append(el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, ...["Restaurant","Recipes","Supplies"].map((h, i) => el("th",{class: i ? "num" : "", text:h})))),
+      el("tbody",null, Object.values(ST.restaurants).map(r => el("tr",{onclick:() => { ST.current = r.id; go("home"); }}, el("td",null, el("b",{text:r.name})),
+        el("td",{class:"num", text:Object.keys(r.items).length}), el("td",{class:"num", text:Object.keys(r.supplies).length})))))));
+  }
 }
 const ROLE_LABEL = { owner:"Owner", manager:"Manager", member:"Member", staff:"Staff" };
 // Email an invite (via Postmark) to someone already invited. Returns a sentence for the screen.
@@ -5662,16 +5655,11 @@ async function drawTeam(box){
     if (t.kind === "invite" && canInvite) actions.append(el("button",{class:"btn quiet", text:"Email invite", title:"Send (or send again) the invite email", onclick: async ev => { const bt = ev.currentTarget; bt.disabled = true; toast(await emailInvite(t.email)); bt.disabled = false; }}));
     if (t.kind === "invite" && canInvite) actions.append(el("button",{class:"btn quiet", text:"Cancel invite", onclick: async () => { const { error } = await sb.rpc("cancel_invite", { p_invite: t.invite_id }); if (error) toast(plainErr(error)); drawTeam(box); }}));
     if (t.kind === "member" && isOwner && !t.is_me){
-      const sel = el("select",{class:"inp", style:"width:auto;min-height:40px", "aria-label":"Role for " + t.email}, ["owner","manager","member","staff"].map(r => el("option",{value:r, text:ROLE_LABEL[r]}))); sel.value = t.role;
+      const sel = el("select",{class:"inp", style:"width:auto;min-height:40px", "aria-label":"Role for " + t.email}, ["owner","manager","staff"].concat(t.role === "member" ? ["member"] : []).map(r => el("option",{value:r, text:ROLE_LABEL[r]}))); sel.value = t.role;
       sel.onchange = async () => { const { error } = await sb.rpc("set_member_role", { p_account: ACCT.id, p_user: t.user_id, p_role: sel.value }); if (error) toast(plainErr(error)); drawTeam(box); };
       actions.append(sel, el("button",{class:"btn danger", text:"Remove", onclick: async () => { if (!confirm("Remove " + t.email + " from this kitchen?")) return; const { error } = await sb.rpc("remove_member", { p_account: ACCT.id, p_user: t.user_id }); if (error) toast(plainErr(error)); drawTeam(box); }}));
     }
     if (t.kind === "member" && t.is_me && ACCOUNTS.length > 1) actions.append(el("button",{class:"btn quiet", text:"Leave kitchen", onclick: async () => { if (!confirm("Leave " + ACCT.name + "?")) return; const { error } = await sb.rpc("remove_member", { p_account: ACCT.id, p_user: t.user_id }); if (error) return toast(plainErr(error)); afterLogin(); }}));
-    if (t.kind === "member" && (t.role === "owner" || t.role === "manager") && (isOwner || t.is_me)){
-      const pc = ensurePinCfg(), pin = pc.pins.find(x => x.userId === t.user_id) || (t.is_me ? null : pc.pins.find(x => !x.userId && x.email === t.email));
-      actions.append(pin ? el("span",{class:"pill good", text:"PIN set"}) : null,
-        el("button",{class:"btn quiet", type:"button", text: pin ? "Change PIN" : "Set PIN", onclick:() => openPinDialog(pin || null, pin ? null : { userId: t.user_id, email: t.email, name: (t.email || "").split("@")[0].replace(/[._]+/g, " ").replace(/\b\w/g, c => c.toUpperCase()) })}));
-    }
     if (t.kind === "member" && t.role === "member" && canInvite){
       const cb = el("input",{type:"checkbox"}); cb.checked = !!(ST.perms && ST.perms[t.user_id] && ST.perms[t.user_id].schedule);
       cb.onchange = () => { ST.perms = ST.perms || {}; ST.perms[t.user_id] = Object.assign({}, ST.perms[t.user_id], { schedule: cb.checked }); save(); toast(cb.checked ? t.email + " can now edit the schedule" : t.email + " can no longer edit the schedule"); };
@@ -5683,7 +5671,7 @@ async function drawTeam(box){
   const parts = [el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Person"}), el("th",{text:"Role"}), el("th",{text:""}))), el("tbody",null, rows)))];
   if (canInvite){
     const em = el("input",{class:"inp", type:"email", autocapitalize:"none", autocorrect:"off", spellcheck:"false", placeholder:"cook@example.com"});
-    const rl = el("select",{class:"inp"}, el("option",{value:"staff", text:"Staff: Kitchen book, Test kitchen, Schedule and Events only"}), el("option",{value:"member", text:"Member: can edit menu, supplies and invoices"}), el("option",{value:"manager", text:"Manager: also invites people and sets the schedule"}));
+    const rl = el("select",{class:"inp"}, el("option",{value:"staff", text:"Staff: Kitchen book, Test kitchen, Schedule and Events"}), el("option",{value:"manager", text:"Manager: everything, including the schedule and inviting people"}));
     const msg = el("div");
     const go2 = async () => {
       const { error } = await sb.rpc("invite_member", { p_account: ACCT.id, p_email: em.value.trim().toLowerCase(), p_role: rl.value });
