@@ -292,6 +292,9 @@ html, body{max-width:100%;overflow-x:hidden}
   #me{order:6;flex:none}
   main{padding-left:12px !important;padding-right:12px !important}
 }
+.me-hero{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;font:inherit;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-left:7px solid var(--jade);border-radius:18px;padding:16px 18px;margin:0 0 14px;cursor:pointer}
+.me-hero.today{background:color-mix(in srgb,var(--jade) 10%,var(--panel))}
+.mh-hi{font-family:var(--head);font-weight:800;font-size:2rem;line-height:1.1} .mh-k{color:var(--ink-2);font-weight:600} .mh-s{font-family:var(--head);font-weight:800;font-size:1.6rem}
 .wn-strip{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 18px;margin:0 0 18px;font:inherit;color:var(--ink);cursor:pointer;font-size:1.05rem}
 .wn-strip.due{background:#FFF4D6;border:2px solid var(--mustard)} .wn-strip b{font-family:var(--head);font-weight:800;font-size:1.5rem} .wn-strip .go-arrow{margin-left:auto;font-size:2rem;line-height:1}
 .wn-list{display:grid;gap:14px}
@@ -404,6 +407,19 @@ html, body{max-width:100%;overflow-x:hidden}
         : h("p", { class:"sub-note", text:"Everyone on the schedule has already tapped Got it." }),
       h("button", { class:"back", type:"button", text:"Cancel", onclick: () => wrap.remove() })));
     document.body.append(wrap);
+  }
+  // On a staff member's own phone: hello and their next shift, first thing.
+  function meHero(){
+    if (!ME) return null;
+    const sc = S(), today = localDay(), first = ME.name.split(" ")[0];
+    const mine = (sc.shifts || []).filter(x => x.p === ME.key && x.d >= today && !x.off).sort((a, b) => a.d.localeCompare(b.d) || String(a.s || "").localeCompare(String(b.s || "")));
+    const nx = mine[0], when = d => d === today ? "Today" : d === addDays(today, 1) ? "Tomorrow" : DOWL[new Date(d + "T12:00:00").getDay()];
+    const label = x => t12(x.s) + " \u2013 " + (x.e ? t12(x.e) : "close") + (x.r ? " \u00b7 " + roleLabel(x.r) : "");
+    return h("button", { class:"me-hero" + (nx && nx.d === today ? " today" : ""), type:"button", onclick: () => { location.hash = "sched"; } },
+      h("span", { class:"mh-hi", text: "Hi " + first + "!" }),
+      h("span", { class:"mh-k", text: nx ? (nx.d === today ? "You're on today" : "Your next shift: " + when(nx.d)) : "No upcoming shifts on the schedule" }),
+      nx ? h("b", { class:"mh-s", text: label(nx) }) : null,
+      mine.length > 1 ? h("span", { class:"mh-k", text: "Then " + mine.slice(1, 3).map(x => when(x.d)).join(", ") }) : null);
   }
   function whatsNewStrip(){
     const list = recentChanges(14); if (!list.length) return null;
@@ -933,7 +949,7 @@ html, body{max-width:100%;overflow-x:hidden}
     const todayBox = now.length ? h("section", { class:"today-box" }, h("div", { class:"spread-t" }, h("h2", { text:"Today" }), h("button", { class:"back", type:"button", text:"All events", onclick: () => { location.hash = "events"; } })),
       h("div", { class:"evlist compact" }, now.slice(0, 4).map(evRow)), now.length > 4 ? h("p", { class:"sub-note", text:"+" + (now.length - 4) + " more on the Events tab" }) : null) : null;
     loadSeen();
-    m.replaceChildren(...[whatsNewStrip(), todayBox, side("Bar", secs.filter(x => x.bar)), side("Kitchen", secs.filter(x => !x.bar)), BOOK.items.length ? null : h("div", { class:"empty", text:"No recipe cards yet." }), status()].filter(Boolean));
+    m.replaceChildren(...[meHero(), whatsNewStrip(), todayBox, side("Bar", secs.filter(x => x.bar)), side("Kitchen", secs.filter(x => !x.bar)), BOOK.items.length ? null : h("div", { class:"empty", text:"No recipe cards yet." }), status()].filter(Boolean));
     needPhotos(secs.flatMap(sec => sec.items.filter(it => it.photo).slice(0, 4)));
   }
   function status(){ return h("p", { class:"status", text: UPDATED ? "Updated " + new Date(UPDATED).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) + (navigator.onLine ? "" : "  ·  offline, showing the last copy") : "" }); }
