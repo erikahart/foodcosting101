@@ -1885,7 +1885,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Staff logins";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Invite emails";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -5561,12 +5561,18 @@ function brand(m){
       el("button",{class:"btn danger", text:"Clear all data", onclick:() => { if (confirm("Delete every supply, recipe and invoice in this kitchen? This affects everyone on your team and can't be undone.")){ ST = freshEmpty(ACCT.name); save(); render(); toast("Cleared"); } }})));
 }
 const ROLE_LABEL = { owner:"Owner", manager:"Manager", member:"Member", staff:"Staff" };
+// Email an invite (via Postmark) to someone already invited. Returns a sentence for the screen.
+async function emailInvite(email){
+  try { await apiPost("/api/invite-email", { account: ACCT.id, email }); return "Invite emailed to " + email + ". Tell them to check spam or promotions if it's not in their inbox."; }
+  catch(e){ return e.code === "unavailable" ? "Invited, but invite emails need netlify/functions/invite-email.mjs uploaded." : "Invited, but the email didn't send: " + (e.message || "try Email invite again in a minute") + "."; }
+}
 async function drawTeam(box){
   const { data, error } = await sb.rpc("team", { p_account: ACCT.id });
   if (error){ box.replaceChildren(el("p",{style:"margin:0", text:"Couldn't load the team: " + plainErr(error)})); return; }
   const canInvite = ACCT.role === "owner" || ACCT.role === "manager", isOwner = ACCT.role === "owner";
   const rows = (data || []).map(t => {
     const actions = el("div",{class:"row"});
+    if (t.kind === "invite" && canInvite) actions.append(el("button",{class:"btn quiet", text:"Email invite", title:"Send (or send again) the invite email", onclick: async ev => { const bt = ev.currentTarget; bt.disabled = true; toast(await emailInvite(t.email)); bt.disabled = false; }}));
     if (t.kind === "invite" && canInvite) actions.append(el("button",{class:"btn quiet", text:"Cancel invite", onclick: async () => { const { error } = await sb.rpc("cancel_invite", { p_invite: t.invite_id }); if (error) toast(plainErr(error)); drawTeam(box); }}));
     if (t.kind === "member" && isOwner && !t.is_me){
       const sel = el("select",{class:"inp", style:"width:auto;min-height:40px", "aria-label":"Role for " + t.email}, ["owner","manager","member","staff"].map(r => el("option",{value:r, text:ROLE_LABEL[r]}))); sel.value = t.role;
@@ -5595,9 +5601,11 @@ async function drawTeam(box){
     const go2 = async () => {
       const { error } = await sb.rpc("invite_member", { p_account: ACCT.id, p_email: em.value.trim().toLowerCase(), p_role: rl.value });
       if (error) return msg.replaceChildren(el("div",{class:"msg bad", text:plainErr(error)}));
-      const link = location.origin;
-      msg.replaceChildren(el("div",{class:"msg good"}, "Invited. Tell them: go to ", el("b",{text:link}), ", choose Create account, and use " + em.value.trim() + ". They'll land in this kitchen."));
-      em.value = ""; setTimeout(() => drawTeam(box), 2500);
+      const link = location.origin, who = em.value.trim().toLowerCase();
+      msg.replaceChildren(el("div",{class:"msg"}, "Invited. Sending the invite email\u2026"));
+      const result = await emailInvite(who);
+      msg.replaceChildren(el("div",{class:"msg " + (/^Invite emailed/.test(result) ? "good" : "")}, result + " ", el("span",{class:"mini", text:"(They can also go to " + link + ", choose Create account, and use " + who + ".)"})));
+      em.value = ""; setTimeout(() => drawTeam(box), 4000);
     };
     parts.push(el("h3",{style:"margin:16px 0 8px", text:"Invite someone"}), msg, el("div",{class:"g2"}, el("div",{class:"field"}, el("label",{text:"Their email"}), em), el("div",{class:"field"}, el("label",{text:"What they can do"}), rl)),
       el("button",{class:"btn primary", text:"Send invite", onclick:go2}));
