@@ -1536,6 +1536,30 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .sx-tool-i{display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:#fff;margin-bottom:6px} .sx-tool-i svg{width:24px;height:24px}
 .sx-tool.t1{background:#E3F1EB} .sx-tool.t2{background:#FBEBD0} .sx-tool.t3{background:#E6ECF7} .sx-tool.t4{background:#F6E1DD}
 @media (max-width:640px){ .sx-hero{padding:20px} .sx-shift b{font-size:1.5rem} .sx-big{flex-direction:column;align-items:flex-start;min-height:104px} .sx-tools{grid-template-columns:1fr 1fr} }
+.sx-count{display:inline-block;background:#F2C14E;color:#24221F;border-radius:999px;padding:3px 12px;font-weight:800;font-size:.95rem}
+.sx-week{margin:0 0 14px} .sx-lbl{display:block;font-size:.8rem;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px 4px}
+.sx-week-row{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:thin}
+.sx-day{flex:none;display:grid;justify-items:center;gap:1px;min-width:96px;padding:10px 12px;border-radius:16px;border:1px solid var(--line);background:var(--panel);font:inherit;color:var(--ink);cursor:pointer}
+.sx-dow{font-size:.78rem;font-weight:800;text-transform:uppercase;color:var(--muted)} .sx-dnum{font-family:var(--brand-font);font-size:1.8rem;font-weight:800;line-height:1.05} .sx-dt{font-weight:700;font-size:.85rem} .sx-dr{font-size:.75rem;color:var(--ink-2)}
+.sx-floor{position:relative} .sx-tl{--nw:120px;position:relative;margin-top:12px;padding-top:22px}
+.sx-ticks{position:absolute;top:0;left:var(--nw);right:0;height:18px} .sx-ticks span{position:absolute;transform:translateX(-50%);font-size:.72rem;color:var(--muted);font-weight:700}
+.sx-tl-row{display:grid;grid-template-columns:var(--nw) 1fr;align-items:center;height:30px} .sx-tl-name{font-weight:700;font-size:.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:8px}
+.sx-tl-row.me .sx-tl-name{color:#B8352A} .sx-tl-row.gone{opacity:.45}
+.sx-tl-track{position:relative;height:22px;background:repeating-linear-gradient(90deg,transparent 0 calc(100%/8 - 1px),var(--line) calc(100%/8 - 1px) calc(100%/8))}
+.sx-tl-track i{position:absolute;top:0;bottom:0;border-radius:8px;display:flex;align-items:center;overflow:hidden;box-shadow:inset 0 -2px 0 rgba(0,0,0,.15)}
+.sx-tl-track em{font-style:normal;color:#fff;font-size:.72rem;font-weight:800;padding:0 8px;white-space:nowrap}
+.sx-tl-row.me .sx-tl-track i{outline:3px solid #F2C14E;outline-offset:1px}
+.sx-now{position:absolute;top:14px;bottom:0;width:2px;background:#D9473A;z-index:2;pointer-events:none} .sx-now span{position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:#D9473A;color:#fff;font-size:.68rem;font-weight:800;border-radius:6px;padding:1px 6px}
+.sx-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:.82rem;color:var(--ink-2)} .sx-legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px}
+.sx-podium{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:end}
+.sx-pod{display:grid;justify-items:center;gap:2px;border-radius:16px;padding:12px 8px;background:var(--field);text-align:center} .sx-pod.p1{background:linear-gradient(180deg,#FFF1C7,#FBE3A0);padding-top:18px} .sx-pod.me{outline:3px solid var(--jade)}
+.sx-medal{font-size:1.8rem} .sx-pod b{font-size:1.05rem} .sx-pod span:last-child{font-size:.85rem;color:var(--ink-2)}
+.confetti{position:fixed;inset:0;pointer-events:none;z-index:200;overflow:hidden} .confetti i{position:absolute;top:-12px;width:9px;height:14px;border-radius:2px;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(105vh) rotate(720deg)}}
+@media (prefers-reduced-motion: no-preference){ main > *{animation:sxin .45s ease both} main > *:nth-child(2){animation-delay:.05s} main > *:nth-child(3){animation-delay:.1s} main > *:nth-child(4){animation-delay:.15s} main > *:nth-child(5){animation-delay:.2s} main > *:nth-child(n+6){animation-delay:.25s} }
+@keyframes sxin{from{transform:translateY(10px)}to{transform:none}}
+@media (prefers-reduced-motion: reduce){ .confetti{display:none} }
+@media (max-width:640px){ .sx-tl{--nw:84px} .sx-podium{gap:6px} }
 </style>
 </head>
 <body>
@@ -2031,7 +2055,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Cool staff view";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Even better staff view";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2268,6 +2292,11 @@ function pickMe(r){
     el("div",{class:"who-pick"}, r.staff.slice().sort((a, b) => a.name.localeCompare(b.name)).map(p => el("button",{class:"btn quiet", type:"button", text:p.name, onclick:() => {
       try { localStorage.setItem("pm-me-" + (USER && USER.id) + "-" + ACCT.id, p.id); } catch(e){} dlg.close(); render(); }})))], []);
 }
+function confetti(){
+  const box = el("div",{class:"confetti", "aria-hidden":"true"}), colors = ["#F2C14E","#1F6F5C","#D9473A","#2F5DA8","#E5A92B","#7FC8A9"];
+  for (let i = 0; i < 90; i++){ const p = el("i"); p.style.left = Math.random() * 100 + "%"; p.style.background = colors[i % colors.length]; p.style.animationDelay = (Math.random() * 0.6) + "s"; p.style.animationDuration = (1.8 + Math.random() * 1.4) + "s"; p.style.transform = "rotate(" + (Math.random() * 360) + "deg)"; box.append(p); }
+  document.body.append(box); setTimeout(() => box.remove(), 4000);
+}
 function staffBoardPick(kind){
   const r = R(), q = el("input",{class:"inp", type:"search", placeholder: kind === "86" ? "Which dish or drink?" : "What are we low on?"}), list = el("div",{class:"who-pick"});
   const by = () => { const id = myStaffId(r), p = id && r.staff.find(x => x.id === id); return p ? p.name : (UNLOCK && unlocked() ? UNLOCK.name : myFirst()); };
@@ -2295,6 +2324,10 @@ function staffHome(m){
   const roleTxt = x => x.role ? (r.roleCodes[x.role] || x.role) : "";
   const toMin = hhmm => { if (!hhmm) return null; const [a, b] = hhmm.split(":").map(Number); return a * 60 + b; };
   const todayShifts = r.shifts.filter(x => x.date === t && !x.off);
+  const nowMin = hr * 60 + new Date().getMinutes(), dur = m2 => m2 >= 60 ? Math.floor(m2 / 60) + "h " + (m2 % 60) + "m" : m2 + "m";
+  const countdown = x => { if (x.date !== t){ const days = Math.round((Date.parse(x.date + "T12:00:00") - Date.parse(t + "T12:00:00")) / 864e5); return days === 1 ? "" : "in " + days + " days"; }
+    const s0 = toMin(x.start), e0 = toMin(x.end) || 23 * 60; if (s0 == null) return "";
+    return nowMin < s0 ? "Starts in " + dur(s0 - nowMin) : nowMin < e0 ? dur(e0 - nowMin) + " left" : "Done for today \ud83c\udf89"; };
   // 1. Welcome card
   const mine = me ? r.shifts.filter(x => x.staff === me && x.date >= t && !x.off).sort((a, b) => a.date.localeCompare(b.date) || String(a.start || "").localeCompare(String(b.start || ""))) : [];
   const nx = mine[0], onToday = nx && nx.date === t;
@@ -2308,7 +2341,8 @@ function staffHome(m){
     el("div",{class:"sx-hero-main"},
       el("span",{class:"sx-date", text: new Date().toLocaleDateString(undefined, { weekday:"long", month:"long", day:"numeric" })}),
       el("h1",{text: hello + (first ? ", " + first : "") + "!"}),
-      person ? (nx ? el("div",{class:"sx-shift"}, el("span",{text: onToday ? "You're on today" : "Next shift \u00b7 " + whenLabel(nx.date)}), el("b",{text: t12(nx.start) + " \u2013 " + t12(nx.end)}), roleTxt(nx) ? el("em",{text: roleTxt(nx)}) : null)
+      person ? (nx ? el("div",{class:"sx-shift"}, el("span",{text: onToday ? "You're on today" : "Next shift \u00b7 " + whenLabel(nx.date)}), el("b",{text: t12(nx.start) + " \u2013 " + t12(nx.end)}), roleTxt(nx) ? el("em",{text: roleTxt(nx)}) : null,
+            countdown(nx) ? el("strong",{class:"sx-count", text: countdown(nx)}) : null)
           : el("div",{class:"sx-shift"}, el("span",{text:"No shifts on the schedule yet"})))
         : el("div",{class:"sx-who"}, el("span",{text: crewNames.length ? "Who's this? Tap your name:" : "Tap your name:"}),
             el("div",{class:"sx-chips"}, pickNames.slice(0, 12).map(nm => el("button",{type:"button", text:nm, onclick:() => { const p = r.staff.find(x => x.name === nm); try { localStorage.setItem("pm-me-" + (USER && USER.id) + "-" + ACCT.id, p.id); } catch(e){} render(); }})),
@@ -2316,6 +2350,11 @@ function staffHome(m){
       person ? el("button",{class:"sx-notme", type:"button", text:"Not " + first + "?", onclick:() => pickMe(r)}) : null),
     ring,
     VIEW_AS_STAFF ? null : el("button",{class:"sx-mgr", type:"button", text:"\ud83d\udd12 Manager", onclick:() => { ST.page = "coach"; render(); }})));
+  const upcoming = mine.filter(x => !(onToday && x === nx)).slice(0, 6);
+  if (person && upcoming.length) m.append(el("div",{class:"sx-week"}, el("span",{class:"sx-lbl", text:"Your next shifts"}),
+    el("div",{class:"sx-week-row"}, upcoming.map(x => { const d = new Date(x.date + "T12:00:00");
+      return el("button",{class:"sx-day", type:"button", onclick:() => { SCV.tab = "week"; go("sched"); }}, el("span",{class:"sx-dow", text: x.date === addDays(t, 1) ? "Tomorrow" : DOW[d.getDay()]}),
+        el("b",{class:"sx-dnum", text: String(d.getDate())}), el("span",{class:"sx-dt", text: t12(x.start, true) + "\u2013" + t12(x.end, true)}), roleTxt(x) ? el("span",{class:"sx-dr", text: roleTxt(x)}) : null); }))));
   // 2. Shout-outs and the 86 board
   loadBoardApp();
   kudosNow(r).forEach(k => m.append(el("div",{class:"kudo-app"}, el("span",{text:"\ud83c\udf89"}), el("div",null, el("b",{text:k.text}), el("span",{class:"mini", text:" \u2014 " + k.by + (k.toName ? " to " + k.toName : "")})))));
@@ -2344,13 +2383,23 @@ function staffHome(m){
     el("div",{class:"cal-when", text: it.kind === "special" ? "\u2605 Sell today" : it.kind === "note" ? "Note" : it.time ? t12(it.time) : "All day"}),
     el("div",{class:"cal-what"}, el("b",{text:it.title}), it.guests ? el("span",{class:"pill", style:"margin-left:8px", text: it.guests + " guests"}) : null, it.where ? el("div",{class:"mini", text:"@ " + it.where}) : null,
       it.desc ? el("div",{class:"cal-desc", text: it.desc}) : null))))));
-  // 5. Crew
+  // 5. On the floor: everyone's shift as a bar across the day, with a live "now" line
   if (todayShifts.length){
-    const groups = {}; todayShifts.forEach(x => { const pos = posOfShift(r, x) || "Team"; (groups[pos] = groups[pos] || []).push(x); });
-    m.append(el("div",{class:"card"}, el("h2",{style:"margin:0 0 8px", text: me && todayShifts.some(x => x.staff === me) ? "Working with you today" : "Working today"}),
-      el("div",{class:"sh-crew"}, Object.entries(groups).map(([pos, list]) => el("div",null, el("span",{class:"mini", text: pos}),
-        el("ul",null, list.sort((a, b) => String(a.start || "").localeCompare(String(b.start || ""))).map(x => { const p = r.staff.find(y => y.id === x.staff);
-          return el("li",{class: x.staff === me ? "me" : ""}, el("b",{text: p ? p.name : "?"}), " " + t12(x.start, true) + "\u2013" + t12(x.end, true)); })))))));
+    const rows = todayShifts.map(x => ({ x, p: r.staff.find(y => y.id === x.staff), s0: toMin(x.start), e0: toMin(x.end) || 23 * 60, pos: posOfShift(r, x) || "Team" })).filter(z => z.p && z.s0 != null)
+      .sort((a2, b2) => a2.s0 - b2.s0 || a2.p.name.localeCompare(b2.p.name));
+    const lo = Math.min(...rows.map(z => z.s0), nowMin) - 30, hi = Math.max(...rows.map(z => z.e0), nowMin) + 30, X = v => ((v - lo) / (hi - lo) * 100).toFixed(2) + "%";
+    const onNow = rows.filter(z => nowMin >= z.s0 && nowMin < z.e0).length;
+    const ticks = []; for (let hh = Math.ceil(lo / 60); hh * 60 <= hi; hh += 2) ticks.push(hh);
+    const POS_C = { Kitchen:"#1F6F5C", Serving:"#2F5DA8", Bar:"#B8352A", Dish:"#7A6A55", Team:"#55504A" };
+    m.append(el("div",{class:"card sx-floor"}, el("div",{class:"spread"}, el("h2",{style:"margin:0", text:"On the floor"}), el("span",{class:"pill good", text: onNow + " on now"})),
+      el("div",{class:"sx-tl"},
+        el("div",{class:"sx-ticks"}, ticks.map(hh => el("span",{style:"left:" + X(hh * 60), text: t12(String(hh % 24).padStart(2, "0") + ":00", true)}))),
+        rows.map(z => el("div",{class:"sx-tl-row" + (z.x.staff === me ? " me" : "") + (nowMin >= z.s0 && nowMin < z.e0 ? " now" : nowMin >= z.e0 ? " gone" : "")},
+          el("span",{class:"sx-tl-name", text: z.p.name}),
+          el("span",{class:"sx-tl-track"}, el("i",{style:"left:" + X(z.s0) + ";width:calc(" + X(z.e0) + " - " + X(z.s0) + ");background:" + (POS_C[z.pos] || "#555"), title: z.pos + " " + t12(z.x.start) + "\u2013" + t12(z.x.end)},
+            el("em",{text: t12(z.x.start, true) + "\u2013" + t12(z.x.end, true)}))))),
+        el("div",{class:"sx-now", style:"left:calc(var(--nw) + (100% - var(--nw)) * " + ((nowMin - lo) / (hi - lo)).toFixed(4) + ")"}, el("span",{text:"Now"}))),
+      el("div",{class:"sx-legend"}, Object.entries(POS_C).filter(([k]) => rows.some(z => z.pos === k)).map(([k, c]) => el("span",null, el("i",{style:"background:" + c}), k)))));
   }
   // 6. Checklists: celebrate when done; unfinished first
   const lists = dutiesFor(r, t);
@@ -2367,7 +2416,17 @@ function staffHome(m){
         open.length ? el("div",{class:"sh-lists"}, open.map(({ l, k }) => { const pct = Math.round(k / l.items.length * 100);
           return el("button",{class:"sh-list", type:"button", onclick: openList}, el("div",{class:"spread"}, el("b",{text: l.name}), el("span",{class:"mini", text: k + " of " + l.items.length})),
             el("div",{class:"bar"}, el("i",{style:"width:" + pct + "%"}))); })) : null,
-        fin.length && open.length ? el("div",{class:"sx-done"}, fin.map(({ l }) => el("span",{text:"\u2713 " + l.name}))) : null].filter(Boolean)); });
+        fin.length && open.length ? el("div",{class:"sx-done"}, fin.map(({ l }) => el("span",{text:"\u2713 " + l.name}))) : null].filter(Boolean));
+      if (!open.length){ const key = "pm-party-" + t; let seen = false; try { seen = localStorage.getItem(key) === "1"; localStorage.setItem(key, "1"); } catch(e){} if (!seen) confetti(); } });
+    // Checklist heroes: who checked off the most this week
+    const heroes = el("div");
+    m.append(el("div",{class:"card sx-heroes"}, el("h2",{style:"margin:0 0 8px", text:"Checklist heroes this week"}), heroes));
+    sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: addDays(t, -6), p_to: t }).then(({ data }) => {
+      const cnt = {}; (data || []).filter(c => c.status === "done" && c.done_by).forEach(c => { cnt[c.done_by] = (cnt[c.done_by] || 0) + 1; });
+      const top = Object.entries(cnt).sort((a2, b2) => b2[1] - a2[1]).slice(0, 3), mineN = cnt[myName] || 0;
+      if (!top.length){ heroes.replaceChildren(el("p",{class:"mini", style:"margin:0", text:"No tasks checked off yet this week. Be the first!"})); return; }
+      heroes.replaceChildren(el("div",{class:"sx-podium"}, top.map(([nm, k], i) => el("div",{class:"sx-pod p" + (i + 1) + (nm === myName ? " me" : "")}, el("span",{class:"sx-medal", text:["\ud83e\udd47","\ud83e\udd48","\ud83e\udd49"][i]}), el("b",{text:nm}), el("span",{text: k + " tasks"})))),
+        el("p",{class:"mini", style:"margin:10px 0 0", text: top.some(([nm]) => nm === myName) ? "That's you up there. Nice!" : mineN ? "You: " + mineN + " tasks this week. Keep it up!" : "Check off a duty to get on the board."})); });
   }
   // 7. Tools
   m.append(el("div",{class:"sx-tools"}, [["book","Kitchen book","Recipe cards","t1"],["lab","Test kitchen","Try something new","t2"],["sched","Schedule","Shifts & requests","t3"],["events","Events","What's coming up","t4"]].map(([pg, a, b2, c]) =>
