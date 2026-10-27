@@ -685,7 +685,7 @@ details.ai-fold[open] summary{padding:12px 0}
 .reg-cell .inp{width:100%}
 .reg-cell .linkbtn{padding:2px 0}
 
-/* ---------- Kitchen book ---------- */
+/* ---------- Recipes ---------- */
 .kb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
 .kb-card{display:flex;flex-direction:column;text-align:left;padding:0;border:1px solid var(--line);border-radius:var(--r-panel);background:var(--panel);overflow:hidden;cursor:pointer;color:var(--ink);font:inherit;transition:border-color .12s,transform .12s}
 .kb-card:hover{border-color:var(--ink-2)}
@@ -904,7 +904,7 @@ nav button[aria-current="page"] .ic{color:#fff}
 .bb-badge{background:var(--ketchup)}
 .bb-sec h2{font-family:var(--font);font-size:.9rem;font-weight:700;color:var(--muted);letter-spacing:0}
 
-/* Kitchen book: index-card rule under each dish */
+/* Recipes: index-card rule under each dish */
 .kb-card{border-radius:12px;box-shadow:0 2px 0 var(--line-2)}
 .kb-body{border-top:2px solid color-mix(in srgb,var(--ketchup) 55%,transparent);background:linear-gradient(var(--paper),var(--paper))}
 .kb-body b{font-family:var(--brand-font);font-weight:800;font-size:1.2rem}
@@ -1003,7 +1003,7 @@ aside .brandbox b{font-size:1.3rem}
 /* Tickets hang straight */
 .tk,.tk:nth-child(odd){transform:none}
 @keyframes tkDrop{from{transform:translateY(-26px);opacity:0}to{transform:none;opacity:1}}
-/* Kitchen book photos: show the whole picture in a square, with a soft blurred fill behind tall or wide shots */
+/* Recipes photos: show the whole picture in a square, with a soft blurred fill behind tall or wide shots */
 .kb-imgwrap{position:relative;aspect-ratio:1/1;overflow:hidden;background:var(--field);isolation:isolate}
 .kb-imgwrap::before{content:"";position:absolute;top:-24px;right:-24px;bottom:-24px;left:-24px;background:var(--bg) center/cover no-repeat;filter:blur(20px) saturate(1.1) brightness(.88);z-index:-1}
 .kb-card .kb-imgwrap img{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;aspect-ratio:auto;object-fit:contain;display:block;background:transparent}
@@ -1698,7 +1698,7 @@ function demoRestaurant(){
     { id: uid("d"), kind:"order", source:"EDI", supplier:"Sysco", number:"PO-88213", date: today(), eta:"Tomorrow", status:"open", lines:[{ code:"4172003", desc:"EGG SHELL LRG GRADE AA", qty:2, price:46.5 },{ code:"3015521", desc:"POTATO FRY 3/8 STRT", qty:3, price:51.9 }] },
     { id: uid("d"), kind:"invoice", source:"Photo", supplier:"Local Bakery", number:"1042", date: today(), status:"new", lines:[{ code:"", desc:"Hamburger buns 4 dz", qty:1, price:19.5 },{ code:"", desc:"White sandwich bread", qty:2, price:28 }] },
   ];
-  // Sample recipe cards for the Kitchen book.
+  // Sample recipe cards for Recipes.
   const CARDS = {
     "Two Egg Breakfast": { prepMin:2, cookMin:6, station:"Breakfast", steps:["Crack 2 eggs onto a buttered flat top and cook to order","Drop hash browns on the flat top, press flat, flip when golden","Toast 2 slices; butter while hot","Plate eggs at 6 o'clock, hash browns at 12, toast on the side"], plating:"Oval plate. Eggs front, hash browns back, toast cut on the diagonal.", allergens:["Eggs","Milk","Wheat"] },
     "Pancake Stack": { prepMin:1, cookMin:5, station:"Breakfast", steps:["Ladle three 4 oz pours of batter onto a 350\u00b0F flat top","Flip when bubbles pop and edges set, about 2 minutes","Cook 1 to 2 minutes more until springy","Stack three, top with a butter pat, syrup on the side"], plating:"Round plate, stack centered, warm syrup in a ramekin.", allergens:["Wheat","Milk","Eggs"] },
@@ -2095,7 +2095,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Cleaner test kitchen";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Recipes";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2172,7 +2172,7 @@ const isPhone = () => window.matchMedia("(max-width: 700px)").matches;
 const isNarrow = () => window.matchMedia("(max-width: 900px)").matches;
 // Redraw when crossing the phone/desktop line (rotation, resizing a window).
 ["(max-width: 700px)", "(max-width: 900px)"].forEach(q => { const mq = window.matchMedia(q); const fn = () => { if (typeof ST !== "undefined" && ST) render(); }; mq.addEventListener ? mq.addEventListener("change", fn) : mq.addListener(fn); });
-const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & recipes"],["book","Kitchen book"],["lab","Test kitchen"],["purch","Ordering"],["sched","Schedule"],["events","Events"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Settings & team"]];
+const PAGES = [["home","Home"],["coach","Profit coach"],["menu","Menu & costs"],["book","Recipes"],["lab","Test kitchen"],["purch","Ordering"],["sched","Schedule"],["events","Events"],["supplies","Supplies"],["inbox","Invoices & orders"],["suppliers","Suppliers"],["brand","Settings & team"]];
 const NAV_ICONS = {
   home:'<path d="M3 10.5 12 4l9 6.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/>',
   coach:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V17h5v-1.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3z"/>',
@@ -2204,7 +2204,7 @@ function renderNav(){
   // Phone tab bar: the five pages used most, plus More.
   const tbar = $("tabbar");
   if (tbar){
-    const MAIN = locked ? [["home","Home"],["book","Book"],["lab","Test"],["sched","Schedule"],["events","Events"]] : ACCT && ACCT.role === "member" ? [["book","Book"],["home","Home"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]] : [["home","Home"],["coach","Coach"],["menu","Menu"],["inbox","Invoices"]];
+    const MAIN = locked ? [["home","Home"],["book","Recipes"],["lab","Test"],["sched","Schedule"],["events","Events"]] : ACCT && ACCT.role === "member" ? [["book","Recipes"],["home","Home"],["menu","Menu"],["supplies","Supplies"],["inbox","Invoices"]] : [["home","Home"],["coach","Coach"],["menu","Menu"],["inbox","Invoices"]];
     const moreIc = document.createElement("span"); moreIc.className = "ic"; moreIc.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>';
     const onMore = !MAIN.some(([id]) => id === ST.page);
     if (gated){ tbar.replaceChildren(); }
@@ -2254,7 +2254,7 @@ function pageHeader(m){
 
 
 /* ================= Manager PIN lock: staff mode on shared devices, manager mode with a PIN ================= */
-// Staff mode shows the Kitchen book, Schedule (with checklists) and Events. Everything else needs a manager's PIN.
+// Staff mode shows Recipes, Schedule (with checklists) and Events. Everything else needs a manager's PIN.
 // This is a lock for shared devices; separate logins (Member role) are the real separation.
 const STAFF_PAGES = ["book","lab","sched","events"];
 let UNLOCK = (() => { try { return JSON.parse(sessionStorage.getItem("pm-unlock") || "null"); } catch(e){ return null; } })();
@@ -2272,7 +2272,7 @@ function setViewAsStaff(on){
 async function openStaffPhoneApp(){
   const w = window.open("about:blank", "_blank");
   const { data, error } = await sb.rpc("book_share_status", { p_account: ACCT.id });
-  if (error || !data || !data.on || !data.token){ if (w) w.close(); return toast("Turn on the tablet link first: Kitchen book \u2192 Tablet link."); }
+  if (error || !data || !data.on || !data.token){ if (w) w.close(); return toast("Turn on the tablet link first: Recipes \u2192 Tablet link."); }
   const url = location.origin + "/tablet/" + data.token; if (w) w.location = url; else location.href = url;
 }
 function pinLocked(){
@@ -2403,7 +2403,7 @@ function staffHome(m){
     onclick: async () => { await sb.rpc("board_clear", { p_account: ACCT.id, p_id: b.id, p_by: first || myFirst() }); toast(b.name + " is back on."); loadBoardApp(true); }}, b.name, el("span",{text:" \u00d7"})))));
   if (lows.length) m.append(el("div",{class:"sx-low"}, el("b",{text:"Running low"}), lows.map(b => el("span",{text: b.name}))));
   const big = (cls, icon, title, sub, fn) => { const b = el("button",{class:"sx-big " + cls, type:"button", onclick: fn}), i = el("span",{class:"sx-big-i"}); i.innerHTML = icon; b.append(i, el("span",{class:"sx-big-t"}, el("b",{text:title}), el("span",{text:sub}))); return b; };
-  m.append(el("div",{class:"sx-tools"}, [["book","Kitchen book","Recipe cards","t1"],["lab","Test kitchen","Try something new","t2"],["sched","Schedule","Shifts & requests","t3"],["events","Events","What's coming up","t4"]].map(([pg, a, b2, c]) =>
+  m.append(el("div",{class:"sx-tools"}, [["book","Recipes","Recipe cards","t1"],["lab","Test kitchen","Try something new","t2"],["sched","Schedule","Shifts & requests","t3"],["events","Events","What's coming up","t4"]].map(([pg, a, b2, c]) =>
     el("button",{class:"sx-tool " + c, type:"button", onclick:() => { if (pg === "sched") SCV.tab = "week"; go(pg); }}, el("span",{class:"sx-tool-i"}, navIcon(pg)), el("b",{text:a}), el("span",{text:b2}))),
     el("button",{class:"sx-tool t5", type:"button", onclick:() => { SCV.tab = "lists"; SCV.logDay = t; go("sched"); }}, el("span",{class:"sx-tool-i", text:"\u2705"}), el("b",{text:"Checklists"}), el("span",{text:"Today's duties"})),
     (() => { const b = el("button",{class:"sx-tool t6", type:"button", onclick:() => staffBoardPick("low")}), i = el("span",{class:"sx-tool-i"}); i.innerHTML = SX_ICON.low; b.append(i, el("b",{text:"Running low"}), el("span",{text: lows.length ? lows.length + " reported" : "Warn a manager"})); return b; })()));
@@ -2479,7 +2479,7 @@ function openPinDialog(existing, preset){
   const name = el("input",{class:"inp", value: existing ? existing.name : (preset && preset.name) || (USER && USER.email ? USER.email.split("@")[0] : ""), placeholder:"Name"});
   const a = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"4", placeholder:"4 digits"}), b = el("input",{class:"inp", type:"password", inputmode:"numeric", maxlength:"4", placeholder:"Same again"});
   const msg = el("div");
-  const role = el("select",{class:"inp"}, el("option",{value:"staff", text:"Staff: Kitchen book, Test kitchen, Schedule, Events"}), el("option",{value:"manager", text:"Manager: everything"}));
+  const role = el("select",{class:"inp"}, el("option",{value:"staff", text:"Staff: Recipes, Test kitchen, Schedule, Events"}), el("option",{value:"manager", text:"Manager: everything"}));
   role.value = existing ? (existing.role || "manager") : (preset && preset.role) || (preset && preset.userId ? "manager" : "staff");
   if (ACCT.role !== "owner" && !(existing && existing.role === "staff")) role.disabled = true;
   openDlg(existing ? "Change PIN for " + existing.name : "Set a PIN" + (preset && preset.email ? " for " + preset.email : preset && preset.name ? " for " + preset.name : ""),
@@ -2512,7 +2512,7 @@ function sendAppLink(x){
   const say = (k, t) => out.replaceChildren(el("div",{class:"msg " + k, text:t}));
   const make = async () => { if (link) return link;
     const { data, error } = await sb.rpc("staff_invite_create", { p_account: ACCT.id, p_staff_key: key, p_name: x.name });
-    if (error){ const m = /tablet link/i.test(error.message || "") ? "Turn on the tablet link first: Kitchen book \u2192 Tablet link \u2192 Create tablet link." : /function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "One-time setup: run supabase/016_staff_links.sql in Supabase." : plainErr(error); say("bad", m); return null; }
+    if (error){ const m = /tablet link/i.test(error.message || "") ? "Turn on the tablet link first: Recipes \u2192 Tablet link \u2192 Create tablet link." : /function|PGRST202|schema cache/i.test((error.code || "") + (error.message || "")) ? "One-time setup: run supabase/016_staff_links.sql in Supabase." : plainErr(error); say("bad", m); return null; }
     link = data; return link; };
   const url = t => location.origin + "/join/" + t;
   const msgText = t => "Hi " + first + "! Here's your " + ((ST.brand && ST.brand.product) || "staff app") + ": " + url(t) + " Open it, pick a 4-digit PIN, then add it to your home screen.";
@@ -2665,7 +2665,7 @@ function openMore(){
   openDlg("Everything", [
     el("button",{class:"m-search", type:"button", onclick:() => { dlg.close(); cmdkOpen(); }}, el("span",{text:"\ud83d\udd0d"}), "Search dishes, supplies, suppliers\u2026"),
     el("div",{class:"mt-grid"},
-      tile("book","Kitchen book","Recipe cards","c1"), tile("lab","Test kitchen","Idea to menu","c2"), tile("sched","Schedule","Shifts & duties","c3"),
+      tile("book","Recipes","Recipe cards","c1"), tile("lab","Test kitchen","Idea to menu","c2"), tile("sched","Schedule","Shifts & duties","c3"),
       tile("events","Events","Bookings & promos","c4"), tile("supplies","Supplies","Prices & stock","c5"), tile("purch","Ordering","What to order","c6"),
       tile("suppliers","Suppliers","Vendors & reps","c7"), tile("coach","Profit coach","What to fix","c8"), tile("brand","Settings","Team & targets","c9")),
     el("div",{class:"ma-row"},
@@ -2792,7 +2792,7 @@ function todoCell(it, s2, r){
 }
 function menu(m){
   const r = R(), eng = engineering();
-  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Menu & recipes"}), el("p",{class:"lead", text:"Tap an item to edit its recipe. Costs update when supplier prices change."})),
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Menu & costs"}), el("p",{class:"lead", text:"Tap an item to edit its recipe. Costs update when supplier prices change."})),
     true ? el("div",{class:"row"}, el("button",{class:"btn quiet", text:"More \u25be", onclick:() => openDlg("More", [el("div",{class:"more-list"},
         el("button",{class:"more-row", type:"button", onclick:() => { dlg.close(); MV.detail = !MV.detail; render(); }}, el("b",{text: MV.detail ? "Fewer columns" : "More detail"}), el("span",{text: MV.detail ? "Back to the simple view" : "Plate cost, sold per week and menu class"})),
         el("button",{class:"more-row", type:"button", onclick:() => { dlg.close(); openCategories(); }}, el("b",{text:"Manage categories"}), el("span",{text:"Rename, reorder or merge menu sections"})),
@@ -3025,7 +3025,7 @@ function quickActions(r){
     el("span",{class:"qa-ic"}, navIcon(icon)), el("span",{class:"qa-l", text:label}), opts.badge ? el("span",{class:"qa-badge", text:opts.badge}) : null);
   const snap = () => { openUpload(); setTimeout(() => { const f = document.querySelector('#dlg-b input[type=file]'); if (f && isPhone()){ f.setAttribute("capture", "environment"); f.setAttribute("accept", "image/*"); } }, 50); };
   const list = cook ? [
-      btn("book", "Kitchen book", () => go("book"), { primary:true }),
+      btn("book", "Recipes", () => go("book"), { primary:true }),
       btn("camera", "Snap an invoice", snap),
       btn("print", "Print cards", () => { go("book"); openPrintCards(); }),
       btn("search", "Search", () => cmdkOpen())
@@ -3049,7 +3049,7 @@ function bigButtons(r, ins){
   const section = (title, tiles) => el("section",{class:"bb-sec", "aria-label":title}, el("h2",{text:title}), el("div",{class:"bb-grid"}, tiles.filter(Boolean)));
   const out = el("div",{class:"bb-wrap"},
     section("Kitchen", [
-      tile("book", "Kitchen book", "Recipe cards, photos and steps", () => go("book"), { primary: cook }),
+      tile("book", "Recipes", "Recipe cards, photos and steps", () => go("book"), { primary: cook }),
       tile("print", "Print cards", noCard ? noCard + " dishes still need steps" : "Binder, station or 4\u00d76 cards", () => { go("book"); openPrintCards(); }),
       tile("search", "Search", "Any dish, supply or supplier", () => cmdkOpen())
     ]),
@@ -3062,12 +3062,12 @@ function bigButtons(r, ins){
     ]),
     cook ? null : section("Menu & profit", [
       tile("coach", "Profit coach", fixes ? fixes + " prices to fix" : "What to fix first", () => go("coach"), { badge: fixes || 0 }),
-      tile("menu", "Menu & recipes", "Prices, costs and recipes", () => go("menu")),
+      tile("menu", "Menu & costs", "Prices, costs and recipes", () => go("menu")),
       tile("sales", "Import sales", r.salesImported ? "Last: " + nice(r.salesImported.to) : "From Clover, Toast or Square", () => openSalesImport())
     ]));
   return out;
 }
-/* ================= Kitchen book: recipe cards for the line ================= */
+/* ================= Recipes: recipe cards for the line ================= */
 const ALLERGENS = ["Milk","Eggs","Fish","Shellfish","Tree nuts","Peanuts","Wheat","Soy","Sesame"];
 const STATIONS = ["Grill","Flat top","Fryer","Sauté","Oven","Prep","Cold / salad","Breakfast","Bar","Expo"];
 // Photos are stored separately (see supabase/002_recipe_photos.sql) and cached here per kitchen.
@@ -3185,8 +3185,8 @@ function openWhatsNew(){
 }
 function book(m){
   const r = R(); loadPhotos();
-  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Kitchen book"}), el("p",{class:"lead", text:"Recipe cards for the line: what it looks like, what goes on it, and how to make it."})),
-    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Tablet link", title:"A no-login Kitchen book for a tablet at the bar or on the line", onclick:() => openTabletLink()}), el("button",{class:"btn quiet", text:"Import recipes", title:"Add drinks or dishes from a recipe pack file", onclick:() => pickRecipePack()}), el("button",{class:"btn quiet", text:"Photos from website", onclick:() => openSitePhotos()}), el("button",{class:"btn quiet", text:"Create AI images", onclick:() => openAIImages()}), el("button",{class:"btn primary", text:"Print cards", onclick:() => openPrintCards()}))));
+  m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Recipes"}), el("p",{class:"lead", text:"Recipe cards for the line: what it looks like, what goes on it, and how to make it."})),
+    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Tablet link", title:"A no-login Recipes for a tablet at the bar or on the line", onclick:() => openTabletLink()}), el("button",{class:"btn quiet", text:"Import recipes", title:"Add drinks or dishes from a recipe pack file", onclick:() => pickRecipePack()}), el("button",{class:"btn quiet", text:"Photos from website", onclick:() => openSitePhotos()}), el("button",{class:"btn quiet", text:"Create AI images", onclick:() => openAIImages()}), el("button",{class:"btn primary", text:"Print cards", onclick:() => openPrintCards()}))));
   if (!PHOTOS_READY) m.append(el("div",{class:"card banner"}, el("div",null, el("b",{text:"Photos need a one-time setup."}), " Whoever manages the app runs supabase/002_recipe_photos.sql in Supabase (SQL Editor). Recipe cards work without it; only photos wait."),
     el("button",{class:"btn quiet", text:"Check again", onclick:() => { PHOTOS_READY = true; loadPhotos(true); }})));
   { const ts = todayStrip(r); if (ts){ ts.style.margin = "4px 0 14px"; m.append(ts); } }
@@ -3199,10 +3199,10 @@ function book(m){
         el("button",{class:"btn quiet sm", type:"button", text:"What's new", onclick: openWhatsNew}))));
   }
   const all = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
-  if (!all.length){ m.append(el("div",{class:"card empty", text:"No menu items yet. Add recipes on Menu & recipes and they appear here as cards."})); return; }
+  if (!all.length){ m.append(el("div",{class:"card empty", text:"No menu items yet. Add recipes on Menu & costs and they appear here as cards."})); return; }
   const order = sectionOrder(r).filter(c => all.some(it => (it.section || "Menu") === c));
   if (BKV.cat !== "all" && !order.includes(BKV.cat)) BKV.cat = "all";
-  const search = el("input",{class:"search", type:"search", placeholder:"Search dishes, ingredients or stations", "aria-label":"Search the kitchen book"}); search.value = BKV.q;
+  const search = el("input",{class:"search", type:"search", placeholder:"Search dishes, ingredients or stations", "aria-label":"Search recipes"}); search.value = BKV.q;
   search.oninput = () => { BKV.q = search.value; const pos = search.selectionStart; render(); const s2 = document.querySelector("main .search"); if (s2){ s2.focus(); try { s2.setSelectionRange(pos, pos); } catch(e){} } };
   const chip = (key, label, count) => el("button",{class:"chip", "aria-pressed": String(BKV.cat === key), onclick:() => { BKV.cat = key; render(); }}, label, el("span",{class:"ct", text:count}));
   const withCards = all.filter(it => (cardOf(it).steps || []).length).length;
@@ -3294,7 +3294,7 @@ function openCardEdit(id, focusPhoto){
     el("div",{class:"row", style:"justify-content:space-between;align-items:center;margin-top:6px"}, el("b",{text:"Steps"}), aiBtn), steps,
     fld("Plating", plating), el("div",{class:"field"}, el("span",{class:"q", text:"Allergens"}), al),
     fld("Notes", notes),
-    el("p",{class:"mini", text:"Ingredients and amounts come from the recipe on Menu & recipes, so the card and the costing always match."})
+    el("p",{class:"mini", text:"Ingredients and amounts come from the recipe on Menu & costs, so the card and the costing always match."})
   ], [el("button",{class:"btn quiet", text:"Back", onclick:() => openCard(id)}), el("button",{class:"btn primary", text:"Save card", onclick:() => {
     c.steps = steps.value.split("\n").map(t => t.replace(/^\s*(\d+[.)]|[-\u2022*])\s*/, "").trim()).filter(Boolean);
     c.plating = plating.value.trim(); c.notes = notes.value.trim();
@@ -3839,7 +3839,7 @@ function labPrepare(d, r){
     servings: Math.max(1, Math.round(n(d.servings) || 1)), lines, est,
     card: { prepMin: n(d.prepMin), cookMin: n(d.cookMin), station: String(d.station || (kind === "food" ? "" : "Bar")), steps: (d.steps || []).map(String).slice(0, 14), plating: String(d.plating || ""), notes: String(d.notes || ""), allergens: ALLERGENS.filter(a => (d.allergens || []).includes(a)), yieldText: "" } };
 }
-// A sample photo of the idea, from the same AI image service as the Kitchen book.
+// A sample photo of the idea, from the same AI image service as Recipes.
 async function labPhoto(dr){
   if (!dr || dr.photoBusy) return;
   dr.photoBusy = true; dr.photoErr = null; if (LAB.draft === dr) render();
@@ -3962,7 +3962,7 @@ function putOnMenu(idea, r){
   const tell = el("input",{type:"checkbox"}); tell.checked = true; const why = el("input",{class:"inp", value:"New on the menu. Check the card for how to make it."});
   openDlg("Put " + dr.name + " on the menu", [el("div",{class:"g2"}, fld("Menu section", sec), fld("Price ($)", price)), el("datalist",{id:"pm-secs"}, sectionOrder(r).map(c => el("option",{value:c}))),
       el("label",{class:"row", style:"gap:8px;font-weight:600;margin:6px 0"}, tell, "Tell the team (What's new on the tablet and phones)"), fld("Message to the team", why),
-      el("p",{class:"mini", text:"Its recipe card goes in the Kitchen book right away."})],
+      el("p",{class:"mini", text:"Its recipe card goes in Recipes right away."})],
     [el("span"), el("button",{class:"btn primary", text:"Put it on the menu", onclick:() => { const ph = PHOTOS.get("idea_" + idea.id); if (ph) dr.photo = ph;
       const it = addDraftToMenu(dr, r, { section: sec.value.trim() || dr.section || "Specials", price: price.value, announce: tell.checked, why: why.value.trim() });
       dlg.close(); render(); toast(it.name + " is on the menu" + (tell.checked ? " and the team's been told" : "") + "."); }})]);
@@ -4250,7 +4250,7 @@ function reviewRecipePack(pk){
   ], [el("span"), go2]);
 }
 
-/* ================= Tablet link: the Kitchen book without logging in (cards only, no costs) ================= */
+/* ================= Tablet link: Recipes without logging in (cards only, no costs) ================= */
 // What the tablet gets: names, photos, ingredients and amounts, steps, plating, notes, allergens. Never prices, costs or suppliers.
 const loadScript = src => new Promise((res, rej) => { if (document.querySelector('script[src="' + src + '"]')) return res(); const sc = document.createElement("script"); sc.src = src; sc.onload = res; sc.onerror = rej; document.head.append(sc); });
 function bookSnapshot(r){
@@ -4285,7 +4285,7 @@ function bookSnapshot(r){
   ideaCards.forEach(c => items.push(c));
   const changes = (r.changes || []).filter(c => Date.now() - Date.parse(c.at) < 21 * 864e5).map(c => ({ id: c.id, at: c.at, itemId: c.itemId && items.some(i => i.id === c.itemId) ? c.itemId : null, title: c.title, why: c.why || "", diffs: c.diffs || [], kind: c.kind }));
   return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, plans, changes, kudos: kudosNow(r).map(k => ({ at: k.at, text: k.text, by: k.by, toName: k.toName })), specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
-    brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Kitchen book" } };
+    brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Recipes" } };
 }
 let BOOK_T = null;
 function bookSyncSoon(){ const r = R(); if (!r || !r.tabletLink) return; clearTimeout(BOOK_T); BOOK_T = setTimeout(bookSync, 4000); }
@@ -4309,7 +4309,7 @@ async function openTabletLink(){
     r.tabletLink = true; save(); openTabletLink(); };
   if (!data.on){
     body.replaceChildren(
-      el("p",{class:"lead", text:"A private web address that opens your Kitchen book on a tablet at the bar or on the line, with no login."}),
+      el("p",{class:"lead", text:"A private web address that opens your Recipes on a tablet at the bar or on the line, with no login."}),
       el("ul",{class:"tl-list"},
         el("li",null, el("b",{text:"Cards only: "}), "photos, ingredients and amounts, steps, plating, allergens and notes. No prices, costs or suppliers, and nothing can be changed from the tablet."),
         el("li",null, el("b",{text:"Always current: "}), "edits you make here show up on the tablet within a few minutes."),
@@ -6332,7 +6332,7 @@ async function drawTeam(box){
   const parts = [el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Person"}), el("th",{text:"Role"}), el("th",{text:""}))), el("tbody",null, rows)))];
   if (canInvite){
     const em = el("input",{class:"inp", type:"email", autocapitalize:"none", autocorrect:"off", spellcheck:"false", placeholder:"cook@example.com"});
-    const rl = el("select",{class:"inp"}, el("option",{value:"staff", text:"Staff: Kitchen book, Test kitchen, Schedule and Events"}), el("option",{value:"manager", text:"Manager: everything, including the schedule and inviting people"}));
+    const rl = el("select",{class:"inp"}, el("option",{value:"staff", text:"Staff: Recipes, Test kitchen, Schedule and Events"}), el("option",{value:"manager", text:"Manager: everything, including the schedule and inviting people"}));
     const msg = el("div");
     const go2 = async () => {
       const { error } = await sb.rpc("invite_member", { p_account: ACCT.id, p_email: em.value.trim().toLowerCase(), p_role: rl.value });
@@ -8231,7 +8231,7 @@ function reviewSales(lines, from, to, fromFile, fileName, opts = {}){
       tops.length ? el("p",{style:"margin:12px 0 4px;font-weight:600", text:"Best sellers"}) : null,
       tops.length ? el("div",{class:"tw"}, el("table",null, el("thead",null, el("tr",null, el("th",{text:"Item"}), el("th",{class:"num", text:"Per " + r.period}))),
         el("tbody",null, tops.map(x => el("tr",{style:"cursor:default"}, el("td",{text:x.it.name}), el("td",{class:"num", text:n(x.it.sold)})))))) : null,
-      el("p",{class:"mini", text:"Fix any match later from Menu & recipes \u2192 Register matches. Your matches are remembered for next month's report."})
+      el("p",{class:"mini", text:"Fix any match later from Menu & costs \u2192 Register matches. Your matches are remembered for next month's report."})
     ], [el("button",{class:"btn quiet", text:"See my menu", onclick:() => { dlg.close(); go("menu"); }}), el("button",{class:"btn primary", text:"Open the coach", onclick:() => { dlg.close(); go("coach"); }})]);
   };
   drawRows(); paint();

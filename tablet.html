@@ -7,10 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#24221F">
-<title>Fox Den Kitchen book</title>
+<title>Fox Den Staff App</title>
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="apple-mobile-web-app-title" content="Kitchen book">
+<meta name="apple-mobile-web-app-title" content="Fox Den">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Atkinson+Hyperlegible+Next:wght@400;600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
@@ -412,7 +412,7 @@ html, body{max-width:100%;overflow-x:hidden}
 </head>
 <body>
 <header class="top">
-  <div><h1 id="kname">Kitchen book</h1><div class="sub">Kitchen tablet</div></div>
+  <div><h1 id="kname">Staff app</h1><div class="sub">Kitchen tablet</div></div>
 <nav class="tabs" aria-label="Sections"><button id="nav-home" type="button"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg><span>Home</span></button><button id="nav-rec" type="button"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h11a3 3 0 013 3v13H8a3 3 0 01-3-3z"/><path d="M5 17a3 3 0 013-3h11"/></svg><span>Recipes</span></button><button id="nav-sched" type="button"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span>Schedule</span></button><button id="nav-duty" type="button"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 12l3 3 5-6"/></svg><span>Duties</span></button><button id="nav-ev" type="button" hidden>Events</button></nav>
   <div class="grow"></div>
   <input id="q" class="search" type="search" placeholder="Search drinks and dishes" aria-label="Search" autocomplete="off">
@@ -420,7 +420,7 @@ html, body{max-width:100%;overflow-x:hidden}
   <button id="wake" class="tbtn" type="button" aria-pressed="false">Keep screen on</button>
   <button id="me" class="tbtn" type="button" hidden></button>
 </header>
-<main id="main"><div class="msg">Loading the Kitchen book…</div></main>
+<main id="main"><div class="msg">Loading…</div></main>
 <script src="/config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js"></script>
 <script>
@@ -627,7 +627,7 @@ html, body{max-width:100%;overflow-x:hidden}
       h("p", { class:"pcv-w", text: [ev.dayLabel, ev.time ? t12(ev.time) : "", g ? g + " guests" : "", ev.where ? "@ " + ev.where : ""].filter(Boolean).join("  |  ") }),
       ev.desc ? h("p", { class:"pcv-n", text: ev.desc }) : null,
       h("h2", { class:"pcv-h", text:"Menu" }), h("ol", { class:"pcv-menu" }, (ev.menu || []).map(x => h("li", null, x.name, h("b", { text: x.perGuest && !g ? x.qty + " per guest" : String(x.count) })))),
-      h("footer", { text: "Recipe cards follow in this order.  |  " + (BOOK.name || "Kitchen book") + "  |  printed " + new Date().toLocaleDateString() })) : null;
+      h("footer", { text: "Recipe cards follow in this order.  |  " + (BOOK.name || "Staff app") + "  |  printed " + new Date().toLocaleDateString() })) : null;
     area.replaceChildren(...(cover ? [cover] : []), ...list.map(it => { const c = it.card || {}, url = PH.get(it.id), total = (c.prepMin || 0) + (c.cookMin || 0);
       const facts = [it.section, c.station, c.prepMin ? "Prep " + mins(c.prepMin) : "", c.cookMin ? (it.bar ? "Build " : "Cook ") + mins(c.cookMin) : "", total ? "Total " + mins(total) : "", c.yieldText ? "Makes " + c.yieldText : ""].filter(Boolean);
       return h("article", { class:"pcard" },
@@ -638,7 +638,7 @@ html, body{max-width:100%;overflow-x:hidden}
           h("section", null, h("h2", { text: it.bar ? "Build" : "Steps" }), (c.steps || []).length ? h("ol", null, c.steps.map(s => h("li", { text: s }))) : h("p", { text:"No steps written yet." }),
             c.plating ? h("div", null, h("h2", { text: it.bar ? "Glass and garnish" : "Plating" }), h("p", { text: c.plating })) : null,
             c.notes ? h("div", null, h("h2", { text:"Notes" }), h("p", { text: c.notes })) : null)),
-        h("footer", { text: (BOOK.name || "Kitchen book") + "  |  printed " + new Date().toLocaleDateString() })); }));
+        h("footer", { text: (BOOK.name || "Staff app") + "  |  printed " + new Date().toLocaleDateString() })); }));
     const imgs = [...area.querySelectorAll("img")].filter(i => !i.complete);
     Promise.all(imgs.map(i => new Promise(res => { i.onload = i.onerror = res; }))).then(() => setTimeout(() => window.print(), 60));
   }
@@ -1100,13 +1100,13 @@ html, body{max-width:100%;overflow-x:hidden}
   }
   function render(){
     const m = $("main"); if (!BOOK) return; markNav();
-    if (!location.hash || location.hash === "#"){ $("kname").textContent = BOOK.name || "Kitchen book"; homeView(m); return; }
-    if (location.hash === "#sched"){ $("kname").textContent = BOOK.name || "Kitchen book"; schedView(m); return; }
-    if (location.hash === "#duties"){ $("kname").textContent = BOOK.name || "Kitchen book"; dutiesView(m); return; }
-    if (location.hash === "#events"){ $("kname").textContent = BOOK.name || "Kitchen book"; eventsView(m); return; }
-    if (location.hash === "#new"){ $("kname").textContent = BOOK.name || "Kitchen book"; whatsNewView(m); return; }
-    if (location.hash === "#build"){ $("kname").textContent = BOOK.name || "Kitchen book"; buildView(m); return; }
-    $("kname").textContent = BOOK.name || "Kitchen book"; document.title = (BOOK.name || "Kitchen") + " book";
+    if (!location.hash || location.hash === "#"){ $("kname").textContent = BOOK.name || "Staff app"; homeView(m); return; }
+    if (location.hash === "#sched"){ $("kname").textContent = BOOK.name || "Staff app"; schedView(m); return; }
+    if (location.hash === "#duties"){ $("kname").textContent = BOOK.name || "Staff app"; dutiesView(m); return; }
+    if (location.hash === "#events"){ $("kname").textContent = BOOK.name || "Staff app"; eventsView(m); return; }
+    if (location.hash === "#new"){ $("kname").textContent = BOOK.name || "Staff app"; whatsNewView(m); return; }
+    if (location.hash === "#build"){ $("kname").textContent = BOOK.name || "Staff app"; buildView(m); return; }
+    $("kname").textContent = BOOK.name || "Staff app"; document.title = (BOOK.name || "Staff") + " app";
     const v = view(), secs = sections();
     if (v.card){
       const it = BOOK.items.find(x => x.id === v.card);
@@ -1156,16 +1156,16 @@ html, body{max-width:100%;overflow-x:hidden}
   function savePhotos(){ try { localStorage.setItem(CACHE + "-ph", JSON.stringify([...PH.entries()].slice(-80))); } catch(e){} }
 
   async function load(first){
-    if (!token){ $("main").replaceChildren(h("div", { class:"msg", text:"This tablet link is missing its code. Open the full link from the app (Kitchen book \u2192 Tablet link)." })); return; }
+    if (!token){ $("main").replaceChildren(h("div", { class:"msg", text:"This tablet link is missing its code. Open the full link from the app (Recipes \u2192 Tablet link)." })); return; }
     try {
       if (!sb) throw new Error("offline");
       const { data, error } = await sb.rpc("book_public", { p_token: token });
       if (error) throw error;
-      if (!data){ localStorage.removeItem(CACHE); $("main").replaceChildren(h("div", { class:"msg", text:"This tablet link isn't active anymore. Ask a manager for the new link (Kitchen book \u2192 Tablet link in the app)." })); return; }
+      if (!data){ localStorage.removeItem(CACHE); $("main").replaceChildren(h("div", { class:"msg", text:"This tablet link isn't active anymore. Ask a manager for the new link (Recipes \u2192 Tablet link in the app)." })); return; }
       if (first || data.updated_at !== UPDATED){ BOOK = data.book; UPDATED = data.updated_at; try { localStorage.setItem(CACHE, JSON.stringify({ book: BOOK, updated_at: UPDATED })); } catch(e){} render(); }
     } catch(e){
       if (first){ try { const c = JSON.parse(localStorage.getItem(CACHE) || "null"); if (c){ BOOK = c.book; UPDATED = c.updated_at; render(); return; } } catch(x){}
-        $("main").replaceChildren(h("div", { class:"msg", text:"Couldn't reach the Kitchen book. Check the Wi-Fi; it will try again automatically." })); }
+        $("main").replaceChildren(h("div", { class:"msg", text:"Couldn't load the staff app. Check the Wi-Fi; it will try again automatically." })); }
     }
   }
   try { JSON.parse(localStorage.getItem(CACHE + "-ph") || "[]").forEach(([k, v]) => PH.set(k, v)); } catch(e){}
