@@ -1600,6 +1600,18 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .ma-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px}
 .ma{display:grid;justify-items:center;gap:4px;padding:10px 4px;border-radius:14px;border:1px solid var(--line);background:var(--panel);font:inherit;color:var(--ink);cursor:pointer} .ma-i{font-size:1.4rem} .ma b{font-size:.78rem;text-align:center}
 @media (max-width:380px){ .mt-grid{grid-template-columns:repeat(2,1fr)} .ma-row{grid-template-columns:repeat(2,1fr)} }
+/* Recipes: compact controls and cards without photos */
+.bk-filters .row{gap:10px} .bk-filters .search{flex:1}
+.bk-row2{margin-top:10px;flex-wrap:wrap} .bk-row2 select{width:auto;min-width:200px;min-height:44px}
+.bk-side{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel)}
+.bk-side button{min-height:44px;padding:0 18px;border:0;background:transparent;font:inherit;font-weight:700;color:var(--ink);cursor:pointer}
+.bk-side button[aria-pressed="true"]{background:var(--char, #24221F);color:#fff}
+.kb-card.nophoto{display:flex !important;flex-direction:row !important;align-items:center;gap:12px;padding:12px 14px !important;min-height:0 !important;height:auto !important;text-align:left}
+.kb-card.nophoto .kb-body{padding:0 !important;flex:1;min-width:0;border:0 !important;background:none !important} .kb-card.nophoto .kb-body b{display:block}
+.kb-grid:has(.nophoto){grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+@media (max-width:640px){ .bk-filters .bk-row2{display:grid !important;grid-template-columns:1fr !important;gap:8px} .bk-filters .bk-side{display:flex !important;width:100%} .bk-side button{flex:1 1 0} .bk-filters .bk-row2 select{width:100% !important;min-width:0} }
+.kb-ini{display:grid;place-items:center;flex:none;width:52px;height:52px;border-radius:14px;font-weight:800;font-size:1.1rem;color:#fff}
+.kb-ini.food{background:#1F6F5C} .kb-ini.bar{background:#B8352A}
 </style>
 </head>
 <body>
@@ -2095,7 +2107,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Recipes";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Tidier recipes page";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -3186,13 +3198,20 @@ function openWhatsNew(){
 function book(m){
   const r = R(); loadPhotos();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Recipes"}), el("p",{class:"lead", text:"Recipe cards for the line: what it looks like, what goes on it, and how to make it."})),
-    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Tablet link", title:"A no-login Recipes for a tablet at the bar or on the line", onclick:() => openTabletLink()}), el("button",{class:"btn quiet", text:"Import recipes", title:"Add drinks or dishes from a recipe pack file", onclick:() => pickRecipePack()}), el("button",{class:"btn quiet", text:"Photos from website", onclick:() => openSitePhotos()}), el("button",{class:"btn quiet", text:"Create AI images", onclick:() => openAIImages()}), el("button",{class:"btn primary", text:"Print cards", onclick:() => openPrintCards()}))));
+    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"More \u25be", onclick:() => {
+        const row = (label, sub, fn) => el("button",{class:"more-row", type:"button", onclick:() => { dlg.close(); fn(); }}, el("b",{text:label}), el("span",{text:sub}));
+        openDlg("Recipes", [el("div",{class:"more-list"},
+          row("Tablet link", "Recipes and the schedule on a tablet or staff phones, no login", () => openTabletLink()),
+          row("Import recipes", "Add drinks or dishes from a recipe pack file", () => pickRecipePack()),
+          row("Photos from website", "Pull dish photos from your website", () => openSitePhotos()),
+          row("Create AI images", "Sample photos for cards that don't have one", () => openAIImages()))], []); }}),
+      el("button",{class:"btn primary", text:"Print cards", onclick:() => openPrintCards()}))));
   if (!PHOTOS_READY) m.append(el("div",{class:"card banner"}, el("div",null, el("b",{text:"Photos need a one-time setup."}), " Whoever manages the app runs supabase/002_recipe_photos.sql in Supabase (SQL Editor). Recipe cards work without it; only photos wait."),
     el("button",{class:"btn quiet", text:"Check again", onclick:() => { PHOTOS_READY = true; loadPhotos(true); }})));
   { const ts = todayStrip(r); if (ts){ ts.style.margin = "4px 0 14px"; m.append(ts); } }
   if (canEditSchedule() || (ACCT && ["owner","manager"].includes(ACCT.role) && !pinLocked())){
     const pend = pendingCardChanges(r), recent = (r.changes || []).filter(c => Date.now() - Date.parse(c.at) < 14 * 864e5);
-    m.append(el("div",{class:"wn-bar" + (pend.length ? " due" : "")},
+    if (pend.length) m.append(el("div",{class:"wn-bar" + (pend.length ? " due" : "")},
       el("span",null, pend.length ? el("b",{text: pend.length + (pend.length === 1 ? " recipe change isn't" : " recipe changes aren't") + " announced yet. "}) : el("b",{text:"What's new: "}),
         pend.length ? "Tell the team so they see it on the line." : recent.length + " announced in the last 2 weeks."),
       el("div",{class:"row", style:"gap:8px"}, pend.length ? el("button",{class:"btn primary sm", type:"button", text:"Tell the team", onclick: openAnnounce}) : null,
@@ -3204,20 +3223,31 @@ function book(m){
   if (BKV.cat !== "all" && !order.includes(BKV.cat)) BKV.cat = "all";
   const search = el("input",{class:"search", type:"search", placeholder:"Search dishes, ingredients or stations", "aria-label":"Search recipes"}); search.value = BKV.q;
   search.oninput = () => { BKV.q = search.value; const pos = search.selectionStart; render(); const s2 = document.querySelector("main .search"); if (s2){ s2.focus(); try { s2.setSelectionRange(pos, pos); } catch(e){} } };
-  const chip = (key, label, count) => el("button",{class:"chip", "aria-pressed": String(BKV.cat === key), onclick:() => { BKV.cat = key; render(); }}, label, el("span",{class:"ct", text:count}));
   const withCards = all.filter(it => (cardOf(it).steps || []).length).length;
-  m.append(el("div",{class:"filters"}, el("div",{class:"row"}, search),
-    el("div",{class:"chips", role:"group", "aria-label":"Category"}, chip("all","All", all.length), order.map(c => chip(c, c, all.filter(it => (it.section || "Menu") === c).length)))));
+  const isBarSec = c => all.filter(it => (it.section || "Menu") === c).every(isDrink);
+  BKV.side = BKV.side || "all";
+  const secs = order.filter(c => BKV.side === "all" || (BKV.side === "bar") === isBarSec(c));
+  if (BKV.cat !== "all" && !secs.includes(BKV.cat)) BKV.cat = "all";
+  const sideBtn = (k, label) => el("button",{type:"button", "aria-pressed": String(BKV.side === k), onclick:() => { BKV.side = k; BKV.cat = "all"; render(); }}, label);
+  const secSel = el("select",{class:"inp", "aria-label":"Section"}, el("option",{value:"all", text: (BKV.side === "bar" ? "All bar" : BKV.side === "kitchen" ? "All kitchen" : "All sections")}),
+    secs.map(c => el("option",{value:c, text: c + " (" + all.filter(it => (it.section || "Menu") === c).length + ")"})));
+  secSel.value = BKV.cat; secSel.onchange = () => { BKV.cat = secSel.value; render(); };
+  const canAnnounce = canEditSchedule() || (ACCT && ["owner","manager"].includes(ACCT.role) && !pinLocked());
+  m.append(el("div",{class:"filters bk-filters"}, el("div",{class:"row"}, search,
+      canAnnounce ? el("button",{class:"btn quiet", type:"button", text:"What's new", onclick: openWhatsNew}) : null),
+    el("div",{class:"row bk-row2"}, el("div",{class:"seg bk-side", role:"group", "aria-label":"Bar or kitchen"}, sideBtn("all","All"), sideBtn("bar","Bar"), sideBtn("kitchen","Kitchen")), secSel)));
   if (withCards < all.length) m.append(el("p",{class:"mini", style:"margin:0 0 12px"}, withCards + " of " + all.length + " dishes have steps written. ",
     el("button",{class:"linkbtn", type:"button", text:"Draft the missing ones with AI", onclick:() => draftCards(all.filter(it => !(cardOf(it).steps || []).length))})));
   const q = BKV.q.trim().toLowerCase();
-  const shown = all.filter(it => (BKV.cat === "all" || (it.section || "Menu") === BKV.cat) && (!q || it.name.toLowerCase().includes(q) || (cardOf(it).station || "").toLowerCase().includes(q) || ingredientRows(it, r).some(x => x.name.toLowerCase().includes(q))))
+  const shown = all.filter(it => (BKV.cat === "all" ? secs.includes(it.section || "Menu") : (it.section || "Menu") === BKV.cat) && (!q || it.name.toLowerCase().includes(q) || (cardOf(it).station || "").toLowerCase().includes(q) || ingredientRows(it, r).some(x => x.name.toLowerCase().includes(q))))
     .sort((a, b) => order.indexOf(a.section || "Menu") - order.indexOf(b.section || "Menu") || (a.order || 0) - (b.order || 0));
   if (!shown.length){ m.append(el("div",{class:"card empty", text:"Nothing matches that search."})); return; }
   m.append(el("div",{class:"kb-grid"}, shown.map(it => {
     const c = cardOf(it), ph = PHOTOS.get(it.id), total = n(c.prepMin) + n(c.cookMin);
-    return el("button",{class:"kb-card" + (isDrink(it) ? " tall" : ""), type:"button", onclick:() => openCard(it.id), "aria-label":"Open the card for " + it.name},
-      ph ? el("div",{class:"kb-imgwrap", style:'--bg:url("' + ph + '")'}, el("img",{src:ph, alt:"", loading:"lazy"}), c.photoSrc === "ai" ? el("span",{class:"kb-aitag", text:"AI image"}) : null) : plateArt(it),
+    const ini = it.name.split(/\s+/).filter(w => /^[A-Za-z]/.test(w)).slice(0, 2).map(w => w[0].toUpperCase()).join("");
+    return el("button",{class:"kb-card" + (isDrink(it) ? " tall" : "") + (ph ? "" : " nophoto"), type:"button", onclick:() => openCard(it.id), "aria-label":"Open the card for " + it.name},
+      ph ? el("div",{class:"kb-imgwrap", style:'--bg:url("' + ph + '")'}, el("img",{src:ph, alt:"", loading:"lazy"}), c.photoSrc === "ai" ? el("span",{class:"kb-aitag", text:"AI image"}) : null)
+        : el("span",{class:"kb-ini " + (isDrink(it) ? "bar" : "food"), text: ini || "?"}),
       el("div",{class:"kb-body"}, el("b",{text:it.name}),
         el("div",{class:"kb-meta"}, el("span",{text:it.section || ""}), total ? el("span",{class:"kb-time", text: total + " min"}) : null, c.station ? el("span",{text:c.station}) : null),
         !(c.steps || []).length ? el("span",{class:"kb-todo", text:"No steps yet"}) : null));
