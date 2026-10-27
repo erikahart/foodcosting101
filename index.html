@@ -1433,6 +1433,7 @@ tr.have-row td{background:var(--field)} tr.have-row td b{color:var(--muted)}
 .lockbox{display:grid;gap:6px;margin-bottom:8px} .lockbox .lockctl{margin:0}
 body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox, body.gated #tabbar{display:none !important}
 .pin-logo{width:72px;height:72px;margin:0 auto;border-radius:16px}
+.code-in{font-size:1.8rem;letter-spacing:.35em;text-align:center;min-height:58px}
 </style>
 </head>
 <body>
@@ -1600,8 +1601,49 @@ setInterval(async () => {
 /* ---------- Sign-in flow ---------- */
 const gate = () => { $("app").hidden = true; $("gate").hidden = false; return $("gate-card"); };
 function gateHeader(title, sub){
-  const lg = el("div",{class:"logo"}, "PM");
+  const lg = el("div",{class:"logo"}, el("img",{src:"/apple-touch-icon.png", alt:"", style:"width:100%;height:100%;object-fit:cover"}));
   return [el("div",{class:"brandbox"}, lg, el("div",null, el("b",{text:"The Fox Den Staff App"}), el("span",{text:"Wellington, OH"}))), el("h1",{text:title}), sub ? el("p",{class:"lead", text:sub}) : null];
+}
+function showCodeSignIn(note, sentTo){
+  const card = gate(), msg = el("div"), say = (kind, text) => msg.replaceChildren(el("div",{class:"msg " + kind, text}));
+  if (note) say(note[0], note[1]);
+  const email = el("input",{class:"inp", type:"email", autocomplete:"email", autocapitalize:"none", autocorrect:"off", spellcheck:"false", inputmode:"email", placeholder:"you@example.com"});
+  if (sentTo) email.value = sentTo;
+  const friendly = e => { const m = plainErr(e);
+    return /seconds|rate limit|too many/i.test(m) ? "A code was just sent. Wait a minute before asking for another." : /expired|invalid/i.test(m) ? "That code didn't work. Check it, or ask for a new one." : /signups? not allowed|not allowed for otp/i.test(m) ? "That email isn't set up here yet. Ask your manager to invite you." : m; };
+  if (!sentTo){
+    const btn = el("button",{class:"btn primary", style:"width:100%", type:"submit", text:"Email me a code"});
+    const form = el("form",{novalidate:""}, el("div",{class:"field"}, el("label",{text:"Your email"}), email), btn);
+    form.addEventListener("submit", async ev => { ev.preventDefault();
+      const em = email.value.trim().toLowerCase(); if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return say("bad", "Enter your email address.");
+      btn.disabled = true; btn.textContent = "Sending\u2026";
+      const { error } = await sb.auth.signInWithOtp({ email: em, options:{ shouldCreateUser: true, emailRedirectTo: location.origin } });
+      if (error){ btn.disabled = false; btn.textContent = "Email me a code"; return say("bad", friendly(error)); }
+      try { localStorage.setItem("pm-last-email", em); } catch(e){}
+      showCodeSignIn(null, em); });
+    try { email.value = localStorage.getItem("pm-last-email") || ""; } catch(e){}
+    fillIn(card, ...gateHeader("Sign in", "We'll email you a code. No password needed."), msg, form,
+      el("div",{class:"row", style:"justify-content:space-between;margin-top:12px"}, el("button",{class:"linkbtn", type:"button", text:"Use a password instead", onclick:() => showAuth("signin")}),
+        el("span",{class:"mini", text:"New here? Use the email you were invited with."})));
+    setTimeout(() => email.focus(), 30); return;
+  }
+  const code = el("input",{class:"inp code-in", type:"text", inputmode:"numeric", autocomplete:"one-time-code", maxlength:"10", placeholder:"123456", "aria-label":"The code from the email"});
+  const btn = el("button",{class:"btn primary", style:"width:100%", type:"submit", text:"Sign in"});
+  const form = el("form",{novalidate:""}, el("div",{class:"field"}, el("label",{text:"Code from the email"}), code), btn);
+  let busy = false;
+  const verify = async () => { const t = code.value.replace(/\D/g, ""); if (t.length < 6 || busy) return; busy = true; btn.disabled = true; btn.textContent = "Checking\u2026";
+    const { error } = await sb.auth.verifyOtp({ email: sentTo, token: t, type: "email" });
+    if (error){ busy = false; btn.disabled = false; btn.textContent = "Sign in"; code.value = ""; return say("bad", friendly(error)); }
+    await afterLogin(); };
+  code.oninput = () => { code.value = code.value.replace(/\D/g, ""); if (code.value.length === 6) verify(); };
+  form.addEventListener("submit", ev => { ev.preventDefault(); verify(); });
+  let wait = 60; const resend = el("button",{class:"linkbtn", type:"button", disabled:"", text:"Send a new code (60)"});
+  const tick = setInterval(() => { wait--; if (!document.body.contains(resend)) return clearInterval(tick); if (wait <= 0){ clearInterval(tick); resend.disabled = false; resend.textContent = "Send a new code"; } else resend.textContent = "Send a new code (" + wait + ")"; }, 1000);
+  resend.onclick = async () => { resend.disabled = true; const { error } = await sb.auth.signInWithOtp({ email: sentTo, options:{ shouldCreateUser: true, emailRedirectTo: location.origin } });
+    if (error) { resend.disabled = false; return say("bad", friendly(error)); } showCodeSignIn(["good", "A new code is on its way."], sentTo); };
+  fillIn(card, ...gateHeader("Check your email", "We sent a 6-digit code to " + sentTo + ". It can take a minute; check spam or promotions too."), msg, form,
+    el("div",{class:"row", style:"justify-content:space-between;margin-top:12px"}, resend, el("button",{class:"linkbtn", type:"button", text:"Use a different email", onclick:() => showCodeSignIn()})));
+  setTimeout(() => code.focus(), 30);
 }
 function showAuth(mode = "signin", note){
   const card = gate(); const msg = el("div");
@@ -1627,7 +1669,7 @@ function showAuth(mode = "signin", note){
         const { data, error } = await sb.auth.signUp({ email: em, password: pw, options:{ emailRedirectTo: location.origin } });
         if (error) throw error;
         if (data.session) await afterLogin();
-        else { showAuth("signin", ["good", "Check your email for a confirmation link from Supabase, then come back and sign in."]); return; }
+        else { showCodeSignIn(["good", "Account made. To finish, we'll email you a code."]); return; }
       } else {
         const { error } = await sb.auth.resetPasswordForEmail(em, { redirectTo: location.origin });
         if (error) throw error;
@@ -1635,7 +1677,7 @@ function showAuth(mode = "signin", note){
       }
     } catch (e){
       const m = plainErr(e);
-      say("bad", /invalid login/i.test(m) ? "That email and password don't match." : /not confirmed/i.test(m) ? "Confirm your email first: click the link Supabase sent you." : m);
+      say("bad", /invalid login/i.test(m) ? "That email and password don't match. Or tap \u201cEmail me a code instead\u201d." : /not confirmed/i.test(m) ? "Your email isn't confirmed yet. Tap \u201cEmail me a code instead\u201d to sign in with a code." : m);
       btn.disabled = false; btn.textContent = mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Sign in";
     }
   });
@@ -1645,6 +1687,7 @@ function showAuth(mode = "signin", note){
     msg, form,
     el("div",{class:"row", style:"justify-content:space-between;margin-top:10px"},
       mode === "forgot" ? el("button",{class:"linkbtn", type:"button", text:"Back to sign in", onclick:() => showAuth("signin")}) : el("button",{class:"linkbtn", type:"button", text:"Forgot password?", onclick:() => showAuth("forgot")}),
+      el("button",{class:"linkbtn", type:"button", text:"Email me a code instead", onclick:() => showCodeSignIn()}),
       mode === "signup" ? el("span",{class:"mini", text:"Joining a team? Use the email you were invited with."}) : null));
   setTimeout(() => email.focus(), 30);
 }
@@ -1689,7 +1732,7 @@ function showCreateKitchen(){
 }
 async function afterLogin(preferName){
   const { data: { user } } = await sb.auth.getUser();
-  if (!user){ showAuth(); return; }
+  if (!user){ showCodeSignIn(); return; }
   USER = user;
   await sb.rpc("accept_invites");
   const { data, error } = await sb.rpc("my_accounts");
@@ -1737,7 +1780,7 @@ async function boot(){
   });
   const { data: { session } } = await sb.auth.getSession();
   if (recovering) { showNewPassword(); return; }
-  if (session) await afterLogin(); else showAuth();
+  if (session) await afterLogin(); else showCodeSignIn();
 }
 const R = () => ST.restaurants[ST.current];
 
@@ -1885,7 +1928,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Invite emails";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Sign in with a code";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -5604,7 +5647,7 @@ async function drawTeam(box){
       const link = location.origin, who = em.value.trim().toLowerCase();
       msg.replaceChildren(el("div",{class:"msg"}, "Invited. Sending the invite email\u2026"));
       const result = await emailInvite(who);
-      msg.replaceChildren(el("div",{class:"msg " + (/^Invite emailed/.test(result) ? "good" : "")}, result + " ", el("span",{class:"mini", text:"(They can also go to " + link + ", choose Create account, and use " + who + ".)"})));
+      msg.replaceChildren(el("div",{class:"msg " + (/^Invite emailed/.test(result) ? "good" : "")}, result + " ", el("span",{class:"mini", text:"(They can also just open " + link + ", enter " + who + " and type the code we email them.)"})));
       em.value = ""; setTimeout(() => drawTeam(box), 4000);
     };
     parts.push(el("h3",{style:"margin:16px 0 8px", text:"Invite someone"}), msg, el("div",{class:"g2"}, el("div",{class:"field"}, el("label",{text:"Their email"}), em), el("div",{class:"field"}, el("label",{text:"What they can do"}), rl)),

@@ -28,13 +28,13 @@ export default async (req) => {
   const from = String(me.email || "").split("@")[0] || "Your manager";
   const what = ROLE[invite.role] || ROLE.member;
   const subject = `You're invited to ${kitchen}'s staff app`;
-  const text = `Hi,\n\n${from} invited you to ${kitchen}'s staff app. You'll be able to see ${what}.\n\nTo join:\n1. Open ${app}\n2. Tap "Create account"\n3. Use this email address (${email}) and choose a password\n\nYou'll land right in ${kitchen}. On your phone, you can add the app to your home screen when it asks.\n`;
+  const text = `Hi,\n\n${from} invited you to ${kitchen}'s staff app. You'll be able to see ${what}.\n\nTo join (no password needed):\n1. Open ${app}\n2. Enter this email address: ${email}\n3. Type the 6-digit code we email you\n\nYou'll land right in ${kitchen}, and stay signed in on that phone. You can add the app to your home screen when it asks.\n`;
   const html = `<div style="font-family:Arial,sans-serif;font-size:16px;line-height:1.5;color:#24221F;max-width:520px">
     <h2 style="margin:0 0 8px">You're invited to ${esc(kitchen)}'s staff app</h2>
     <p>${esc(from)} invited you. You'll be able to see ${esc(what)}.</p>
-    <ol style="padding-left:20px"><li>Open <a href="${esc(app)}">${esc(app.replace(/^https?:\/\//, ""))}</a></li><li>Tap <b>Create account</b></li><li>Use this email address (<b>${esc(email)}</b>) and choose a password</li></ol>
+    <p style="margin:0">To join, no password needed:</p><ol style="padding-left:20px"><li>Open <a href="${esc(app)}">${esc(app.replace(/^https?:\/\//, ""))}</a></li><li>Enter this email address: <b>${esc(email)}</b></li><li>Type the 6-digit code we email you</li></ol>
     <p><a href="${esc(app)}" style="display:inline-block;background:#1F6F5C;color:#fff;text-decoration:none;padding:12px 20px;border-radius:10px;font-weight:bold">Open the app</a></p>
-    <p style="color:#666;font-size:14px">You'll land right in ${esc(kitchen)}. On your phone, add the app to your home screen when it asks.</p></div>`;
+    <p style="color:#666;font-size:14px">You'll land right in ${esc(kitchen)} and stay signed in on that phone. Add the app to your home screen when it asks.</p></div>`;
   try { await sendEmail([email], { subject, text, html }); }
   catch (e) { console.error("invite email", e.message); return json(502, { error: e.reason === "nomail" ? "Email isn't set up yet (POSTMARK_SERVER_TOKEN in Netlify)." : "Couldn't send the email right now.", reason: e.reason || "mail" }); }
   return json(200, { ok: true });
