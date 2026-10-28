@@ -238,7 +238,7 @@ main{min-width:0}
   .tw thead{display:none}
   .tw tbody tr{display:grid;grid-template-columns:1fr 1fr;gap:4px 14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;position:relative}
   .tw tbody td{display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;padding:2px 0;white-space:normal;text-align:right;min-width:0}
-  .tw tbody td::before{content:attr(data-label);color:var(--muted);font-size:.78rem;font-weight:700;text-align:left}
+  .tw tbody td::before{content:attr(data-label);color:var(--muted);font-size:.78rem;font-weight:700;text-align:left;flex:none;white-space:nowrap}
   .tw tbody td.cell-main{grid-column:1/-1;display:block;text-align:left;font-size:1.02rem;padding-right:34px}
   .tw tbody td.cell-main::before,.tw tbody td.cell-pick::before,.tw tbody td.cell-wide::before{display:none}
   .tw tbody td.cell-pick{position:absolute;top:10px;right:12px;padding:0}
@@ -1628,6 +1628,18 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .sell-today-app{background:linear-gradient(135deg,#F2C14E,#E5A92B);color:#24221F;border-radius:20px;padding:16px 20px;margin:0 0 14px;box-shadow:0 8px 20px rgba(217,154,30,.25)}
 .sell-today-app .st-k{font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:.85rem;margin-bottom:6px} .sell-today-app .st-item b{font-family:var(--brand-font);font-weight:800;font-size:1.6rem;line-height:1.1;display:block}
 .sell-today-app .st-item p{margin:4px 0 0;font-weight:600} .sell-today-app .st-item + .st-item{margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.15)}
+/* ---------- Managers on phones ---------- */
+@media (max-width:700px){
+  .phead .lead{display:none}
+  .tw tbody td:has(.todo){grid-column:1/-1} .tw tbody td .todo{max-width:100%;white-space:normal}
+  .phead{margin-bottom:10px !important;padding-bottom:10px !important}
+  .seg{display:flex !important;flex-wrap:nowrap !important;overflow-x:auto;max-width:100%;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+  .seg::-webkit-scrollbar{display:none} .seg > button{flex:none !important;white-space:nowrap}
+  .row > .seg, .row > .chips{grid-column:1/-1}
+  .chips{flex-wrap:nowrap !important;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;padding-bottom:4px;mask-image:linear-gradient(90deg,#000 88%,transparent)}
+  .chips::-webkit-scrollbar{display:none} .chips > *{flex:none}
+  h1{font-size:2rem}
+}
 </style>
 </head>
 <body>
@@ -2123,7 +2135,11 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 28, 2026 \u00b7 Print schedule";
+// Empty pieces (null / false) are skipped instead of showing up as the word "null".
+for (const P of [Element.prototype, DocumentFragment.prototype]) for (const k of ["append", "prepend", "replaceChildren", "after", "before"]){
+  const o = P[k]; if (typeof o === "function" && !o.__skipEmpty){ const f = function(...a){ return o.apply(this, a.filter(x => x != null && x !== false)); }; f.__skipEmpty = true; P[k] = f; }
+}
+const APP_VERSION = "Oct 28, 2026 \u00b7 Manager mobile polish";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -4566,7 +4582,7 @@ function sched(m){
   const days = [...Array(7)].map((_, i) => addDays(SCV.week, i));
   const shiftsOn = (pid, d) => r.shifts.filter(x => x.staff === pid && x.date === d);
   const showDays = days.filter((d, i) => i > 0 || r.shifts.some(x => x.date === d));   // Mondays only when someone works
-  SCV.view = SCV.view || "week"; if (!SCV.day || !days.includes(SCV.day)) SCV.day = days.includes(today) ? today : showDays[0];
+  SCV.view = SCV.view || (isPhone() ? "day" : "week"); if (!SCV.day || !days.includes(SCV.day)) SCV.day = days.includes(today) ? today : showDays[0];
   m.append(el("div",{class:"sch-bar"},
     el("div",{class:"row"}, el("button",{class:"btn quiet", type:"button", text:"\u2039", "aria-label":"Previous week", onclick:() => { SCV.week = addDays(SCV.week, -7); render(); }}),
       el("b",{class:"sch-range", text: nice(days[0]) + " \u2013 " + nice(days[6])}),
