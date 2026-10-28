@@ -2111,7 +2111,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Type BOGO items";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Staff can add events";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -5062,7 +5062,7 @@ function printOrderSummary(res, entries){
 }
 
 /* ================= Events calendar: bookings (from your calendars), events and specials ================= */
-function evTabs(){ return el("div",{class:"seg", role:"tablist"}, [["cal","Calendar"],["pricing","Event pricing"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String((EVV.tab || "cal") === k), text:t, onclick:() => { EVV.tab = k; EVV.quote = null; render(); }}))); }
+function evTabs(){ if (pinLocked()) return null; return el("div",{class:"seg", role:"tablist"}, [["cal","Calendar"],["pricing","Event pricing"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String((EVV.tab || "cal") === k), text:t, onclick:() => { EVV.tab = k; EVV.quote = null; render(); }}))); }
 const EVV = { month:null, day:null, feed:{ key:"", at:0, events:[], errors:[] }, loading:false };
 const FEED_COLORS = ["#3D6E9E","#B8352A","#6B4E9B","#1F6F5C","#C27C0E","#2E7D8A"];
 function calData(r){ r.calFeeds = r.calFeeds || []; r.events = r.events || []; r.specials = r.specials || []; return r; }
@@ -5088,8 +5088,26 @@ async function loadFeedEvents(r, from, to, force){
   catch(e){ EVV.feed = { key, at: Date.now(), events: [], errors: [{ name:"Calendars", error: e.code === "unavailable" ? "Upload netlify/functions/calendar.mjs to connect calendars." : (e.message || "Couldn't reach your calendars.") }] }; }
   EVV.loading = false; if (ST.page === "events" || ST.page === "home") render();
 }
+// Staff can add an event (a party that called in, a booking); managers edit and plan it after.
+function staffAddEvent(r, day){
+  const me = myStaffId(r), p = me && r.staff.find(x => x.id === me), who = p ? p.name : (UNLOCK && unlocked() ? UNLOCK.name : myFirst());
+  const f = { title: el("input",{class:"inp", placeholder:"e.g. Johnson retirement party"}), date: el("input",{class:"inp", type:"date", value: day || localDay(new Date()), min: localDay(new Date())}),
+    start: el("input",{class:"inp", type:"time"}), end: el("input",{class:"inp", type:"time"}), guests: el("input",{class:"inp", type:"number", min:"1", inputmode:"numeric", placeholder:"How many?"}),
+    where: el("input",{class:"inp", placeholder:"e.g. Back room"}), notes: el("textarea",{class:"inp", rows:"3", placeholder:"Phone number, deposit, cake, anything a manager should know"}) };
+  const msg = el("div");
+  openDlg("Add an event", [fld("What", f.title), el("div",{class:"g2"}, fld("Day", f.date), fld("Guests", f.guests)), el("div",{class:"g2"}, fld("Starts", f.start), fld("Ends", f.end)), fld("Where", f.where), fld("Notes", f.notes), msg,
+      el("p",{class:"mini", text:"A manager can add the menu, a quote or photos after."})],
+    [el("span"), el("button",{class:"btn primary", text:"Add event", onclick:() => {
+      if (!f.title.value.trim()) return msg.replaceChildren(el("div",{class:"msg bad", text:"Say what the event is."}));
+      if (!f.date.value) return msg.replaceChildren(el("div",{class:"msg bad", text:"Pick the day."}));
+      calData(r); r.events.push({ id: uid("ev"), title: f.title.value.trim(), date: f.date.value, start: f.start.value || null, end: f.end.value || null, where: f.where.value.trim(),
+        guests: parseInt(f.guests.value, 10) || null, notes: [f.notes.value.trim(), "Added by " + who].filter(Boolean).join("\n"), fromStaff: who });
+      save(); dlg.close(); EVV.day = f.date.value; EVV.month = f.date.value.slice(0, 7) + "-01"; render(); toast("Added. It's on the calendar, and managers will see it."); }})]);
+  setTimeout(() => f.title.focus(), 50);
+}
 function events(m){
-  const r = calData(R()), today = localDay(new Date()), edit = canEditSchedule(), boss = ACCT && ["owner","manager"].includes(ACCT.role);
+  const r = calData(R()), today = localDay(new Date()), edit = canEditSchedule(), boss = ACCT && ["owner","manager"].includes(ACCT.role) && !pinLocked();
+  if (EVV.tab === "pricing" && pinLocked()) EVV.tab = "cal";
   if (EVV.tab === "pricing"){
     m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Events"}), el("p",{class:"lead", text:"Price an event: the food, staff and extras, and what to charge per person."})), evTabs()));
     return quotePricing(m);
@@ -5099,7 +5117,7 @@ function events(m){
   const days = [...Array(42)].map((_, i) => addDays(gridStart, i)), monthKey = first.slice(0, 7);
   loadFeedEvents(r, days[0], days[41]); loadPhotos();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Events"}), el("p",{class:"lead", text:"Bookings from your calendars, events and specials. Staff see today's on the tablet."})),
-    el("div",{class:"row"}, evTabs(), boss ? el("button",{class:"btn primary", type:"button", text:"\u2605 Promos", onclick: openPromos}) : null, edit ? el("button",{class:"btn quiet", type:"button", text:"+ Special", onclick:() => editSpecial(r)}) : null, edit ? el("button",{class:"btn primary", type:"button", text:"+ Event", onclick:() => editEvent(r, null, EVV.day)}) : null,
+    el("div",{class:"row"}, evTabs(), boss ? el("button",{class:"btn primary", type:"button", text:"\u2605 Promos", onclick: openPromos}) : null, edit ? el("button",{class:"btn quiet", type:"button", text:"+ Special", onclick:() => editSpecial(r)}) : null, edit ? el("button",{class:"btn primary", type:"button", text:"+ Event", onclick:() => editEvent(r, null, EVV.day)}) : el("button",{class:"btn primary", type:"button", text:"+ Add event", onclick:() => staffAddEvent(r, EVV.day)}),
       boss ? el("button",{class:"btn quiet", type:"button", text:"Connected calendars" + (r.calFeeds.length ? " (" + r.calFeeds.length + ")" : ""), onclick:() => openCalFeeds(r)}) : null)));
   if (!r.calFeeds.length && boss) m.append(el("div",{class:"card feed-card", style:"margin-bottom:12px"}, el("div",{class:"spread"}, el("div",null, el("b",{text:"Show your bookings here"}),
     el("p",{class:"mini", style:"margin:2px 0 0", text:"Connect the calendar your booking page adds reservations to, and they'll show up here and on the tablet automatically."})),
