@@ -2120,7 +2120,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Phone schedule fix";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Promo fixes";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -5757,7 +5757,7 @@ function promoText(r, p){
   const only = (p.only || []).map(id => r.items[id] && r.items[id].name).filter(Boolean).concat(p.onlyText || []);
   const ex = (p.exclude || []).map(id => r.items[id] && r.items[id].name).filter(Boolean);
   const not = [p.noAlcohol ? "alcohol" : "", ...ex].filter(Boolean);
-  return p.rules + (only.length ? " " + p.name + " on: " + only.join(", ") + ". Everything else is full price." : not.length ? " Not included: " + not.join(", ") + "." : "") + " Ring it with the " + p.name + " discount in Clover.";
+  return p.rules + (only.length ? " " + p.name + " on: " + only.join(", ") + ". Everything else is full price." : not.length ? " Not included: " + not.join(", ") + "." : "") + " Ring it with the " + (/bogo|buy one/i.test(p.name + " " + p.rules) ? "BOGO free item" : p.name) + " discount in Clover.";
 }
 function runPromo(r, p, weekly){
   calData(r);
@@ -5896,7 +5896,7 @@ function openPromos(){
       el("div",{class:"row", style:"gap:8px;flex-wrap:wrap"},
         run ? el("button",{class:"btn danger sm", type:"button", text:"Stop", onclick:() => { stopPromo(r, p); draw(); }})
           : el("button",{class:"btn primary", type:"button", text:"Run every " + DAY_NAMES[p.day], onclick:() => { runPromo(r, p, true); draw(); }}),
-        run ? null : el("button",{class:"btn quiet sm", type:"button", text:"Just " + nice(nextDay(p.day)), onclick:() => { runPromo(r, p, false); draw(); }}),
+        run ? null : el("button",{class:"btn quiet sm", type:"button", text: nextDay(p.day) === localDay(new Date()) ? "Just today" : "Just " + nice(nextDay(p.day)), onclick:() => { runPromo(r, p, false); draw(); }}),
         !run && once.length ? el("button",{class:"linkbtn", type:"button", text:"Cancel", onclick:() => { stopPromo(r, p); draw(); }}) : null,
         /bogo|buy one/i.test(p.name + " " + p.rules) ? el("button",{class:"btn quiet sm", type:"button", text: ((p.only || []).length + (p.onlyText || []).length ? "Change items (" + ((p.only || []).length + (p.onlyText || []).length) + ")" : "Pick the items"), onclick:() => openBogoPlanner(p)}) : null,
         el("button",{class:"linkbtn", type:"button", text:"Edit", onclick:() => editPromo(r, p, draw)}))); }),
