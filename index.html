@@ -2123,7 +2123,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 28, 2026 \u00b7 Sell today banner";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Print schedule";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -4436,6 +4436,49 @@ const mondayOf = iso => { const d = new Date(iso + "T12:00:00"); const w = (d.ge
 const t12 = (hhmm, short) => { if (!hhmm) return "Close"; const [h, m] = hhmm.split(":").map(Number), ap = h >= 12 ? (short ? "p" : " PM") : (short ? "a" : " AM"), hh = h % 12 || 12;
   return short ? hh + (m ? ":" + String(m).padStart(2, "0") : "") + ap : hh + ":" + String(m).padStart(2, "0") + ap; };
 const shiftText = (sh, short) => sh.off ? (sh.note || "Off") : t12(sh.start, short) + (short ? "\u2013" : " \u2013 ") + (sh.end ? t12(sh.end, short) : "close");
+// A posted-schedule printout: one landscape page, people grouped by position, Monday to Sunday.
+function printWeekSchedule(r, week){
+  schedData(r);
+  const esc = v => String(v == null ? "" : v).replace(/[&<>"]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;" }[c]));
+  const days = [...Array(7)].map((_, i) => addDays(week, i)), today = localDay(new Date());
+  const shifts = (r.shifts || []).filter(x => days.includes(x.date));
+  const mins = x => { if (!x.start || !x.end) return 0; const a = +x.start.slice(0, 2) * 60 + +x.start.slice(3), b = +x.end.slice(0, 2) * 60 + +x.end.slice(3); return (b > a ? b - a : b + 1440 - a); };
+  const ORDER = ["Kitchen", "Serving", "Bar", "Dish"];
+  const groupOf = p => { const mine = shifts.filter(x => x.staff === p.id && !x.off), c = {}; mine.forEach(x => { const g = posOfShift(r, x) || "Team"; c[g] = (c[g] || 0) + 1; });
+    return Object.entries(c).sort((a, b) => b[1] - a[1])[0]?.[0] || (shifts.some(x => x.staff === p.id) ? "Team" : "Not scheduled"); };
+  const groups = {}; r.staff.forEach(p => { const g = groupOf(p); (groups[g] = groups[g] || []).push(p); });
+  const gOrder = Object.keys(groups).sort((a, b) => (ORDER.indexOf(a) < 0 ? 50 : ORDER.indexOf(a)) - (ORDER.indexOf(b) < 0 ? 50 : ORDER.indexOf(b)) || (a === "Not scheduled") - (b === "Not scheduled") || a.localeCompare(b));
+  const cell = (p, d) => shifts.filter(x => x.staff === p.id && x.date === d).sort((a, b) => String(a.start).localeCompare(String(b.start))).map(x => x.off
+      ? '<div class="off">OFF' + (x.note ? '<small>' + esc(x.note) + '</small>' : '') + '</div>'
+      : '<div class="sh"><b>' + esc(t12(x.start, true) + "\u2013" + (x.end ? t12(x.end, true) : "close")) + '</b>' + (x.role ? '<small>' + esc(r.roleCodes[x.role] || x.role) + '</small>' : '') + (x.note ? '<small class="n">' + esc(x.note) + '</small>' : '') + '</div>').join("");
+  let rows = "";
+  gOrder.forEach(g => { rows += '<tr class="grp"><td colspan="9">' + esc(g) + '</td></tr>';
+    groups[g].sort((a, b) => a.name.localeCompare(b.name)).forEach(p => { const h = shifts.filter(x => x.staff === p.id && !x.off).reduce((t, x) => t + mins(x), 0);
+      rows += '<tr><th>' + esc(p.name) + '</th>' + days.map(d => '<td' + (d === today ? ' class="today"' : '') + '>' + cell(p, d) + '</td>').join("") + '<td class="hrs">' + (h ? (Math.round(h / 6) / 10) : "") + '</td></tr>'; }); });
+  const counts = days.map(d => new Set(shifts.filter(x => x.date === d && !x.off).map(x => x.staff)).size);
+  const totalH = shifts.filter(x => !x.off).reduce((t, x) => t + mins(x), 0);
+  const dd = d => new Date(d + "T12:00:00");
+  const head = days.map(d => '<th' + (d === today ? ' class="today"' : '') + '>' + dd(d).toLocaleDateString(undefined, { weekday:"short" }) + '<span>' + dd(d).toLocaleDateString(undefined, { month:"short", day:"numeric" }) + '</span></th>').join("");
+  const title = esc((ACCT && ACCT.name) || r.name || "Schedule");
+  const html = '<!doctype html><html><head><meta charset="utf-8"><title>' + title + ' schedule</title><style>' +
+    '@page{size:letter landscape;margin:0.35in} *{box-sizing:border-box} body{margin:0;font-family:Arial,Helvetica,sans-serif;color:#000;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+    '.top{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #000;padding-bottom:6px;margin-bottom:8px} h1{margin:0;font-size:22pt} .wk{font-size:14pt;font-weight:700} .pr{font-size:8pt;color:#555}' +
+    'table{width:100%;border-collapse:collapse;table-layout:fixed} th,td{border:1px solid #888;padding:3px 4px;vertical-align:top;font-size:9pt}' +
+    'thead th{background:#222;color:#fff;font-size:10pt;text-align:center} thead th span{display:block;font-weight:400;font-size:8.5pt} thead th.today{background:#555}' +
+    'tbody th{text-align:left;font-size:10pt;width:1.35in;white-space:nowrap;overflow:hidden;text-overflow:ellipsis} col.name{width:1.35in} col.h{width:0.55in}' +
+    'tr.grp td{background:#e6e6e6;font-weight:700;font-size:9.5pt;text-transform:uppercase;letter-spacing:.06em;padding:2px 6px} td.today{background:#f4f4f4}' +
+    '.sh b{display:block;font-size:10.5pt} .sh small,.off small{display:block;font-size:7.5pt;color:#444} .sh small.n{font-style:italic} .sh + .sh{margin-top:3px;border-top:1px dotted #999;padding-top:2px}' +
+    '.off{color:#777;font-weight:700;font-size:9pt} td.hrs{text-align:center;font-weight:700} tfoot td{font-weight:700;text-align:center;background:#f0f0f0} tfoot th{text-align:left}' +
+    '.foot{display:flex;justify-content:space-between;margin-top:10px;font-size:9pt} .sig{border-top:1px solid #000;width:2.6in;padding-top:2px}' +
+    '</style></head><body><div class="top"><div><h1>' + title + '</h1><div class="wk">Schedule \u00b7 ' + esc(nice(days[0]) + " \u2013 " + nice(days[6])) + '</div></div>' +
+    '<div class="pr">Printed ' + esc(new Date().toLocaleDateString()) + '</div></div>' +
+    '<table><colgroup><col class="name">' + days.map(() => '<col>').join("") + '<col class="h"></colgroup><thead><tr><th>Name</th>' + head + '<th>Hours</th></tr></thead><tbody>' + rows + '</tbody>' +
+    '<tfoot><tr><th>On the schedule</th>' + counts.map(c => '<td>' + (c || "") + '</td>').join("") + '<td>' + (Math.round(totalH / 6) / 10) + '</td></tr></tfoot></table>' +
+    '<div class="foot"><div>Questions or a swap? Use Request a change in the staff app.</div><div class="sig">Posted by</div></div></body></html>';
+  const fr = document.createElement("iframe"); fr.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0"; document.body.append(fr);
+  fr.contentDocument.open(); fr.contentDocument.write(html); fr.contentDocument.close();
+  setTimeout(() => { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch(e){} setTimeout(() => fr.remove(), 60000); }, 300);
+}
 const SCV = { tab:"week", week:null, logDay:null };
 function schedData(r){ r.staff = r.staff || []; r.shifts = r.shifts || []; r.dayNotes = r.dayNotes || {}; r.roleCodes = r.roleCodes || {}; if (!r.duties) r.duties = starterDuties(); return r; }
 function starterDuties(){
@@ -4531,6 +4574,7 @@ function sched(m){
       SCV.week !== mondayOf(today) ? el("button",{class:"linkbtn", type:"button", text:"This week", onclick:() => { SCV.week = mondayOf(today); render(); }}) : null,
       el("div",{class:"seg", style:"margin-left:6px"}, [["week","Week"],["day","Day"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String(SCV.view === k), text:t, onclick:() => { SCV.view = k; render(); }})))),
     !edit ? el("span") : el("div",{class:"row"},
+      el("button",{class:"btn quiet", type:"button", text:"\ud83d\udda8 Print week", title:"A landscape printout to post", onclick:() => printWeekSchedule(r, SCV.week)}),
       el("button",{class:"btn quiet", type:"button", text:"Copy last week", onclick:() => {
         const prev = r.shifts.filter(x => x.date >= addDays(SCV.week, -7) && x.date < SCV.week && !x.off);
         if (!prev.length) return toast("Last week has no shifts to copy.");
