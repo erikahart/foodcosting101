@@ -1640,6 +1640,15 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
   .chips::-webkit-scrollbar{display:none} .chips > *{flex:none}
   h1{font-size:2rem}
 }
+.pr .pill{white-space:nowrap}
+@media (max-width:700px){
+  .pin-list .feed-row.pr{display:grid !important;grid-template-columns:1fr 1fr;grid-template-areas:"name phone" "role send" "pin links";gap:8px 10px;align-items:center;padding:12px}
+  .pr .pr-name{grid-area:name;min-width:0} .pr .pr-name b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+  .pr .pr-phone{grid-area:phone;justify-self:end} .pr .pr-role{grid-area:role;width:100% !important;min-height:42px !important}
+  .pr .pr-send{grid-area:send;width:100%;min-height:42px} .pr .pr-pin{grid-area:pin;justify-self:start}
+  .pr .pr-chg{grid-row:3;grid-column:2;justify-self:start} .pr .pr-rm{grid-row:3;grid-column:2;justify-self:end;font-size:.9rem}
+  .pin-list .feed-row.pr:not(:has(.pr-phone)) .pr-rm{grid-row:1} .pin-list .feed-row.pr:has(.pr-phone) .pr-rm{grid-row:3}
+}
 </style>
 </head>
 <body>
@@ -2139,7 +2148,7 @@ const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhit
 for (const P of [Element.prototype, DocumentFragment.prototype]) for (const k of ["append", "prepend", "replaceChildren", "after", "before"]){
   const o = P[k]; if (typeof o === "function" && !o.__skipEmpty){ const f = function(...a){ return o.apply(this, a.filter(x => x != null && x !== false)); }; f.__skipEmpty = true; P[k] = f; }
 }
-const APP_VERSION = "Oct 28, 2026 \u00b7 Manager mobile polish";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Staff list on phones";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2653,15 +2662,15 @@ function pinLockCard(){
     el("div",{class:"row", style:"gap:8px;flex-wrap:wrap;margin:6px 0 8px"},
       el("button",{class:"btn quiet", type:"button", text:"Add everyone from the schedule", onclick: fromSchedule}),
       el("button",{class:"btn quiet", type:"button", text:"+ Add a person", onclick:() => { const nm = prompt("Their name, as it is on the schedule?"); if (!nm || !nm.trim()) return; p.pins.push({ id: uid("pin"), name: nm.trim(), role:"staff", hash: null }); save(); render(); }})),
-    el("div",{class:"pin-list"}, p.pins.length ? p.pins.slice().sort((a2, b2) => ((a2.role || "manager") === "manager" ? 0 : 1) - ((b2.role || "manager") === "manager" ? 0 : 1) || a2.name.localeCompare(b2.name)).map(x => el("div",{class:"feed-row"},
-      el("div",{style:"flex:1"}, el("b",{text:x.name}), x.email ? el("div",{class:"mini", text:x.email}) : null),
-      (() => { const rs = el("select",{class:"inp", style:"min-height:34px;width:auto", "aria-label":"What " + x.name + " can see"}, el("option",{value:"staff", text:"Staff"}), el("option",{value:"manager", text:"Manager"}));
+    el("div",{class:"pin-list"}, p.pins.length ? p.pins.slice().sort((a2, b2) => ((a2.role || "manager") === "manager" ? 0 : 1) - ((b2.role || "manager") === "manager" ? 0 : 1) || a2.name.localeCompare(b2.name)).map(x => el("div",{class:"feed-row pr"},
+      el("div",{class:"pr-name", style:"flex:1"}, el("b",{text:x.name}), x.email ? el("div",{class:"mini", text:x.email}) : null),
+      (() => { const rs = el("select",{class:"inp pr-role", style:"min-height:34px;width:auto", "aria-label":"What " + x.name + " can see"}, el("option",{value:"staff", text:"Staff"}), el("option",{value:"manager", text:"Manager"}));
         rs.value = x.role || "manager"; rs.onchange = () => { if (rs.value === "staff" && p.pins.filter(y => (y.role || "manager") === "manager" && y.hash).length <= 1 && (x.role || "manager") === "manager") { rs.value = "manager"; return toast("Keep at least one manager PIN."); } x.role = rs.value; save(); }; return rs; })(),
-      p.on ? el("span",{class:"mini " + (x.hash ? "" : "bad-t"), style:"min-width:62px;text-align:center", title:"Shared-computer PIN", text: x.hash ? "\u2022\u2022\u2022\u2022" : "No PIN"}) : null,
-      (() => { const st = STAFF_LINKS && STAFF_LINKS.get(x.staffId || ("name:" + x.name.toLowerCase())); return st && st.phones ? el("span",{class:"pill good", title:"Set up on their phone", text:"\ud83d\udcf1 On phone"}) : null; })(),
-      el("button",{class:"btn quiet sm", type:"button", text:"Send app link", onclick:() => sendAppLink(x)}),
-      p.on ? el("button",{class:"linkbtn", type:"button", text: x.hash ? "Change PIN" : "Set PIN", onclick:() => addPin(x)}) : null,
-      el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { if (p.pins.length === 1 && p.on) return toast("Turn the lock off before removing the last PIN."); if (!confirm("Remove " + x.name + "'s PIN?")) return; p.pins = p.pins.filter(y => y !== x); save(); render(); }}))) : [el("p",{class:"mini", text:"No PINs yet."})]),
+      p.on ? el("span",{class:"mini pr-pin " + (x.hash ? "" : "bad-t"), style:"min-width:62px;text-align:center", title:"Shared-computer PIN", text: x.hash ? "\u2022\u2022\u2022\u2022" : "No PIN"}) : null,
+      (() => { const st = STAFF_LINKS && STAFF_LINKS.get(x.staffId || ("name:" + x.name.toLowerCase())); return st && st.phones ? el("span",{class:"pill good pr-phone", title:"Set up on their phone", text:"\ud83d\udcf1 On phone"}) : null; })(),
+      el("button",{class:"btn quiet sm pr-send", type:"button", text:"Send app link", onclick:() => sendAppLink(x)}),
+      p.on ? el("button",{class:"linkbtn pr-chg", type:"button", text: x.hash ? "Change PIN" : "Set PIN", onclick:() => addPin(x)}) : null,
+      el("button",{class:"linkbtn pr-rm", type:"button", text:"Remove", onclick:() => { if (p.pins.length === 1 && p.on) return toast("Turn the lock off before removing the last PIN."); if (!confirm("Remove " + x.name + "'s PIN?")) return; p.pins = p.pins.filter(y => y !== x); save(); render(); }}))) : [el("p",{class:"mini", text:"No PINs yet."})]),
     el("details",{class:"shared-pc", open: p.on ? "" : null}, el("summary",null, el("b",{text:"Shared computer"}), el("span",{class:"mini", text:"  PIN lock for a computer or phone the whole team uses" + (p.on ? " (on)" : "")})),
     el("label",{class:"row", style:"gap:8px;font-weight:600;margin:10px 0 4px"}, on, "Use PINs on shared devices (the management side needs a manager PIN)"),
     el("label",{class:"row", style:"gap:8px;font-weight:600;margin:0 0 10px" + (p.on ? "" : ";opacity:.5")}, gate, "Ask for a PIN when the app opens"),
