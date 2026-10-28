@@ -1616,6 +1616,13 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .bp-type{min-height:52px;font-size:1.05rem}
 .bp-typed{display:flex;flex-wrap:wrap;gap:6px} .bp-chip{display:inline-flex;align-items:center;gap:6px;background:#D6EEE3;color:#1F6F5C;border-radius:999px;padding:4px 6px 4px 12px;font-weight:700}
 .bp-chip.free{background:#FBEBC5;color:#7A5200} .bp-chip button{border:0;background:rgba(0,0,0,.08);border-radius:50%;width:24px;height:24px;font:inherit;font-weight:800;cursor:pointer;color:inherit}
+.as-who{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:8px 0 4px;padding:8px 10px;border-radius:10px;background:var(--field)} .as-ic{font-size:1.1rem}
+.as-guess{font-size:.72rem}
+.as-modes{display:grid;gap:8px;margin-bottom:10px} .as-mode{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer}
+.as-mode span{display:grid} .as-mode small{color:var(--muted)} .as-ppl{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin:6px 0}
+.sh-list.mine{border:2px solid var(--jade, #1F6F5C);background:color-mix(in srgb, var(--jade, #1F6F5C) 7%, var(--field))}
+.pause-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#FFF4D6;border:2px solid var(--mustard, #D99A1E);border-radius:14px;padding:12px 16px;margin:0 0 14px}
+.pause-off{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:-4px 0 10px}
 </style>
 </head>
 <body>
@@ -2111,7 +2118,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Staff can add events";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Pause checklists";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2421,7 +2428,7 @@ function staffHome(m){
   const big = (cls, icon, title, sub, fn) => { const b = el("button",{class:"sx-big " + cls, type:"button", onclick: fn}), i = el("span",{class:"sx-big-i"}); i.innerHTML = icon; b.append(i, el("span",{class:"sx-big-t"}, el("b",{text:title}), el("span",{text:sub}))); return b; };
   m.append(el("div",{class:"sx-tools"}, [["book","Recipes","Recipe cards","t1"],["lab","Test kitchen","Try something new","t2"],["sched","Schedule","Shifts & requests","t3"],["events","Events","What's coming up","t4"]].map(([pg, a, b2, c]) =>
     el("button",{class:"sx-tool " + c, type:"button", onclick:() => { if (pg === "sched") SCV.tab = "week"; go(pg); }}, el("span",{class:"sx-tool-i"}, navIcon(pg)), el("b",{text:a}), el("span",{text:b2}))),
-    el("button",{class:"sx-tool t5", type:"button", onclick:() => { SCV.tab = "lists"; SCV.logDay = t; go("sched"); }}, el("span",{class:"sx-tool-i", text:"\u2705"}), el("b",{text:"Checklists"}), el("span",{text:"Today's duties"})),
+    r.dutiesPaused ? null : el("button",{class:"sx-tool t5", type:"button", onclick:() => { SCV.tab = "lists"; SCV.logDay = t; go("sched"); }}, el("span",{class:"sx-tool-i", text:"\u2705"}), el("b",{text:"Checklists"}), el("span",{text:"Today's duties"})),
     (() => { const b = el("button",{class:"sx-tool t6", type:"button", onclick:() => staffBoardPick("low")}), i = el("span",{class:"sx-tool-i"}); i.innerHTML = SX_ICON.low; b.append(i, el("b",{text:"Running low"}), el("span",{text: lows.length ? lows.length + " reported" : "Warn a manager"})); return b; })()));
   // 3. What changed (until they tap Got it)
   loadAcks(); const myName = person ? person.name : (UNLOCK && unlocked() ? UNLOCK.name : myFirst());
@@ -2460,19 +2467,20 @@ function staffHome(m){
       el("div",{class:"sx-legend"}, Object.entries(POS_C).filter(([k]) => rows.some(z => z.pos === k)).map(([k, c]) => el("span",null, el("i",{style:"background:" + c}), k)))));
   }
   // 6. Checklists: celebrate when done; unfinished first
-  const lists = dutiesFor(r, t);
+  const lists = r.dutiesPaused ? [] : dutiesFor(r, t);
   if (lists.length){
     const box = el("div",null, el("div",{class:"spin"}));
     m.append(el("div",{class:"card"}, el("div",{class:"spread"}, el("h2",{style:"margin:0", text:"Today's checklists"}),
       el("button",{class:"btn quiet sm", type:"button", text:"Open checklists", onclick:() => { SCV.tab = "lists"; SCV.logDay = t; go("sched"); }})), box));
     sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: t, p_to: t }).then(({ data }) => {
       const done = new Set((data || []).filter(c => c.status === "done" || c.status === "excused").map(c => c.list_id + "|" + c.item_id));
-      const st = lists.map(l => ({ l, k: l.items.filter(x => done.has(l.id + "|" + x.id)).length })), open = st.filter(x => x.k < x.l.items.length), fin = st.filter(x => x.k >= x.l.items.length);
+      const st = lists.map(l => ({ l, k: l.items.filter(x => done.has(l.id + "|" + x.id)).length, mine: assignFor(r, l, t).names.includes(myName) })).sort((a2, b2) => b2.mine - a2.mine),
+        open = st.filter(x => x.k < x.l.items.length), fin = st.filter(x => x.k >= x.l.items.length);
       const openList = () => { SCV.tab = "lists"; SCV.logDay = t; go("sched"); };
       box.replaceChildren(...[
         !open.length ? el("div",{class:"sx-party"}, el("span",{text:"\ud83c\udf89"}), el("div",null, el("b",{text:"All " + lists.length + " checklists done today."}), el("span",{text:" Nice work, team!"}))) : null,
-        open.length ? el("div",{class:"sh-lists"}, open.map(({ l, k }) => { const pct = Math.round(k / l.items.length * 100);
-          return el("button",{class:"sh-list", type:"button", onclick: openList}, el("div",{class:"spread"}, el("b",{text: l.name}), el("span",{class:"mini", text: k + " of " + l.items.length})),
+        open.length ? el("div",{class:"sh-lists"}, open.map(({ l, k, mine }) => { const pct = Math.round(k / l.items.length * 100);
+          return el("button",{class:"sh-list" + (mine ? " mine" : ""), type:"button", onclick: openList}, el("div",{class:"spread"}, el("b",{text: l.name}), mine ? el("span",{class:"pill good", text:"Yours"}) : el("span",{class:"mini", text: k + " of " + l.items.length})),
             el("div",{class:"bar"}, el("i",{style:"width:" + pct + "%"}))); })) : null,
         fin.length && open.length ? el("div",{class:"sx-done"}, fin.map(({ l }) => el("span",{text:"\u2713 " + l.name}))) : null].filter(Boolean));
       if (!open.length){ const key = "pm-party-" + t; let seen = false; try { seen = localStorage.getItem(key) === "1"; localStorage.setItem(key, "1"); } catch(e){} if (!seen) confetti(); } });
@@ -2967,7 +2975,7 @@ function needsYou(r){
   const row = el("section",{class:"ny-row", "aria-label":"Needs you"}, list.length ? list : el("span",{class:"ny ok"}, el("b",{text:"\u2713"}), el("span",{text:"All caught up"})));
   if (canEditSchedule()){ refreshPendingRequests(); if (SCV.pending){ const okEl = row.querySelector(".ny.ok"); if (okEl) okEl.remove();
     row.append(el("button",{class:"ny warn", type:"button", onclick:() => { SCV.tab = "requests"; go("sched"); }}, el("b",{text:SCV.pending}), el("span",{text: SCV.pending === 1 ? "schedule request" : "schedule requests"}))); } }
-  if (r.duties && r.duties.length && ["owner","manager"].includes(ACCT && ACCT.role)){
+  if (r.duties && r.duties.length && !r.dutiesPaused && ["owner","manager"].includes(ACCT && ACCT.role)){
     const y = addDays(localDay(new Date()), -1);
     sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: y, p_to: y }).then(({ data, error }) => {
       if (error) return; const ok = new Set((data || []).filter(c => c.status !== "skipped").map(c => c.list_id + "|" + c.item_id));
@@ -4315,10 +4323,12 @@ function bookSnapshot(r){
   const evs = r.events.filter(e => e.date >= from && e.date <= evTo).map(e => ({ date: e.date, time: e.start || null, endTime: e.end || null, title: e.title, where: e.where || "", guests: e.guests || null, desc: e.notes || "", menu: tabMenu(eventMenu(r, e)), needs: eventNeeds(r, e), photos: (e.photos || []).slice(0, 8) }));
   const plans = {}; Object.entries(r.bookingPlans || {}).forEach(([k, p]) => { if (!p.date || (p.date >= from && p.date <= evTo)) plans[k] = { guests: p.guests || null, notes: p.notes || "", menu: tabMenu(eventMenu(r, p)), needs: eventNeeds(r, p), photos: (p.photos || []).slice(0, 8) }; });
   const specials = r.specials.filter(sp => (!sp.end || sp.end >= from) && (!sp.start || sp.start <= evTo)).map(sp => ({ title: sp.title, kind: sp.kind, price: sp.price || null, desc: sp.desc || "", start: sp.start || null, end: sp.end || null, days: sp.days || null, itemId: sp.itemId || null }));
-  const duties = r.duties.map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, startAt: l.startAt || null, items: l.items }));
+  const whoDays = [...Array(8)].map((_, i) => addDays(localDay(new Date()), i - 1));
+  const duties = (r.dutiesPaused ? [] : r.duties).map(l => ({ id: l.id, name: l.name, area: l.area, when: l.when, days: l.days, startAt: l.startAt || null, items: l.items,
+    who: Object.fromEntries(whoDays.map(d => { const a2 = assignFor(r, l, d); return [d, { names: a2.names, ids: a2.names.map(nm => (r.staff.find(p => p.name === nm) || {}).id).filter(Boolean), guess: a2.guess }]; })) }));
   ideaCards.forEach(c => items.push(c));
   const changes = (r.changes || []).filter(c => Date.now() - Date.parse(c.at) < 21 * 864e5).map(c => ({ id: c.id, at: c.at, itemId: c.itemId && items.some(i => i.id === c.itemId) ? c.itemId : null, title: c.title, why: c.why || "", diffs: c.diffs || [], kind: c.kind }));
-  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, events: evs, plans, changes, kudos: kudosNow(r).map(k => ({ at: k.at, text: k.text, by: k.by, toName: k.toName })), specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
+  return { name: r.name || (ACCT ? ACCT.name : "Kitchen"), sections: order, items, stock, schedule, duties, dutiesPaused: !!r.dutiesPaused, events: evs, plans, changes, kudos: kudosNow(r).map(k => ({ at: k.at, text: k.text, by: k.by, toName: k.toName })), specials, hasFeeds: r.calFeeds.some(f => f.tablet !== false), made: new Date().toISOString(),
     brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Recipes" } };
 }
 let BOOK_T = null;
@@ -4435,19 +4445,47 @@ function starterDuties(){
 }
 // Who was responsible for a list on a day (same rules as the morning email): openers for opening lists, closers for
 // closing lists, bar shifts for bar lists, or the roles/people set on the list.
-function responsibleFor(r, l, day){
-  const toMin = v => v ? +v.slice(0, 2) * 60 + +v.slice(3) : 24 * 60 + 1;
-  if (l.people && l.people.length) return l.people.map(id => staffName(r, id)).filter(x => x && x !== "?");
+function responsibleFor(r, l, day){ return assignFor(r, l, day).names; }
+const AREA_POS = { Front:["Serving"], Kitchen:["Kitchen","Dish"], Bar:["Bar"], "Drive-thru":["Serving"], Everyone:null };
+// A time in the list's name ("6 AM Out", "8am prep") is a good hint for which shift it belongs to.
+function nameTime(l){ const m = String(l.name || "").match(/\b(\d{1,2})(?::(\d{2}))?\s*(a\.?m\.?|p\.?m\.?)(?![a-z])/i); if (!m) return null;
+  let hh = +m[1] % 12; if (/p/i.test(m[3])) hh += 12; return String(hh).padStart(2, "0") + ":" + (m[2] || "00"); }
+function assignFor(r, l, day){
+  const toMin = v => v ? +v.slice(0, 2) * 60 + +v.slice(3) : 24 * 60 + 1, a = l.assign || {}, names = ids => [...new Set(ids.map(id => staffName(r, id)))].filter(x => x && x !== "?");
+  if (a.mode === "people") return { names: names(a.people || []), guess:false, how:"Set people" };
+  if (!a.mode && l.people && l.people.length) return { names: names(l.people), guess:false, how:"Set people" };
   let pool = (r.shifts || []).filter(x => x.date === day && !x.off);
   const roles = (l.roles || []).map(x => String(x).toLowerCase());
-  if (roles.length) pool = pool.filter(x => roles.includes(String(x.role || "").toLowerCase()));
-  else if (l.area === "Bar"){ const b = pool.filter(x => /bar/i.test(x.role || "")); if (b.length) pool = b; }
-  else { const nb = pool.filter(x => !/bar/i.test(x.role || "")); if (nb.length) pool = nb; }
-  if (!pool.length) return [];
-  if (l.startAt){ const t0 = toMin(l.startAt); pool = pool.filter(x => Math.abs(toMin(x.start) - t0) <= 45); }
-  else if (l.when === "open"){ const first = Math.min(...pool.map(x => toMin(x.start))); pool = pool.filter(x => toMin(x.start) <= first + 60); }
-  else if (l.when === "close"){ const last = Math.max(...pool.map(x => toMin(x.end))); pool = pool.filter(x => toMin(x.end) >= last - 60); }
-  return [...new Set(pool.map(x => staffName(r, x.staff)))].filter(x => x && x !== "?").slice(0, 5);
+  const pos = a.pos ? (a.pos === "Everyone" ? null : [a.pos]) : AREA_POS[l.area] === undefined ? null : AREA_POS[l.area];
+  if (!a.mode && roles.length) pool = pool.filter(x => roles.includes(String(x.role || "").toLowerCase()));
+  else if (pos){ const p2 = pool.filter(x => pos.includes(posOfShift(r, x))); if (p2.length) pool = p2; }
+  if (!pool.length) return { names: [], guess: !a.mode, how:"" };
+  const mode = a.mode || "guess", time = mode === "time" ? a.time : mode === "guess" ? (l.startAt || nameTime(l)) : null;
+  let how = "";
+  if (time){ const t0 = toMin(time); pool = pool.filter(x => Math.abs(toMin(x.start) - t0) <= 60); how = "Shift starting around " + t12(time); }
+  else if (mode === "open" || (mode === "guess" && l.when === "open")){ const f = Math.min(...pool.map(x => toMin(x.start))); pool = pool.filter(x => toMin(x.start) <= f + 60); how = "Openers"; }
+  else if (mode === "close" || (mode === "guess" && l.when === "close")){ const e = Math.max(...pool.map(x => toMin(x.end))); pool = pool.filter(x => toMin(x.end) >= e - 60); how = "Closers"; }
+  else how = "Everyone on";
+  return { names: names(pool.map(x => x.staff)).slice(0, 5), guess: !a.mode, how };
+}
+function openAssign(r, l){
+  schedData(r); l = (r.duties || []).find(x => x.id === l.id) || l; const a = Object.assign({ mode:"", pos:"", time: l.startAt || nameTime(l) || "06:00", people: [] }, l.assign || {});
+  const day = SCV.logDay || localDay(new Date()), prev = el("div",{class:"msg", style:"margin-top:10px"});
+  const modes = [["", "Best guess", "The app picks from the shift and the list's name"], ["open", "Openers", "Whoever starts first"], ["close", "Closers", "Whoever leaves last"], ["time", "Shift starting around\u2026", "Pick a time"], ["people", "Specific people", "The same people every day"]];
+  const pos = el("select",{class:"inp"}, [["", "Match the list (" + (l.area || "any") + ")"], ["Kitchen","Kitchen"], ["Serving","Serving"], ["Bar","Bar"], ["Dish","Dish"], ["Everyone","Everyone"]].map(([v, t]) => el("option",{value:v, text:t}))); pos.value = a.pos || "";
+  const time = el("input",{class:"inp", type:"time", value: a.time}), ppl = el("div",{class:"as-ppl"});
+  const pick = new Set(a.people || []);
+  r.staff.slice().sort((x, y) => x.name.localeCompare(y.name)).forEach(p => { const cb = el("input",{type:"checkbox"}); cb.checked = pick.has(p.id); cb.onchange = () => { if (cb.checked) pick.add(p.id); else pick.delete(p.id); show(); }; ppl.append(el("label",{class:"row", style:"gap:6px"}, cb, p.name)); });
+  const radios = el("div",{class:"as-modes"}), cur = () => radios.querySelector("input:checked").value;
+  modes.forEach(([v, t, sub]) => { const rb = el("input",{type:"radio", name:"asg", value:v}); rb.checked = (a.mode || "") === v; rb.onchange = show; radios.append(el("label",{class:"as-mode"}, rb, el("span",null, el("b",{text:t}), el("small",{text:sub})))); });
+  function draft(){ const m = cur(); return m ? { mode: m, pos: m === "people" ? "" : pos.value, time: m === "time" ? time.value : null, people: m === "people" ? [...pick] : [] } : (pos.value ? { mode:"", pos: pos.value } : null); }
+  function show(){ const m = cur(); time.parentNode.style.display = m === "time" ? "" : "none"; ppl.style.display = m === "people" ? "" : "none"; pos.parentNode.style.display = m === "people" ? "none" : "";
+    const d = draft(), res = assignFor(r, Object.assign({}, l, { assign: d && d.mode ? d : d && d.pos ? { pos: d.pos } : null }), day);
+    prev.replaceChildren(el("b",{text: nice(day) + ": "}), res.names.length ? res.names.join(", ") : "nobody on the schedule matches"); }
+  time.oninput = show; pos.onchange = show;
+  openDlg("Who does \u201c" + l.name + "\u201d?", [radios, fld("Position", pos), fld("Time", time), ppl, prev],
+    [el("span"), el("button",{class:"btn primary", text:"Save", onclick:() => { const d = draft(); if (d && d.mode) l.assign = d; else if (d && d.pos) l.assign = { pos: d.pos }; else delete l.assign; save(); dlg.close(); render(); toast("Saved. Checklists, the tablet and phones show who it's for."); }})]);
+  show();
 }
 const CANT_REASONS = ["Ran out of supplies", "Equipment broken", "Short-staffed / too busy", "Ran out of time"];
 // Duties that say "every other night/day" show on alternate calendar days (the same days on the app, tablet and alerts).
@@ -4459,11 +4497,17 @@ const staffName = (r, id) => (r.staff.find(p => p.id === id) || {}).name || "?";
 function sched(m){
   if (!canEditSchedule() && (SCV.tab === "requests" || SCV.tab === "duties")) SCV.tab = "week";   // staff: Schedule and Checklists only
   const r = schedData(R()); const today = localDay(new Date());
+  if (r.dutiesPaused && !canEditSchedule() && SCV.tab === "lists") SCV.tab = "week";
   SCV.week = SCV.week || mondayOf(today);
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Schedule"}), el("p",{class:"lead", text:"Who's working, and the cleaning and prep duties for each shift. Both show on the tablet."})),
-    el("div",{class:"seg", role:"tablist"}, [["week","Schedule"],["requests","Requests"],["lists","Checklists"],["duties","Set up lists"]].filter(([k]) => canEditSchedule() || k === "week" || k === "lists").map(([k, t]) => el("button",{type:"button", "aria-pressed": String(SCV.tab === k), onclick:() => { SCV.tab = k; render(); }}, t,
+    el("div",{class:"seg", role:"tablist"}, [["week","Schedule"],["requests","Requests"],["lists","Checklists"],["duties","Set up lists"]].filter(([k]) => canEditSchedule() || k === "week" || (k === "lists" && !r.dutiesPaused)).map(([k, t]) => el("button",{type:"button", "aria-pressed": String(SCV.tab === k), onclick:() => { SCV.tab = k; render(); }}, t,
       k === "requests" && SCV.pending ? el("span",{class:"seg-badge", text: SCV.pending}) : null)))));
   refreshPendingRequests();
+  if (canEditSchedule() && (SCV.tab === "lists" || SCV.tab === "duties")) m.append(r.dutiesPaused
+    ? el("div",{class:"pause-bar"}, el("div",null, el("b",{text:"\u23f8 Checklists are paused."}), " Staff don't see them, and no reminder emails go out. Fix them up here, then roll them out."),
+        el("button",{class:"btn primary", type:"button", text:"\u25b6 Roll out checklists", onclick:() => { if (!confirm("Roll out checklists? Staff will see them on their phones and the tablet, and reminder emails start again.")) return; delete r.dutiesPaused; save(); render(); toast("Checklists are live for the team."); }}))
+    : el("div",{class:"pause-off"}, el("span",{class:"mini", text:"Checklists are live for the team."}),
+        el("button",{class:"btn quiet sm", type:"button", text:"\u23f8 Pause checklists", onclick:() => { if (!confirm("Pause checklists? Staff won't see them and no reminder emails go out until you roll them out.")) return; r.dutiesPaused = true; save(); render(); toast("Paused. Staff won't see checklists."); }})));
   const edit = canEditSchedule();
   if (!edit) m.append(el("div",{class:"msg", style:"margin-bottom:12px", text:"View only. Owners, managers, and people given \u201cCan edit the schedule\u201d (Settings & team \u2192 Team) can change the schedule and checklists."}));
   if (SCV.tab === "duties") return schedDuties(m, r, edit);
@@ -4734,11 +4778,14 @@ function schedChecklists(m, r, today){
     box.replaceChildren(el("div",{class:"duty-grid"}, lists.map(l => { const n2 = l.items.filter(x => { const c = done.get(l.id + "|" + x.id); return c && c.status === "done"; }).length;
       const nx = l.items.filter(x => { const c = done.get(l.id + "|" + x.id); return c && c.status === "excused"; }).length;
       const rest = l.items.filter(x => { const c = done.get(l.id + "|" + x.id); return !c || c.status === "skipped"; }).map(x => x.id);
-      const resp = responsibleFor(r, l, day);
+      const asg = assignFor(r, l, day), resp = asg.names;
       return el("div",{class:"card duty-card"},
         el("div",{class:"spread"}, el("div",null, el("h3",{style:"margin:0", text:l.name}), el("span",{class:"mini", text: l.area + ", " + (l.startAt ? "starts around " + t12(l.startAt) : ({ open:"opening", mid:"mid-shift", close:"closing", daily:"any time" })[l.when]) + (resp.length ? ". Responsible: " + resp.join(", ") : l.startAt ? ". No one starts near then today" : "")})),
           el("div",{class:"row", style:"gap:6px;flex-wrap:nowrap"}, el("span",{class:"pill " + (n2 + nx === l.items.length ? "good" : n2 ? "warn" : day < today ? "bad" : ""), text: n2 + " of " + l.items.length + (nx ? ", " + nx + " cleared" : "")}),
             canClear && rest.length ? el("button",{class:"linkbtn", type:"button", text:"Clear the rest", onclick:() => clearReason("the rest of " + l.name, async t => { await excuseDuties(day, l, rest, t); toast("Cleared " + rest.length); render(); })}) : null)),
+        el("div",{class:"as-who"}, el("span",{class:"as-ic", text:"\ud83d\udc64"}), el("b",{text: resp.length ? resp.join(", ") : "Nobody on the schedule matches"}),
+          asg.how ? el("span",{class:"mini", text:" \u00b7 " + asg.how}) : null, asg.guess ? el("span",{class:"pill warn as-guess", text:"best guess"}) : null,
+          canEditSchedule() ? el("button",{class:"linkbtn", type:"button", text:"Assign", onclick:() => openAssign(r, l)}) : null),
         el("div",{class:"ck-list"}, l.items.map(x => { const c = done.get(l.id + "|" + x.id), sk = c && c.status === "skipped", ex = c && c.status === "excused";
           const sub = ex ? "Cleared: " + (c.note || "not needed") + (c.done_by ? " (" + c.done_by + ")" : "") : sk ? "Couldn't: " + (c.note || "no reason") + " (" + (c.done_by || "?") + ")" : c ? (c.done_by || "Someone") + ", " + new Date(c.done_at).toLocaleTimeString([], { hour:"numeric", minute:"2-digit" }) : day < today ? "Missed" + (resp.length ? ": " + resp.join(", ") : "") : "";
           const excuse = canClear ? (note, undo) => excuseDuties(day, l, [x.id], note, undo).then(() => render()) : null;

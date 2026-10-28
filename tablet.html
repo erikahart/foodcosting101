@@ -327,7 +327,7 @@ html, body{max-width:100%;overflow-x:hidden}
 .wn-acts{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px} .wn-ok{color:var(--jade, #1F6F5C);font-weight:800}
 .card{position:relative} .chg-tag{position:absolute;top:10px;left:10px;z-index:2;background:var(--mustard, #D99A1E);color:#24221F;font-weight:800;font-size:.85rem;padding:4px 10px;border-radius:999px}
 /* ---------- Super simple: clean header, big bottom tabs on phones ---------- */
-#q, #custom, #nav-ev{display:none !important}
+#q, #custom, #nav-ev, .tabs button[hidden]{display:none !important}
 @media (max-width:900px){ #wake{display:none !important} }
 .tabs button{display:inline-flex;align-items:center;gap:8px}
 .rec-top{display:flex;gap:10px;align-items:center;margin:0 0 16px;flex-wrap:wrap}
@@ -335,7 +335,7 @@ html, body{max-width:100%;overflow-x:hidden}
 .home-link{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:58px;margin-top:14px;padding:0 18px;border-radius:16px;border:1px solid var(--line);background:var(--panel);font:inherit;font-weight:700;font-size:1.05rem;color:var(--ink);cursor:pointer}
 .home-link span{font-size:1.6rem;color:var(--muted)}
 @media (max-width:640px){
-  header .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid !important;grid-template-columns:repeat(4,1fr);gap:0;width:auto;order:0;
+  header .tabs{position:fixed;left:0;right:0;bottom:0;z-index:30;display:grid !important;grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:1fr;gap:0;width:auto;order:0;
     background:var(--char, #24221F);padding:6px 6px calc(6px + env(safe-area-inset-bottom,0px));border-top:1px solid #3A3631;overflow:visible}
   header .tabs button{flex-direction:column;gap:3px;min-height:58px;padding:0;border:0;border-radius:12px;font-size:.78rem;color:#C9C3BA;background:transparent}
   header .tabs button[aria-current="page"]{background:rgba(255,255,255,.12);color:#fff}
@@ -556,7 +556,7 @@ html, body{max-width:100%;overflow-x:hidden}
     return h("div", { class:"sec-grid" },
       btn("c-rec", "rec", "Recipes", BOOK.items.filter(x => !x.hidden).length + " cards", () => { location.hash = "recipes"; }),
       btn("c-sched", "sched", "Schedule", myToday ? "You're on today" : ME ? "Your shifts" : "Who's working", () => { location.hash = "sched"; }),
-      btn("c-duty", "duty", "Duties", "Today's checklists", () => { location.hash = "duties"; }),
+      BOOK.dutiesPaused ? null : btn("c-duty", "duty", "Duties", "Today's checklists", () => { location.hash = "duties"; }),
       btn("c-ev", "ev", "Events", evN ? evN + " today" : "Coming up", () => { location.hash = "events"; }, evN || null),
       btn("c-new", "new", "What's new", newN ? newN + (ME ? " for you" : " this week") : "All caught up", () => { location.hash = "new"; }, newN || null),
       btn("c-low", "low", "Running low", lows.length ? lows.length + " reported" : "Warn a manager", () => boardPicker("low"), lows.length || null),
@@ -1070,6 +1070,7 @@ html, body{max-width:100%;overflow-x:hidden}
       h("span", { text: "\uD83D\uDC64 " + (w.names.length ? w.names.join(", ") : "Anyone on shift") }), w.guess ? h("span", { class:"who-guess", text:"best guess" }) : null);
   }
   function dutiesView(m){
+    if (BOOK.dutiesPaused){ m.replaceChildren(h("div", { class:"empty", text:"Checklists are coming soon. Your manager is getting them ready." })); return; }
     const today = localDay(), dn = new Date(today + "T12:00:00").getDay();
     if (CHECKS_DAY !== today) loadChecks();
     const order = { open:0, mid:1, daily:2, close:3 };
@@ -1095,7 +1096,7 @@ html, body{max-width:100%;overflow-x:hidden}
     m.replaceChildren(...parts, status());
     clearInterval(checkTimer); checkTimer = setInterval(() => { if (location.hash === "#duties") loadChecks(); else clearInterval(checkTimer); }, 60000);
   }
-  function markNav(){ const hsh = location.hash || "#", home = hsh === "#" || hsh === "#new" || hsh === "#events", rec = !home && !["#sched", "#duties"].includes(hsh);
+  function markNav(){ const nd = $("nav-duty"); if (nd) nd.hidden = !!(BOOK && BOOK.dutiesPaused); const hsh = location.hash || "#", home = hsh === "#" || hsh === "#new" || hsh === "#events", rec = !home && !["#sched", "#duties"].includes(hsh);
     $("nav-home").setAttribute("aria-current", home ? "page" : "false"); $("nav-rec").setAttribute("aria-current", rec ? "page" : "false");
     $("nav-sched").setAttribute("aria-current", hsh === "#sched" ? "page" : "false"); $("nav-duty").setAttribute("aria-current", hsh === "#duties" ? "page" : "false"); }
   const SEARCH = h("input", { class:"search-big", type:"search", placeholder:"Search recipes or ingredients", "aria-label":"Search recipes", autocomplete:"off" });

@@ -7,7 +7,7 @@ export default async () => {
   let rows = [];
   try { rows = await rpc(process.env, "duty_alert_accounts", { p_day: day }) || []; } catch (e) { console.error("duty alerts: couldn't read kitchens", e.message); return; }
   for (const k of rows) {
-    if (k.already || !k.place) continue;
+    if (k.already || !k.place || k.place.dutiesPaused) continue;   // paused: no alert
     const to = ((k.place.dutyAlerts || {}).emails || []).filter(e => /@/.test(e)).slice(0, 5);
     const report = missedReport(k.place, day, k.checks);
     const mail = alertEmail(k.place.name || k.name, day, report);

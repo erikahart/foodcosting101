@@ -2,6 +2,7 @@
 // and the "Send a test" button. The app has the same rules for its own screens.
 const toMin = v => v ? +v.slice(0, 2) * 60 + +v.slice(3) : 24 * 60 + 1;   // no end = until close
 export function listsFor(place, day) {
+  if (place.dutiesPaused) return [];   // checklists paused by a manager: nothing is due, nothing is missed
   const dow = new Date(day + "T12:00:00Z").getUTCDay();
   const dnum = Math.round(Date.UTC(+day.slice(0, 4), +day.slice(5, 7) - 1, +day.slice(8, 10)) / 864e5);
   return (place.duties || []).filter(l => !l.days || !l.days.length || l.days.includes(dow))
