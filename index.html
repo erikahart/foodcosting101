@@ -1245,6 +1245,7 @@ aside .brandbox b{font-size:1.3rem}
 .tl2-name{display:flex;align-items:center;gap:8px;min-width:0}
 .tl2-name b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tl2-name .rl{font-style:normal;font-size:.7rem;font-weight:700;border-radius:999px;padding:1px 7px;background:var(--jade-pale);color:var(--jade)}
+@media (max-width:640px){ .tl2-row{grid-template-columns:1fr !important;gap:4px;min-height:0;padding:6px 0} .tl2-head > span:first-child{display:none} .tl2-name .av{width:26px;height:26px;font-size:.7rem} .tl2{padding:8px 12px} }
 .tl2-track{position:relative;height:38px;background-image:linear-gradient(90deg,var(--line) 0 1px,transparent 1px);background-size:calc(100% / var(--n,8)) 100%;border-right:1px solid var(--line)}
 .tl2-bar{position:absolute;top:4px;bottom:4px;border-radius:9px;border:0;border-left:4px solid;font:inherit;font-weight:700;font-size:.85rem;text-align:left;padding:0 10px;white-space:nowrap;overflow:hidden;cursor:pointer;min-width:80px}
 .tl2-bar[disabled]{cursor:default}
@@ -1435,6 +1436,7 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .pin-logo{width:72px;height:72px;margin:0 auto;border-radius:16px}
 .code-in{font-size:1.8rem;letter-spacing:.35em;text-align:center;min-height:58px}
 .shared-pc{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} .shared-pc summary{cursor:pointer;padding:4px 0}
+@media (max-width:820px){ .viewas-bar{position:relative !important;top:auto !important} }
 .viewas-bar{position:sticky;top:0;z-index:15;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--mustard, #D99A1E);color:#24221F;border-radius:12px;padding:10px 14px;margin:0 0 14px;font-weight:600}
 .promo-list{display:grid;gap:10px}
 .promo{border:1px solid var(--line);border-left:5px solid var(--line-2);border-radius:12px;padding:12px 14px;background:var(--panel)}
@@ -2118,7 +2120,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Pause checklists";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Phone schedule fix";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -4509,7 +4511,7 @@ function sched(m){
     : el("div",{class:"pause-off"}, el("span",{class:"mini", text:"Checklists are live for the team."}),
         el("button",{class:"btn quiet sm", type:"button", text:"\u23f8 Pause checklists", onclick:() => { if (!confirm("Pause checklists? Staff won't see them and no reminder emails go out until you roll them out.")) return; r.dutiesPaused = true; save(); render(); toast("Paused. Staff won't see checklists."); }})));
   const edit = canEditSchedule();
-  if (!edit) m.append(el("div",{class:"msg", style:"margin-bottom:12px", text:"View only. Owners, managers, and people given \u201cCan edit the schedule\u201d (Settings & team \u2192 Team) can change the schedule and checklists."}));
+  if (!edit && !pinLocked()) m.append(el("p",{class:"mini", style:"margin:0 0 10px", text:"View only. Managers can change the schedule."}));
   if (SCV.tab === "duties") return schedDuties(m, r, edit);
   if (SCV.tab === "lists" || SCV.tab === "log") return schedChecklists(m, r, today);
   if (SCV.tab === "requests") return schedRequests(m, r, today, edit);
@@ -4559,7 +4561,7 @@ function sched(m){
       const groups = {}; list.forEach(x => { const g = posOfShift(r, x); (groups[g] = groups[g] || []).push(x); });
       const gorder = Object.keys(groups).sort((a, b) => (POSITIONS.indexOf(a) + 1 || 99) - (POSITIONS.indexOf(b) + 1 || 99));
       m.append(el("div",{class:"card tl2"},
-        el("div",{class:"tl2-row tl2-head"}, el("span"), el("div",{class:"tl2-axis"}, hours.map(v => el("span",{style:"left:" + pct(v) + "%", text: ((v / 60) % 12 || 12) + ((v / 60) >= 12 && v / 60 < 24 ? "p" : "a")})))),
+        el("div",{class:"tl2-row tl2-head"}, el("span"), el("div",{class:"tl2-axis"}, hours.filter((v, i) => i % (isPhone() ? (hours.length > 11 ? 4 : 3) : 1) === 0).map(v => el("span",{style:"left:" + pct(v) + "%", text: ((v / 60) % 12 || 12) + ((v / 60) >= 12 && v / 60 < 24 ? "p" : "a")})))),
         gorder.flatMap(g => [el("div",{class:"tl2-sec", style:"--pc:" + (POS_COLOR[g] || POS_COLOR.Team)}, el("b",{text:g}), el("span",{text: new Set(groups[g].map(x => x.staff)).size + " on"})),
         ...groups[g].map(x => { const p = r.staff.find(q => q.id === x.staff) || { name:"?" }, e = x.end ? toMin(x.end) : hi;
           return el("div",{class:"tl2-row"}, el("div",{class:"tl2-name"}, avatar(p.name), el("b",{text:p.name}), x.role ? el("i",{class:"rl", text:(r.roleCodes[x.role] || x.role)}) : null),
