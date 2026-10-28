@@ -1625,6 +1625,9 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .sh-list.mine{border:2px solid var(--jade, #1F6F5C);background:color-mix(in srgb, var(--jade, #1F6F5C) 7%, var(--field))}
 .pause-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:#FFF4D6;border:2px solid var(--mustard, #D99A1E);border-radius:14px;padding:12px 16px;margin:0 0 14px}
 .pause-off{display:flex;align-items:center;justify-content:flex-end;gap:10px;margin:-4px 0 10px}
+.sell-today-app{background:linear-gradient(135deg,#F2C14E,#E5A92B);color:#24221F;border-radius:20px;padding:16px 20px;margin:0 0 14px;box-shadow:0 8px 20px rgba(217,154,30,.25)}
+.sell-today-app .st-k{font-weight:800;letter-spacing:.08em;text-transform:uppercase;font-size:.85rem;margin-bottom:6px} .sell-today-app .st-item b{font-family:var(--brand-font);font-weight:800;font-size:1.6rem;line-height:1.1;display:block}
+.sell-today-app .st-item p{margin:4px 0 0;font-weight:600} .sell-today-app .st-item + .st-item{margin-top:12px;padding-top:12px;border-top:1px solid rgba(0,0,0,.15)}
 </style>
 </head>
 <body>
@@ -2120,7 +2123,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 28, 2026 \u00b7 Promo fixes";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Sell today banner";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2445,7 +2448,9 @@ function staffHome(m){
       c.diffs.length ? el("ul",{class:"diffs"}, c.diffs.slice(0, 6).map(d => el("li",null, el("span",{class:"dl", text:d.label + ": "}), d.old ? el("s",{text:d.old}) : null, d.old ? " \u2192 " : "", el("mark",{text:d.now})))) : null))));
   // 4. Today (only when there's something)
   calData(r); loadFeedEvents(r, addDays(t, -7), addDays(t, 35));
-  const items = dayItems(r, t);
+  const items0 = dayItems(r, t), sells = items0.filter(it => it.kind === "special"), items = items0.filter(it => it.kind !== "special");
+  if (sells.length){ const sb = el("div",{class:"sell-today-app"}, el("div",{class:"st-k", text:"\u2605 Sell today"}), sells.map(it => el("div",{class:"st-item"}, el("b",{text: it.title}), it.desc ? el("p",{text: it.desc}) : null)));
+    const hero = m.querySelector(".sx-hero"), wk = m.querySelector(".sx-week"); (wk || hero) ? (wk || hero).after(sb) : m.prepend(sb); }
   if (items.length) m.append(el("div",{class:"card"}, el("h2",{style:"margin:0 0 8px", text:"Today"}), el("div",{class:"cal-list"}, items.map(it => el("div",{class:"cal-item", style:"--c:" + it.color},
     el("div",{class:"cal-when", text: it.kind === "special" ? "\u2605 Sell today" : it.kind === "note" ? "Note" : it.time ? t12(it.time) : "All day"}),
     el("div",{class:"cal-what"}, el("b",{text:it.title}), it.guests ? el("span",{class:"pill", style:"margin-left:8px", text: it.guests + " guests"}) : null, it.where ? el("div",{class:"mini", text:"@ " + it.where}) : null,
