@@ -1612,6 +1612,10 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 @media (max-width:640px){ .bk-filters .bk-row2{display:grid !important;grid-template-columns:1fr !important;gap:8px} .bk-filters .bk-side{display:flex !important;width:100%} .bk-side button{flex:1 1 0} .bk-filters .bk-row2 select{width:100% !important;min-width:0} }
 .kb-ini{display:grid;place-items:center;flex:none;width:52px;height:52px;border-radius:14px;font-weight:800;font-size:1.1rem;color:#fff}
 .kb-ini.food{background:#1F6F5C} .kb-ini.bar{background:#B8352A}
+.bp-typebox{display:grid;gap:6px;margin-bottom:12px} .bp-lbl{font-weight:800}
+.bp-type{min-height:52px;font-size:1.05rem}
+.bp-typed{display:flex;flex-wrap:wrap;gap:6px} .bp-chip{display:inline-flex;align-items:center;gap:6px;background:#D6EEE3;color:#1F6F5C;border-radius:999px;padding:4px 6px 4px 12px;font-weight:700}
+.bp-chip.free{background:#FBEBC5;color:#7A5200} .bp-chip button{border:0;background:rgba(0,0,0,.08);border-radius:50%;width:24px;height:24px;font:inherit;font-weight:800;cursor:pointer;color:inherit}
 </style>
 </head>
 <body>
@@ -2107,7 +2111,7 @@ function contrastWithWhite(hex){ const m = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   const lum = .2126 * L((v >> 16) & 255) + .7152 * L((v >> 8) & 255) + .0722 * L(v & 255); return 1.05 / (lum + .05); }
 const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhite(hex) >= 3;
 // Shown at the bottom of the sidebar, so it's easy to see which version is live.
-const APP_VERSION = "Oct 27, 2026 \u00b7 Tidier recipes page";
+const APP_VERSION = "Oct 27, 2026 \u00b7 Type BOGO items";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -5683,7 +5687,7 @@ const promoRunning = (r, p) => (r.specials || []).find(sp => sp.promoId === p.id
 const promoOnce = (r, p) => (r.specials || []).filter(sp => sp.promoId === p.id && !(sp.days && sp.days.length) && sp.start >= localDay(new Date()));
 function nextDay(dow){ const t = new Date(localDay(new Date()) + "T12:00:00"); const k = (dow - t.getDay() + 7) % 7; t.setDate(t.getDate() + k); return localDay(t); }
 function promoText(r, p){
-  const only = (p.only || []).map(id => r.items[id] && r.items[id].name).filter(Boolean);
+  const only = (p.only || []).map(id => r.items[id] && r.items[id].name).filter(Boolean).concat(p.onlyText || []);
   const ex = (p.exclude || []).map(id => r.items[id] && r.items[id].name).filter(Boolean);
   const not = [p.noAlcohol ? "alcohol" : "", ...ex].filter(Boolean);
   return p.rules + (only.length ? " " + p.name + " on: " + only.join(", ") + ". Everything else is full price." : not.length ? " Not included: " + not.join(", ") + "." : "") + " Ring it with the " + p.name + " discount in Clover.";
@@ -5737,7 +5741,7 @@ function promoCard(r){
     el("span",{class:"pl-star", text:"\u2605"}),
     running.length ? el("div",{class:"pl-body"}, running.map(({ p, run, once }) => el("div",{class:"pl-item"},
         el("b",{text: p.name}), el("span",{text: run ? " every " + DAY_NAMES[run.days[0]] : " on " + once.map(sp => nice(sp.start)).join(", ")}),
-        isBogo(p) ? el("button",{class:"linkbtn", type:"button", text: p.only && p.only.length ? p.only.length + " items" : "Pick the items", onclick:() => openBogoPlanner(p)}) : null,
+        isBogo(p) ? el("button",{class:"linkbtn", type:"button", text: ((p.only || []).length + (p.onlyText || []).length) ? ((p.only || []).length + (p.onlyText || []).length) + " items" : "Pick the items", onclick:() => openBogoPlanner(p)}) : null,
         el("button",{class:"linkbtn danger-t", type:"button", text:"Stop", onclick:() => { stopPromo(r, p); render(); }}))))
       : el("div",{class:"pl-body"}, el("b",{text:"No promo running"}), el("span",{class:"mini", text:" BOGO, half-price apps and more"})),
     el("button",{class:"btn " + (running.length ? "quiet" : "primary") + " sm", type:"button", text: running.length ? "Promos" : "Run a promo", onclick: openPromos}));
@@ -5751,7 +5755,7 @@ function promoCardFull(r){
     el("div",{class:"promo-quick"}, list.map(p => { const run = promoRunning(r, p), once = promoOnce(r, p);
       return el("div",{class:"pq " + (run || once.length ? "on" : "")},
         el("div",null, el("b",{text: p.name}), el("span",{class:"mini", text: run ? " Every " + DAY_NAMES[run.days[0]] : once.length ? " " + once.map(sp => nice(sp.start)).join(", ") : " " + DAY_NAMES[p.day] + "s"}),
-          /bogo|buy one/i.test(p.name + " " + p.rules) ? el("button",{class:"linkbtn", type:"button", style:"margin-left:8px", text: p.only && p.only.length ? p.only.length + " items \u00b7 change" : "Pick the items", onclick:() => openBogoPlanner(p)}) : null),
+          /bogo|buy one/i.test(p.name + " " + p.rules) ? el("button",{class:"linkbtn", type:"button", style:"margin-left:8px", text: ((p.only || []).length + (p.onlyText || []).length) ? ((p.only || []).length + (p.onlyText || []).length) + " items \u00b7 change" : "Pick the items", onclick:() => openBogoPlanner(p)}) : null),
         run || once.length ? el("button",{class:"btn danger sm", type:"button", text:"Stop", onclick:() => { stopPromo(r, p); render(); }})
           : el("div",{class:"row", style:"gap:6px"}, el("button",{class:"btn primary sm", type:"button", text:"Run every " + DAY_NAMES[p.day], onclick:() => { runPromo(r, p, true); render(); }}),
               el("button",{class:"btn quiet sm", type:"button", text: p.day === dow ? "Just today" : "Just " + nice(nextDay(p.day)), onclick:() => { runPromo(r, p, false); render(); }}))); })));
@@ -5767,9 +5771,17 @@ function bogoRows(r){
     .filter(Boolean).sort((a, b) => b.pair - a.pair);
 }
 function openBogoPlanner(p){
-  const r = R(), rows = bogoRows(r), pick = new Set((p.only && p.only.length) ? p.only : []);
-  if (!rows.length) return toast("Add recipes with prices first, so the planner knows what each plate costs.");
-  const max = Math.max(...rows.map(x => Math.abs(x.pair)), 1), ex = rows.find(x => x.zone === "great") || rows[0], bad = rows.slice().reverse().find(x => x.zone === "out");
+  const r = R(), rows = bogoRows(r), pick = new Set((p.only && p.only.length) ? p.only : []), typed = (p.onlyText || []).slice();
+  const allItems = Object.values(r.items).filter(it => !SUMMARY_SECTION.test(it.section || ""));
+  const typeIn = el("input",{class:"inp bp-type", list:"bp-names", placeholder:"Type items, e.g. Philly Cheese Steak, BLT, all burgers\u2026 then Enter", autocomplete:"off"});
+  const typedBox = el("div",{class:"bp-typed"});
+  const addTyped = raw => { raw.split(",").map(x => x.trim()).filter(Boolean).forEach(nm => { const k = nm.toLowerCase();
+      const hit = allItems.find(it => it.name.toLowerCase() === k) || allItems.filter(it => it.name.toLowerCase().includes(k)).sort((a2, b2) => a2.name.length - b2.name.length)[0];
+      if (hit && (hit.name.toLowerCase() === k || allItems.filter(it => it.name.toLowerCase().includes(k)).length === 1)) pick.add(hit.id); else if (!typed.some(x => x.toLowerCase() === k)) typed.push(nm); });
+    typeIn.value = ""; draw(); };
+  typeIn.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === ","){ e.preventDefault(); if (typeIn.value.trim()) addTyped(typeIn.value); } });
+  typeIn.addEventListener("change", () => { if (allItems.some(it => it.name === typeIn.value)) addTyped(typeIn.value); });
+  const max = Math.max(...rows.map(x => Math.abs(x.pair)), 1), ex = rows.find(x => x.zone === "great") || rows[0] || null, bad = rows.slice().reverse().find(x => x.zone === "out");
   const chart = el("div",{class:"bp-chart"}), sum = el("div",{class:"bp-sum"});
   const draw = () => {
     chart.replaceChildren(...rows.map(x => { const on = pick.has(x.it.id), w = Math.max(2, Math.abs(x.pair) / max * 100);
@@ -5777,27 +5789,35 @@ function openBogoPlanner(p){
           onclick:() => { if (on) pick.delete(x.it.id); else { if (x.zone === "out" && !confirm(x.it.name + " keeps only " + $$(x.pair) + " per pair. Add it anyway?")) return; pick.add(x.it.id); } draw(); }},
         el("span",{class:"bp-check", text: on ? "\u2713" : ""}), el("span",{class:"bp-name", text: x.it.name}),
         el("span",{class:"bp-track"}, el("i",{style:"width:" + w + "%"})), el("span",{class:"bp-val", text: (x.pair < 0 ? "\u2212" : "") + $$(Math.abs(x.pair))})); }));
+    const offChart = [...pick].filter(id => !rows.some(x => x.it.id === id) && r.items[id]);
+    typedBox.replaceChildren(...offChart.map(id => el("span",{class:"bp-chip"}, r.items[id].name, el("button",{type:"button", "aria-label":"Remove", text:"\u00d7", onclick:() => { pick.delete(id); draw(); }}))),
+      ...typed.map((nm, i) => el("span",{class:"bp-chip free", title:"Typed in (not a menu item)"}, nm, el("button",{type:"button", "aria-label":"Remove", text:"\u00d7", onclick:() => { typed.splice(i, 1); draw(); }}))));
     const sel = rows.filter(x => pick.has(x.it.id)), avg = sel.length ? sel.reduce((t, x) => t + x.pair, 0) / sel.length : 0;
-    sum.replaceChildren(sel.length ? el("span",null, el("b",{text: sel.length + " picked. "}), "If you sell 30 BOGO pairs of these, you keep about ", el("b",{text: $$(avg * 30)}), " after food (", $$(avg), " a pair on average).")
+    const extra = offChart.length + typed.length;
+    sum.replaceChildren(sel.length || extra ? el("span",null, el("b",{text: (sel.length + extra) + " picked. "}), extra && !sel.length ? "Typed items aren't on the chart, so there's no estimate for them." : "",
+      sel.length ? el("span",null, "If you sell 30 BOGO pairs of the charted ones, you keep about ", el("b",{text: $$(avg * 30)}), " after food (", $$(avg), " a pair on average).") : null)
       : el("span",{text:"Tap bars to pick items, or let the app pick the green ones."}));
   };
   draw();
   openDlg("Plan " + p.name, [
-    el("details",{class:"bp-learn", open:""}, el("summary",null, el("b",{text:"How to read this chart (30 seconds)"})),
+    el("div",{class:"bp-typebox"}, el("label",{class:"bp-lbl", text:"Type the items (or tap them on the chart below)"}), typeIn, el("datalist",{id:"bp-names"}, allItems.map(it => el("option",{value: it.name}))), typedBox),
+    !rows.length ? el("p",{class:"mini", text:"The chart appears once recipes have prices and costs. You can still type items above."}) :
+    el("details",{class:"bp-learn", open: (p.only && p.only.length) || (p.onlyText && p.onlyText.length) ? null : ""}, el("summary",null, el("b",{text:"How to read this chart (30 seconds)"})),
       el("ol",null,
         el("li",null, "With BOGO, you collect ", el("b",{text:"one price"}), " but pay for ", el("b",{text:"two plates"}), "."),
         el("li",null, "Each bar shows what you ", el("b",{text:"keep per pair"}), ": menu price minus two plate costs. ", el("b",{text:"Longer is better."})),
         el("li",null, el("span",{class:"zone great", text:"Green"}), " keeps half the price or more: great for BOGO. ", el("span",{class:"zone ok", text:"Yellow"}), " is okay. ", el("span",{class:"zone out", text:"Red"}), " keeps very little or loses money: leave it out.")),
-      el("p",{class:"bp-ex"}, el("b",{text:"Example: "}), ex.it.name + " sells for " + $$(ex.price) + " and costs " + $$(ex.plate) + " a plate. As BOGO: " + $$(ex.price) + " \u2212 2 \u00d7 " + $$(ex.plate) + " = ", el("b",{text: $$(ex.pair) + " kept per pair."}),
+      !ex ? null : el("p",{class:"bp-ex"}, el("b",{text:"Example: "}), ex.it.name + " sells for " + $$(ex.price) + " and costs " + $$(ex.plate) + " a plate. As BOGO: " + $$(ex.price) + " \u2212 2 \u00d7 " + $$(ex.plate) + " = ", el("b",{text: $$(ex.pair) + " kept per pair."}),
         bad ? " But " + bad.it.name + " keeps only " + $$(bad.pair) + ", so it stays full price." : "")),
     el("div",{class:"bp-key"}, el("span",{text:"Item"}), el("span",{text:"You keep per pair \u2192"})), chart, sum],
     [el("div",{class:"row", style:"gap:8px"},
        el("button",{class:"btn quiet", type:"button", text:"Pick the best for me", onclick:() => { pick.clear(); rows.filter(x => x.zone === "great").slice(0, 12).forEach(x => pick.add(x.it.id)); if (!pick.size) rows.filter(x => x.zone === "ok").slice(0, 8).forEach(x => pick.add(x.it.id)); draw(); }}),
        el("button",{class:"linkbtn", type:"button", text:"Clear", onclick:() => { pick.clear(); draw(); }})),
      el("button",{class:"btn primary", type:"button", text:"Use for " + p.name, onclick:() => {
-       p.only = rows.filter(x => pick.has(x.it.id)).map(x => x.it.id);
+       if (typeIn.value.trim()) addTyped(typeIn.value);
+       p.only = [...pick].filter(id => r.items[id]); p.onlyText = typed.slice();
        (r.specials || []).forEach(sp => { if (sp.promoId === p.id && ((sp.days && sp.days.length) || sp.start >= localDay(new Date()))) sp.desc = promoText(r, p); });
-       save(); dlg.close(); toast(p.only.length ? p.name + " is set for " + p.only.length + " items. Servers see the list." : p.name + " now applies to everything except what's excluded."); render(); }})]);
+       save(); dlg.close(); toast(p.only.length + p.onlyText.length ? p.name + " is set for " + (p.only.length + p.onlyText.length) + " items. Servers see the list." : p.name + " now applies to everything except what's excluded."); render(); }})]);
 }
 function openPromos(){
   const r = R(), list = promoList(r), box = el("div",{class:"promo-list"});
@@ -5811,7 +5831,7 @@ function openPromos(){
           : el("button",{class:"btn primary", type:"button", text:"Run every " + DAY_NAMES[p.day], onclick:() => { runPromo(r, p, true); draw(); }}),
         run ? null : el("button",{class:"btn quiet sm", type:"button", text:"Just " + nice(nextDay(p.day)), onclick:() => { runPromo(r, p, false); draw(); }}),
         !run && once.length ? el("button",{class:"linkbtn", type:"button", text:"Cancel", onclick:() => { stopPromo(r, p); draw(); }}) : null,
-        /bogo|buy one/i.test(p.name + " " + p.rules) ? el("button",{class:"btn quiet sm", type:"button", text: (p.only && p.only.length ? "Change items (" + p.only.length + ")" : "Pick the items"), onclick:() => openBogoPlanner(p)}) : null,
+        /bogo|buy one/i.test(p.name + " " + p.rules) ? el("button",{class:"btn quiet sm", type:"button", text: ((p.only || []).length + (p.onlyText || []).length ? "Change items (" + ((p.only || []).length + (p.onlyText || []).length) + ")" : "Pick the items"), onclick:() => openBogoPlanner(p)}) : null,
         el("button",{class:"linkbtn", type:"button", text:"Edit", onclick:() => editPromo(r, p, draw)}))); }),
     el("button",{class:"btn quiet", type:"button", text:"+ New promo", onclick:() => { const p = { id: uid("pr"), name:"New promo", day:3, rules:"", noAlcohol:true, exclude:[] }; list.push(p); save(); editPromo(r, p, draw); }}));
   draw();
