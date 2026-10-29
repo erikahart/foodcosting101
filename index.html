@@ -1649,6 +1649,15 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
   .pr .pr-chg{grid-row:3;grid-column:2;justify-self:start} .pr .pr-rm{grid-row:3;grid-column:2;justify-self:end;font-size:.9rem}
   .pin-list .feed-row.pr:not(:has(.pr-phone)) .pr-rm{grid-row:1} .pin-list .feed-row.pr:has(.pr-phone) .pr-rm{grid-row:3}
 }
+.sp-quick{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:12px}
+.sp-btn{display:grid;gap:2px;justify-items:start;text-align:left;padding:12px;border-radius:14px;border:1.5px solid var(--line);background:var(--panel);font:inherit;color:var(--ink);cursor:pointer;min-height:64px}
+.sp-btn b{font-size:1.1rem} .sp-btn span{font-size:.82rem;color:var(--ink-2)} .sp-btn.mine{border-color:var(--jade, #1F6F5C);background:color-mix(in srgb, var(--jade, #1F6F5C) 7%, var(--panel))}
+.sp-btn.off{background:var(--field)} .sp-btn.clear{border-style:dashed;color:var(--muted)} .sp-btn:active{transform:scale(.97)}
+.sp-custom summary{cursor:pointer;font-weight:700;margin:4px 0 8px}
+.req-off{display:block;font-size:.75rem;font-weight:700;color:#7A5200;background:#FFF4D6;border:1px dashed #EBCB88;border-radius:8px;padding:4px 6px;text-align:center}
+.over-h{color:var(--bad, #B8352A) !important;font-weight:700}
+.dshort{display:block;margin-top:3px;font-size:.68rem;font-weight:800;color:#fff;background:#B8352A;border-radius:6px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.cov-t th, .cov-t td{padding:4px} .cov-t input{width:56px;min-height:38px;text-align:center}
 </style>
 </head>
 <body>
@@ -2148,7 +2157,7 @@ const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhit
 for (const P of [Element.prototype, DocumentFragment.prototype]) for (const k of ["append", "prepend", "replaceChildren", "after", "before"]){
   const o = P[k]; if (typeof o === "function" && !o.__skipEmpty){ const f = function(...a){ return o.apply(this, a.filter(x => x != null && x !== false)); }; f.__skipEmpty = true; P[k] = f; }
 }
-const APP_VERSION = "Oct 28, 2026 \u00b7 Staff list on phones";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Faster schedules";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -4599,6 +4608,9 @@ function sched(m){
       SCV.week !== mondayOf(today) ? el("button",{class:"linkbtn", type:"button", text:"This week", onclick:() => { SCV.week = mondayOf(today); render(); }}) : null,
       el("div",{class:"seg", style:"margin-left:6px"}, [["week","Week"],["day","Day"]].map(([k, t]) => el("button",{type:"button", "aria-pressed": String(SCV.view === k), text:t, onclick:() => { SCV.view = k; render(); }})))),
     !edit ? el("span") : el("div",{class:"row"},
+      r.usualWeek ? el("button",{class:"btn primary", type:"button", text:"\u21bb Fill with usual week", title:"Adds your usual shifts where the week is empty, skipping time off", onclick:() => fillUsualWeek(r, days)}) : null,
+      el("button",{class:"btn quiet", type:"button", text: r.usualWeek ? "Save as usual week" : "\u2605 Save as usual week", title:"Use this week as the template for new weeks", onclick:() => saveUsualWeek(r, days)}),
+      el("button",{class:"btn quiet", type:"button", text:"Needs", title:"How many people you need each day, and an hours limit", onclick:() => openCoverage(r)}),
       el("button",{class:"btn quiet", type:"button", text:"\ud83d\udda8 Print week", title:"A landscape printout to post", onclick:() => printWeekSchedule(r, SCV.week)}),
       el("button",{class:"btn quiet", type:"button", text:"Copy last week", onclick:() => {
         const prev = r.shifts.filter(x => x.date >= addDays(SCV.week, -7) && x.date < SCV.week && !x.off);
@@ -4649,7 +4661,10 @@ function sched(m){
     const head = el("tr",null, el("th",{class:"sch2-corner", text:"Team"}), showDays.map(d => { const dt = new Date(d + "T12:00:00");
       const on = r.shifts.filter(x => x.date === d && !x.off), hrs = on.reduce((t, x) => t + hoursOf(x), 0);
       return el("th",{class:"sch2-day" + (d === today ? " today" : "")}, el("button",{class:"sch2-dayb", type:"button", disabled: edit ? null : "", title: edit ? "Add a note for this day" : null, onclick:() => editNote(d)},
-        el("span",{class:"dn", text: DOW[dt.getDay()]}), el("span",{class:"dd", text: dt.getDate()}), el("span",{class:"dc", text: new Set(on.map(x => x.staff)).size + " on, " + fmtH(hrs)}), dayNoteBtn(d))); }));
+        el("span",{class:"dn", text: DOW[dt.getDay()]}), el("span",{class:"dd", text: dt.getDate()}), el("span",{class:"dc", text: new Set(on.map(x => x.staff)).size + " on, " + fmtH(hrs)}), dayNoteBtn(d),
+        (() => { const cv = r.coverage || {}, wi = (dt.getDay() + 6) % 7, short = Object.keys(cv).map(pos => { const need = (cv[pos] || [])[wi] || 0;
+            const have = new Set(on.filter(x => (posOfShift(r, x) || "Team") === pos).map(x => x.staff)).size; return need && have < need ? pos + " " + have + "/" + need : null; }).filter(Boolean);
+          return short.length ? el("span",{class:"dshort", title:"Short: " + short.join(", "), text: "Short: " + short.join(", ")}) : null; })())); }));
     const posOfP = p => p.pos || guessPos(r, p.id) || "Team";
     const ordered = r.staff.slice().sort((a, b) => ((POSITIONS.indexOf(posOfP(a)) + 1 || 99) - (POSITIONS.indexOf(posOfP(b)) + 1 || 99)));
     let lastPos = null;
@@ -4660,16 +4675,54 @@ function sched(m){
         el("th",{class:"sch2-name"}, el("div",{class:"row", style:"gap:10px;flex-wrap:nowrap"}, avatar(p.name),
           el("div",null, !edit ? el("b",{text:p.name}) : el("button",{class:"linkbtn sch2-nm", type:"button", text:p.name, title:"Rename or remove", onclick:() => { const v = prompt("Rename " + p.name + " (leave empty to remove them from the schedule):", p.name); if (v === null) return;
             if (!v.trim()){ if (confirm("Remove " + p.name + " and their shifts?")){ r.staff = r.staff.filter(x => x !== p); r.shifts = r.shifts.filter(x => x.staff !== p.id); } } else p.name = v.trim(); save(); render(); }}),
-            el("div",{class:"mini", text: hrs ? fmtH(hrs) + ", " + new Set(wk.filter(x => !x.off).map(x => x.date)).size + " days" : "Not scheduled"})))),
+            el("div",{class:"mini" + (r.hoursLimit && hrs > r.hoursLimit ? " over-h" : ""), text: hrs ? fmtH(hrs) + ", " + new Set(wk.filter(x => !x.off).map(x => x.date)).size + " days" + (r.hoursLimit && hrs > r.hoursLimit ? " \u26a0 over " + r.hoursLimit : "") : "Not scheduled"})))),
         showDays.map(d => { const list = shiftsOn(p.id, d);
           return el("td",{class:"sch2-cell" + (d === today ? " today" : "")}, el("button",{type:"button", class:"sch2-cellb" + (list.length ? "" : " empty"), disabled: edit ? null : "", "aria-label":(edit ? "Edit " : "") + p.name + " on " + nice(d), onclick:() => { if (edit) editShifts(r, p, d); }},
-            list.length ? list.map(chip) : el("span",{class:"plus", text: edit ? "+" : ""}))); }))].filter(Boolean); });
+            list.length ? list.map(chip) : offRequest(r, p, d) ? el("span",{class:"req-off", text: offRequest(r, p, d).status === "approved" ? "Off (approved)" : "Asked off"}) : el("span",{class:"plus", text: edit ? "+" : ""}))); }))].filter(Boolean); });
     m.append(el("div",{class:"sch2-wrap"}, el("table",{class:"sch2"}, el("thead",null, head), el("tbody",null, body))));
     m.append(el("div",{class:"sch2-legend"}, [["am","Morning"],["mid","Afternoon"],["pm","Evening"],["bar","Bar"],["off","Off"]].map(([k, t]) => el("span",null, el("i",{class:"chip2 " + k}), t)),
       el("span",{class:"mini", text:"Shifts \u201cuntil close\u201d count to " + t12(r.closeTime || "21:00") + " in hours."})));
   }
   const codes = [...new Set(r.shifts.map(x => x.role).filter(Boolean))];
   if (codes.length) m.append(el("p",{class:"mini", style:"margin-top:8px"}, "Role labels: ", codes.map((c, i) => el("span",null, i ? ", " : "", el("button",{class:"linkbtn", type:"button", disabled: edit ? null : "", text: c + (r.roleCodes[c] && r.roleCodes[c] !== c ? " = " + r.roleCodes[c] : ""), onclick:() => { if (!edit) return; const v = prompt("What does \u201c" + c + "\u201d mean? (shown on the tablet)", r.roleCodes[c] || c); if (v === null) return; r.roleCodes[c] = v.trim() || c; save(); render(); }}))), edit ? ". Tap one to spell it out." : "."));
+}
+// ---------- Faster schedule building ----------
+// Time off someone asked for (pending or approved) on a day.
+function offRequest(r, p, d){
+  return (SCV.reqs || []).find(q => q.kind === "off" && ["pending", "approved"].includes(q.status) && (q.person_id === p.id || String(q.person || "").toLowerCase() === p.name.toLowerCase()) && d >= q.day && d <= (q.day_to || q.day));
+}
+// Their usual shifts first, then the restaurant's most common ones.
+function shiftPresets(r, p){
+  const since = addDays(localDay(new Date()), -70), key = x => (x.start || "") + "|" + (x.end === null ? "close" : x.end || "") + "|" + (x.role || "");
+  const tally = list => { const c = new Map(); list.forEach(x => { if (!x.off && x.start) c.set(key(x), (c.get(key(x)) || 0) + 1); }); return [...c.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]); };
+  const recent = r.shifts.filter(x => x.date >= since), mine = tally(recent.filter(x => x.staff === p.id)).slice(0, 4), all = tally(recent);
+  const keys = [...new Set(mine.concat(all))].slice(0, 8);
+  return keys.map(k => { const [start, end, role] = k.split("|"); return { start, end: end === "close" ? null : end, role, mine: mine.includes(k) }; });
+}
+function openCoverage(r){
+  r.coverage = r.coverage || {}; const posList = POSITIONS.filter(x => x !== "Team"), D = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
+  const lim = el("input",{class:"inp", type:"number", min:"0", step:"1", value: r.hoursLimit || 40, style:"width:100px"});
+  const grid = el("table",{class:"cov-t"}, el("thead",null, el("tr",null, el("th"), D.map(d => el("th",{text:d})))),
+    el("tbody",null, posList.map(pos => el("tr",null, el("th",{text:pos}), D.map((_, i) => { const v = el("input",{class:"inp", type:"number", min:"0", step:"1", inputmode:"numeric", value: (r.coverage[pos] || [])[i] || "", placeholder:"\u2013"});
+      v.oninput = () => { r.coverage[pos] = r.coverage[pos] || [0,0,0,0,0,0,0]; r.coverage[pos][i] = parseInt(v.value, 10) || 0; }; return el("td",null, v); })))));
+  openDlg("What you need each day", [el("p",{class:"lead", text:"How many people you need per position each day. Days that come up short get a red marker on the schedule. Leave a box empty to skip it."}),
+    el("div",{class:"tw"}, grid), el("label",{class:"row", style:"gap:10px;margin-top:12px;font-weight:600"}, "Flag anyone scheduled over", lim, "hours a week")],
+    [el("span"), el("button",{class:"btn primary", text:"Save", onclick:() => { r.hoursLimit = parseInt(lim.value, 10) || 0; save(); dlg.close(); render(); toast("Saved. Short days show in red."); }})]);
+}
+function saveUsualWeek(r, days){
+  const list = r.shifts.filter(x => days.includes(x.date) && !x.off).map(x => ({ dow: days.indexOf(x.date), staff: x.staff, start: x.start, end: x.end, role: x.role || "", note: x.note || "" }));
+  if (!list.length) return toast("This week has no shifts to save.");
+  if (r.usualWeek && !confirm("Replace your usual week with this one (" + list.length + " shifts)?")) return;
+  r.usualWeek = list; save(); render(); toast("Saved as your usual week: " + list.length + " shifts.");
+}
+function fillUsualWeek(r, days){
+  let added = 0, skipped = [];
+  (r.usualWeek || []).forEach(t => { const d = days[t.dow], p = r.staff.find(x => x.id === t.staff); if (!d || !p) return;
+    if (r.shifts.some(x => x.staff === p.id && x.date === d)) return;
+    if (offRequest(r, p, d)){ skipped.push(p.name + " (" + DOW[new Date(d + "T12:00:00").getDay()] + ")"); return; }
+    r.shifts.push({ id: uid("sh"), date: d, staff: p.id, start: t.start, end: t.end, role: t.role, note: t.note }); added++; });
+  r.shifts.sort((a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || "")); save(); render();
+  toast("Added " + added + " shifts" + (skipped.length ? ". Skipped time off: " + skipped.join(", ") : "") + ".");
 }
 function editShifts(r, p, d){
   let list = r.shifts.filter(x => x.staff === p.id && x.date === d).map(x => Object.assign({}, x));
@@ -4687,7 +4740,17 @@ function editShifts(r, p, d){
   }), el("button",{class:"btn quiet", type:"button", text: list.length ? "+ Add another shift" : "+ Add a shift", onclick:() => { list.push({ id: uid("sh"), date: d, staff: p.id, start: "09:00", end: "14:00", role:"" }); draw(); }}),
     el("datalist",{id:"sch-roles"}, [...new Set(r.shifts.map(x => x.role).filter(Boolean).concat(["Bar","Serve","Kitchen","Dish","Drive-thru"]))].map(v => el("option",{value:v}))));
   draw();
-  openDlg(p.name + ", " + DOW[new Date(d + "T12:00:00").getDay()] + " " + nice(d), [box], [el("span"), el("button",{class:"btn primary", text:"Save", onclick:() => {
+  const putOne = sh => { r.shifts = r.shifts.filter(x => !(x.staff === p.id && x.date === d)).concat(sh ? [Object.assign({ id: uid("sh"), date: d, staff: p.id }, sh)] : []);
+    r.shifts.sort((a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || "")); save(); dlg.close(); render(); };
+  const presets = shiftPresets(r, p), ask = offRequest(r, p, d);
+  const quick = el("div",{class:"sp-quick"},
+    ask ? el("div",{class:"msg warn", style:"grid-column:1/-1;margin:0"}, el("b",{text: p.name.split(" ")[0] + " asked for this day off"}), ask.status === "approved" ? " (approved)." : " (not answered yet).") : null,
+    presets.map(x => el("button",{class:"sp-btn" + (x.mine ? " mine" : ""), type:"button", onclick:() => putOne({ start: x.start, end: x.end, role: x.role })},
+      el("b",{text: t12(x.start, true) + "\u2013" + (x.end ? t12(x.end, true) : "close")}), x.role ? el("span",{text: r.roleCodes[x.role] || x.role}) : null)),
+    el("button",{class:"sp-btn off", type:"button", onclick:() => putOne({ off: true, start: null, end: null, role: "" })}, el("b",{text:"Off"})),
+    list.length ? el("button",{class:"sp-btn clear", type:"button", onclick:() => putOne(null)}, el("b",{text:"Clear day"})) : null);
+  openDlg(p.name + ", " + DOW[new Date(d + "T12:00:00").getDay()] + " " + nice(d), [presets.length ? el("p",{class:"mini", style:"margin:0 0 8px", text:"Tap a shift (their usual ones are first):"}) : null, quick,
+      el("details",{class:"sp-custom", open: list.length || !presets.length ? "" : null}, el("summary",{text:"Custom times"}), box)], [el("span"), el("button",{class:"btn primary", text:"Save", onclick:() => {
     r.shifts = r.shifts.filter(x => !(x.staff === p.id && x.date === d)).concat(list.map(x => Object.assign(x, { id: x.id || uid("sh"), date: d, staff: p.id })));
     r.shifts.sort((a, b) => a.date.localeCompare(b.date) || (a.start || "").localeCompare(b.start || "")); save(); dlg.close(); }})]);
 }
@@ -4764,6 +4827,8 @@ let PENDING_T = 0;
 function refreshPendingRequests(force){
   if (!ACCT || (!force && Date.now() - PENDING_T < 60000)) return; PENDING_T = Date.now();
   sb.rpc("schedule_requests_list", { p_account: ACCT.id }).then(({ data, error }) => { if (error) return; const n2 = (data || []).filter(q => q.status === "pending").length;
+    const had = JSON.stringify((SCV.reqs || []).map(q => q.id + q.status)); SCV.reqs = data || [];
+    if (had !== JSON.stringify(SCV.reqs.map(q => q.id + q.status)) && ST && ST.page === "sched" && !dlg.open){ SCV.pending = n2; render(); return; }
     if (n2 !== SCV.pending){ SCV.pending = n2; if (ST && (ST.page === "sched" || ST.page === "home") && !dlg.open) render(); } });
 }
 function schedRequests(m, r, today, edit){
