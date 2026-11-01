@@ -1658,6 +1658,17 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .over-h{color:var(--bad, #B8352A) !important;font-weight:700}
 .dshort{display:block;margin-top:3px;font-size:.68rem;font-weight:800;color:#fff;background:#B8352A;border-radius:6px;padding:1px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .cov-t th, .cov-t td{padding:4px} .cov-t input{width:56px;min-height:38px;text-align:center}
+.ms{margin-top:18px} .ms-top{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-bottom:10px}
+.ms-months button{display:inline-flex;align-items:center;gap:6px} .ms-ct{background:var(--field);border-radius:999px;padding:0 7px;font-size:.78rem;font-weight:800;color:var(--ink)}
+.ms-sum{display:flex;gap:16px;flex-wrap:wrap;background:var(--field);border-radius:12px;padding:8px 12px;margin-bottom:10px;font-size:.95rem}
+.ms-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px}
+.ms-card{display:flex;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden} .ms-card.on{border:2px solid var(--mustard, #D99A1E)}
+.ms-img{width:100%;height:120px;object-fit:cover} .ms-ph{display:grid;place-items:center;font-size:2.4rem;background:linear-gradient(135deg,#FBEBD0,#E3F1EB)}
+.ms-body{display:grid;gap:3px;padding:10px 12px 12px} .ms-name{font-size:1.15rem}
+.ms-stage{justify-self:start;font-size:.75rem;font-weight:800;border-radius:999px;padding:2px 9px;background:var(--field)} .ms-stage.s-approved, .ms-stage.s-menu{background:#D6EEE3;color:#1F6F5C} .ms-stage.s-testing{background:#DCE6F7;color:#2F5DA8}
+.ms-card.on .ms-stage{background:var(--mustard, #D99A1E);color:#24221F}
+.ms-empty{margin:0;padding:16px;border:1.5px dashed var(--line);border-radius:14px;color:var(--muted);text-align:center}
+.ms-pick{display:grid;gap:8px} .ms-cands{display:grid;gap:8px} .ms-cand{display:grid;gap:2px;text-align:left;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font:inherit;color:var(--ink);cursor:pointer}
 </style>
 </head>
 <body>
@@ -2157,7 +2168,7 @@ const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhit
 for (const P of [Element.prototype, DocumentFragment.prototype]) for (const k of ["append", "prepend", "replaceChildren", "after", "before"]){
   const o = P[k]; if (typeof o === "function" && !o.__skipEmpty){ const f = function(...a){ return o.apply(this, a.filter(x => x != null && x !== false)); }; f.__skipEmpty = true; P[k] = f; }
 }
-const APP_VERSION = "Oct 28, 2026 \u00b7 Faster schedules";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Monthly specials";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -4023,6 +4034,59 @@ function labStats(dr, r){
   const st = stats(it, r, sups), price = st.price;
   return { it, sups, st, target, price, base: it.price, pct: price ? st.plate / price : null, profit: price - st.plate };
 }
+// ---------- Monthly specials: plan each month's lineup from Test kitchen ideas ----------
+const LABM = { month: null };
+const monthKey = (d) => d.slice(0, 7), monthName = k => new Date(k + "-15T12:00:00").toLocaleDateString(undefined, { month:"long", year:"numeric" });
+const addMonths = (k, n) => { const d = new Date(k + "-15T12:00:00"); d.setMonth(d.getMonth() + n); return localDay(d).slice(0, 7); };
+const monthEnd = k => { const d = new Date(k + "-15T12:00:00"); d.setMonth(d.getMonth() + 1, 0); return localDay(d); };
+function proposeForMonth(r, idea){
+  const now = monthKey(localDay(new Date())), opts = [0, 1, 2].map(i => addMonths(now, i));
+  openDlg("Propose " + idea.draft.name + " for\u2026", [el("div",{class:"ms-pick"}, opts.map(k => el("button",{class:"btn " + (idea.month === k ? "primary" : "quiet"), type:"button", text: monthName(k), onclick:() => { idea.month = k; LABM.month = k; save(); dlg.close(); render(); toast(idea.draft.name + " is proposed for " + monthName(k) + "."); }})),
+    idea.month ? el("button",{class:"linkbtn", type:"button", text:"Not a monthly special", onclick:() => { delete idea.month; save(); dlg.close(); render(); }}) : null)], []);
+}
+function runMonthly(r, idea, k){
+  calData(r); const x = labStats(idea.draft, r), drink = idea.draft.kind && idea.draft.kind !== "food";
+  r.specials = (r.specials || []).filter(sp => !(sp.ideaId === idea.id && sp.start === k + "-01"));
+  r.specials.push({ id: uid("sp"), ideaId: idea.id, title: (drink ? "Cocktail of the month: " : "Special of the month: ") + idea.draft.name, kind: drink ? "drink" : "food", price: x.price || null,
+    desc: [idea.draft.desc, x.price ? $$(x.price) : ""].filter(Boolean).join(" \u00b7 "), start: k + "-01", end: monthEnd(k), days: null });
+  idea.monthRun = k; save(); render(); toast(idea.draft.name + " runs all of " + monthName(k) + ". Staff see it every day.");
+}
+function monthlySpecials(r){
+  const now = monthKey(localDay(new Date())); LABM.month = LABM.month || addMonths(now, 1);
+  const k = LABM.month, list = (r.ideas || []).filter(i => i.month === k), mgr = !pinLocked();
+  const stats2 = list.map(i => ({ i, x: labStats(i.draft, r) })), costed = stats2.filter(o => o.x.pct != null);
+  const avg = costed.length ? costed.reduce((t, o) => t + o.x.pct, 0) / costed.length : null, low = stats2.filter(o => o.x.st.status === "bad").length;
+  const stageTxt = i => ({ idea:"\ud83d\udca1 Idea", testing:"\ud83e\uddea Testing", approved:"\u2705 Approved", menu:"\ud83c\udf7d On the menu" })[i.stage || "idea"];
+  const running = i => (r.specials || []).some(sp => sp.ideaId === i.id && sp.start === k + "-01");
+  return el("section",{class:"ms"},
+    el("div",{class:"sect-h"}, el("h2",{text:"\ud83d\udcc5 Monthly specials"}), el("span",{class:"mini", text:"Plan next month's lineup from your ideas."})),
+    el("div",{class:"ms-top"},
+      el("div",{class:"seg ms-months", role:"group"}, [0, 1, 2].map(i => { const mk = addMonths(now, i);
+        return el("button",{type:"button", "aria-pressed": String(mk === k), onclick:() => { LABM.month = mk; render(); }}, new Date(mk + "-15T12:00:00").toLocaleDateString(undefined, { month:"long" }),
+          el("span",{class:"ms-ct", text: String((r.ideas || []).filter(x => x.month === mk).length)})); })),
+      el("button",{class:"btn primary", type:"button", text:"+ Propose a special", onclick:() => {
+        const cand = (r.ideas || []).filter(i => i.month !== k && i.stage !== "menu");
+        if (!cand.length) return toast("Build or save an idea first, then propose it.");
+        openDlg("Propose for " + monthName(k), [el("div",{class:"ms-cands"}, cand.map(i => { const x = labStats(i.draft, r);
+          return el("button",{class:"ms-cand", type:"button", onclick:() => { i.month = k; save(); dlg.close(); render(); toast(i.draft.name + " added to " + monthName(k) + "."); }},
+            el("b",{text:i.draft.name}), el("span",{class:"mini", text: $$(x.price) + " \u00b7 " + (x.pct != null ? pc(x.pct) : "\u2014") + " cost \u00b7 " + stageTxt(i)})); }))], []); }})),
+    list.length ? el("div",{class:"ms-sum"}, el("span",null, el("b",{text: list.length + (list.length === 1 ? " special" : " specials")}), " proposed for " + monthName(k)),
+        avg != null ? el("span",null, "Average cost ", el("b",{text: pc(avg)})) : null, low ? el("span",{class:"bad-t", text: low + " priced too low"}) : null) : null,
+    list.length ? el("div",{class:"ms-grid"}, stats2.map(({ i, x }) => { const ph = PHOTOS.get("idea_" + i.id), st = i.stage || "idea", on = running(i);
+      return el("div",{class:"ms-card" + (on ? " on" : "")},
+        ph ? el("img",{class:"ms-img", src: ph, alt:""}) : el("div",{class:"ms-img ms-ph", text: (i.draft.kind && i.draft.kind !== "food") ? "\ud83c\udf79" : "\ud83c\udf7d"}),
+        el("div",{class:"ms-body"}, el("span",{class:"ms-stage s-" + st, text: on ? "\u2605 Running all month" : stageTxt(i)}),
+          el("b",{class:"ms-name", text: i.draft.name}),
+          el("span",{class:"mini", text: $$(x.price) + " \u00b7 " + (x.pct != null ? pc(x.pct) + ((i.draft.kind && i.draft.kind !== "food") ? " pour" : " food") + " cost" : "cost not set") + (i.from ? " \u00b7 from " + i.from : "")}),
+          el("div",{class:"row", style:"gap:8px;flex-wrap:wrap;margin-top:6px"},
+            st === "idea" ? el("button",{class:"btn quiet sm", type:"button", text:"\ud83e\uddea Test it", onclick:() => { i.stage = "testing"; save(); ideaSheet(i.draft, r, "print", ph); render(); }}) : null,
+            st === "testing" ? el("button",{class:"btn quiet sm", type:"button", text:"\ud83d\udc45 How did it taste?", onclick:() => tasteCheck(i, r)}) : null,
+            (st === "approved" || st === "menu") && mgr && !on ? el("button",{class:"btn primary sm", type:"button", text:"\u2605 Run all " + new Date(k + "-15T12:00:00").toLocaleDateString(undefined, { month:"long" }), onclick:() => runMonthly(r, i, k)}) : null,
+            on && mgr ? el("button",{class:"linkbtn", type:"button", text:"Stop", onclick:() => { r.specials = r.specials.filter(sp => !(sp.ideaId === i.id && sp.start === k + "-01")); save(); render(); }}) : null,
+            el("button",{class:"linkbtn", type:"button", text:"Open", onclick:() => openIdeaInLab(i)}),
+            el("button",{class:"linkbtn", type:"button", text:"Remove", onclick:() => { delete i.month; save(); render(); }})))); }))
+      : el("p",{class:"ms-empty", text:"No specials proposed for " + monthName(k) + " yet. Tap + Propose a special, or use \ud83d\udcc5 on any idea below."}));
+}
 // ---------- Idea -> Testing -> Approved -> On the menu: one next step per card ----------
 const STAGES = [["idea","\ud83d\udca1 Ideas"],["testing","\ud83e\uddea Testing"],["approved","\u2705 Approved"]];
 function openIdeaInLab(idea){
@@ -4064,6 +4128,7 @@ function ideaBoard(r){
       last ? el("p",{class:"ib-note", text:"\u201c" + last.text + "\u201d \u2014 " + last.by}) : null,
       next,
       el("div",{class:"ib-more"}, el("button",{class:"linkbtn", type:"button", text:"Open", onclick:() => openIdeaInLab(idea)}),
+        el("button",{class:"linkbtn", type:"button", text: idea.month ? "\ud83d\udcc5 " + new Date(idea.month + "-15T12:00:00").toLocaleDateString(undefined, { month:"short" }) : "\ud83d\udcc5 Propose for\u2026", onclick:() => proposeForMonth(r, idea)}),
         el("button",{class:"linkbtn", type:"button", text:"Print", onclick:() => ideaSheet(idea.draft, r, "print", ph)}),
         el("button",{class:"linkbtn", type:"button", text:"Order list", onclick:() => labOrder(idea.draft, r)}),
         st !== "idea" ? el("button",{class:"linkbtn", type:"button", text:"\u2190 Back", onclick:() => { idea.stage = st === "approved" ? "testing" : "idea"; save(); render(); }}) : null,
@@ -4094,6 +4159,7 @@ function lab(m){
   if (LAB.err) m.append(el("div",{class:"msg bad", text:LAB.err}));
   if (LAB.draft && !LAB.busy) m.append(labResult(LAB.draft, r));
   m.append(tabletBuildsBox());
+  m.append(monthlySpecials(r));
   if (r.ideas.length) m.append(ideaBoard(r));
 }
 function labEditor(dr, r){
