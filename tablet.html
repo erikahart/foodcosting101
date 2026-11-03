@@ -505,10 +505,10 @@ html, body{max-width:100%;overflow-x:hidden}
   // ---------- 86 board (live) and shout-outs ----------
   let BOARD = [], BOARD_AT = 0;
   function loadBoard(force){
-    if (!sb || (!force && Date.now() - BOARD_AT < 45000)) return; BOARD_AT = Date.now();
+    if (!sb || (!force && Date.now() - BOARD_AT < 150000)) return; BOARD_AT = Date.now();
     sb.rpc("book_board", { p_token: token }).then(({ data, error }) => { if (error) return; const was = JSON.stringify(BOARD.map(b => b.id)); BOARD = data || []; if (JSON.stringify(BOARD.map(b => b.id)) !== was) render(); });
   }
-  setInterval(() => { if (document.visibilityState === "visible") loadBoard(); }, 60000);
+  setInterval(() => { if (document.visibilityState === "visible") loadBoard(); }, 180000);
   const out86 = id => BOARD.find(b => b.kind === "86" && b.item_id === id);
   function whoThen(title, then){
     if (ME) return then(ME.name);
@@ -1177,6 +1177,10 @@ html, body{max-width:100%;overflow-x:hidden}
     if (!token){ $("main").replaceChildren(h("div", { class:"msg", text:"This tablet link is missing its code. Open the full link from the app (Recipes \u2192 Tablet link)." })); return; }
     try {
       if (!sb) throw new Error("offline");
+      if (!first && UPDATED){   // cheap check first; download everything only when something changed
+        const v = await sb.rpc("book_version", { p_token: token });
+        if (!v.error && v.data && v.data === UPDATED) return;
+      }
       const { data, error } = await sb.rpc("book_public", { p_token: token });
       if (error) throw error;
       if (!data){ localStorage.removeItem(CACHE); $("main").replaceChildren(h("div", { class:"msg", text:"This tablet link isn't active anymore. Ask a manager for the new link (Recipes \u2192 Tablet link in the app)." })); return; }
@@ -1200,7 +1204,7 @@ html, body{max-width:100%;overflow-x:hidden}
   async function wake(on){ wantWake = on; $("wake").setAttribute("aria-pressed", String(on));
     try { if (on && "wakeLock" in navigator){ lock = await navigator.wakeLock.request("screen"); } else if (lock){ await lock.release(); lock = null; } } catch(e){} }
   $("wake").onclick = () => wake(!wantWake);
-  document.addEventListener("visibilitychange", () => { if (wantWake && document.visibilityState === "visible") wake(true); if (document.visibilityState === "visible") load(false); });
+  document.addEventListener("visibilitychange", () => { if (wantWake && document.visibilityState === "visible") wake(true); if (document.visibilityState === "visible" && Date.now() - (load.lastShow || 0) > 60000){ load.lastShow = Date.now(); load(false); } });
   if (!("wakeLock" in navigator)) $("wake").hidden = true;
 
   // ---------- Staff phones: personal link -> pick a PIN; later, open with the PIN ----------
@@ -1262,7 +1266,7 @@ html, body{max-width:100%;overflow-x:hidden}
     }
     load(true);
   })();
-  setInterval(() => load(false), 3 * 60 * 1000);
+  setInterval(() => { if (document.visibilityState === "visible") load(false); }, 5 * 60 * 1000);
 })();
 </script>
 </body>

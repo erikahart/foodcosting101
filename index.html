@@ -2168,7 +2168,14 @@ const usableBrand = hex => /^#[0-9a-f]{6}$/i.test(hex || "") && contrastWithWhit
 for (const P of [Element.prototype, DocumentFragment.prototype]) for (const k of ["append", "prepend", "replaceChildren", "after", "before"]){
   const o = P[k]; if (typeof o === "function" && !o.__skipEmpty){ const f = function(...a){ return o.apply(this, a.filter(x => x != null && x !== false)); }; f.__skipEmpty = true; P[k] = f; }
 }
-const APP_VERSION = "Oct 28, 2026 \u00b7 Monthly specials";
+// Checklist progress: remembered for a minute instead of asked on every screen refresh.
+const DCL = new Map();
+function dutyChecksCached(from, to){
+  const k = (ACCT && ACCT.id) + "|" + from + "|" + to, hit = DCL.get(k);
+  if (hit && Date.now() - hit.at < 60000) return hit.p;
+  const p = sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: from, p_to: to }); DCL.set(k, { at: Date.now(), p }); return p;
+}
+const APP_VERSION = "Oct 28, 2026 \u00b7 Lighter on the database";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -2524,7 +2531,7 @@ function staffHome(m){
     const box = el("div",null, el("div",{class:"spin"}));
     m.append(el("div",{class:"card"}, el("div",{class:"spread"}, el("h2",{style:"margin:0", text:"Today's checklists"}),
       el("button",{class:"btn quiet sm", type:"button", text:"Open checklists", onclick:() => { SCV.tab = "lists"; SCV.logDay = t; go("sched"); }})), box));
-    sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: t, p_to: t }).then(({ data }) => {
+    dutyChecksCached(t, t).then(({ data }) => {
       const done = new Set((data || []).filter(c => c.status === "done" || c.status === "excused").map(c => c.list_id + "|" + c.item_id));
       const st = lists.map(l => ({ l, k: l.items.filter(x => done.has(l.id + "|" + x.id)).length, mine: assignFor(r, l, t).names.includes(myName) })).sort((a2, b2) => b2.mine - a2.mine),
         open = st.filter(x => x.k < x.l.items.length), fin = st.filter(x => x.k >= x.l.items.length);
@@ -2539,7 +2546,7 @@ function staffHome(m){
     // Checklist heroes: who checked off the most this week
     const heroes = el("div");
     m.append(el("div",{class:"card sx-heroes"}, el("h2",{style:"margin:0 0 8px", text:"Checklist heroes this week"}), heroes));
-    sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: addDays(t, -6), p_to: t }).then(({ data }) => {
+    dutyChecksCached(addDays(t, -6), t).then(({ data }) => {
       const cnt = {}; (data || []).filter(c => c.status === "done" && c.done_by).forEach(c => { cnt[c.done_by] = (cnt[c.done_by] || 0) + 1; });
       const top = Object.entries(cnt).sort((a2, b2) => b2[1] - a2[1]).slice(0, 3), mineN = cnt[myName] || 0;
       if (!top.length){ heroes.replaceChildren(el("p",{class:"mini", style:"margin:0", text:"No tasks checked off yet this week. Be the first!"})); return; }
@@ -4439,11 +4446,14 @@ function bookSnapshot(r){
     brand: { color: (ST.brand && ST.brand.color) || "#1F6F5C", product: (ST.brand && ST.brand.product) || "Recipes" } };
 }
 let BOOK_T = null;
-function bookSyncSoon(){ const r = R(); if (!r || !r.tabletLink) return; clearTimeout(BOOK_T); BOOK_T = setTimeout(bookSync, 4000); }
+function bookSyncSoon(){ const r = R(); if (!r || !r.tabletLink) return; clearTimeout(BOOK_T); BOOK_T = setTimeout(bookSync, 15000); }
 async function bookSync(){
   const r = R(); if (!r || !r.tabletLink || !ACCT) return;
   if (PHOTOS_FOR !== ACCT.id) await loadPhotos();
-  const { data, error } = await sb.rpc("book_share_update", { p_account: ACCT.id, p_restaurant: ST.current, p_data: bookSnapshot(r) });
+  const snap = bookSnapshot(r), sig = JSON.stringify(snap);
+  if (bookSync.last === ACCT.id + "|" + sig) return;   // nothing staff can see has changed
+  const { data, error } = await sb.rpc("book_share_update", { p_account: ACCT.id, p_restaurant: ST.current, p_data: snap });
+  if (!error) bookSync.last = ACCT.id + "|" + sig;
   if (!error && data === false){ r.tabletLink = false; save(); }   // someone turned it off
 }
 async function openTabletLink(){
@@ -4478,7 +4488,7 @@ async function openTabletLink(){
     qr,
     el("p",{class:"mini", text:"Last updated " + new Date(data.updated_at).toLocaleString(undefined, { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" }) + ". Changes reach the tablet within a few minutes." + (data.restaurant && data.restaurant !== ST.current ? " This link shows another location's book; create it from that location to switch." : "")}),
     can ? el("div",{class:"row", style:"margin-top:8px"},
-      el("button",{class:"btn quiet", type:"button", text:"Update now", onclick: async () => { r.tabletLink = true; await bookSync(); toast("Tablet book updated"); openTabletLink(); }}),
+      el("button",{class:"btn quiet", type:"button", text:"Update now", onclick: async () => { r.tabletLink = true; bookSync.last = null; await bookSync(); toast("Tablet book updated"); openTabletLink(); }}),
       el("button",{class:"btn quiet", type:"button", text:"Make a new link", title:"The old link stops working", onclick: async () => { if (!confirm("Make a new link? The current one stops working on every tablet using it.")) return; await sb.rpc("book_share_new_link", { p_account: ACCT.id }); openTabletLink(); }}),
       el("button",{class:"btn danger", type:"button", text:"Turn off", onclick: async () => { if (!confirm("Turn off the tablet link? Tablets using it will stop showing the book.")) return; await sb.rpc("book_share_off", { p_account: ACCT.id }); r.tabletLink = false; save(); openTabletLink(); }})) : null);
   // QR code (drawn in the browser)
@@ -5978,7 +5988,7 @@ function stopPromo(r, p){ const t = localDay(new Date()); calData(r);
 // ---------- 86 board and shout-outs (app side) ----------
 let BOARD = [], BOARD_AT = 0;
 async function loadBoardApp(force){
-  if (!sb || !ACCT || (!force && Date.now() - BOARD_AT < 45000)) return; BOARD_AT = Date.now();
+  if (!sb || !ACCT || (!force && Date.now() - BOARD_AT < 150000)) return; BOARD_AT = Date.now();
   const { data, error } = await sb.rpc("board_list", { p_account: ACCT.id }); if (error) return;
   const was = JSON.stringify(BOARD.map(b => b.id)); BOARD = data || []; if (JSON.stringify(BOARD.map(b => b.id)) !== was && ST.page === "home") render();
 }
@@ -5991,9 +6001,9 @@ function giveShoutout(){
       r.kudos = (r.kudos || []).filter(k => Date.now() - Date.parse(k.at) < 14 * 864e5); r.kudos.unshift({ id: uid("kd"), at: new Date().toISOString(), toName: who.value || "", text: t2, by: myFirst() });
       save(); dlg.close(); render(); toast("Shout-out sent."); }})]);
 }
-setInterval(() => { if (document.visibilityState === "visible" && ST && ["home"].includes(ST.page)) loadBoardApp(true); }, 60000);
+setInterval(() => { if (document.visibilityState === "visible" && ST && ["home"].includes(ST.page)) loadBoardApp(true); }, 180000);
 function teamLine(r){
-  loadBoardApp(Date.now() - BOARD_AT > 10000);
+  loadBoardApp(Date.now() - BOARD_AT > 60000);
   const outs = [], lows = BOARD.filter(b => b.kind === "low");
   const clear = async b => { await sb.rpc("board_clear", { p_account: ACCT.id, p_id: b.id, p_by: myFirst() }); loadBoardApp(true); };
   return el("div",{class:"card team-line"},
