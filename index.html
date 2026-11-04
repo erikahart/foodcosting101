@@ -1677,6 +1677,7 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .vc-win{display:grid;gap:2px;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--panel)} .vc-win b{font-size:1.05rem}
 .vc-best{background:color-mix(in srgb, #1F6F5C 7%, transparent)} .good-t{color:#1F6F5C;font-weight:700}
 @media (max-width:700px){ .vc-head{grid-template-columns:1fr} }
+.price-src{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:0 0 12px}
 </style>
 </head>
 <body>
@@ -2183,7 +2184,7 @@ function dutyChecksCached(from, to){
   if (hit && Date.now() - hit.at < 60000) return hit.p;
   const p = sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: from, p_to: to }); DCL.set(k, { at: Date.now(), p }); return p;
 }
-const APP_VERSION = "Oct 28, 2026 \u00b7 Vendor price compare";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Prices follow latest order";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -5183,6 +5184,31 @@ function editDutyList(r, l, isNew){
 // entries: [{ name, lines, portions, sups, qty, unitWord }]. Adds up every ingredient for the planned amounts, converts to
 // each supply's pack, rounds up to whole cases or bottles, and groups by vendor.
 // Price per pound (weights), per fluid ounce (volumes) or each, so different pack sizes compare fairly.
+// Recipes follow the most recent order: move recipe lines from the usual supply to the vendor version just ordered,
+// and make it the usual one. Returns true, or a reason it was skipped.
+function switchToTwin(r, su, tw){
+  if (!tw || tw.id === su.id || tw.packUnknown) return "case size not known yet";
+  const a = UNITS[su.unit], b = UNITS[tw.unit]; if (!a || !b || a[0] !== b[0]) return "different units (" + su.unit + " vs " + tw.unit + ")";
+  const pa = priceBase(su), pb = priceBase(tw);
+  if (pa && pb && (pb / pa > 3 || pa / pb > 3)) return "price per " + perUnitLabel(a[0]) + " is " + (pb > pa ? Math.round(pb / pa) + "\u00d7 higher" : Math.round(pa / pb) + "\u00d7 lower") + ", so check the case size";
+  let moved = 0;
+  Object.values(r.items).forEach(it => (it.lines || []).forEach(l => { if (l.s === su.id){ l.s = tw.id; moved++; } }));
+  (r.ideas || []).forEach(i => ((i.draft && i.draft.lines) || []).forEach(l => { if (l.s === su.id) l.s = tw.id; }));
+  Object.values(r.supplies).forEach(o => { if (o.altOf === su.id && o.id !== tw.id) o.altOf = tw.id; });
+  delete tw.altOf; su.altOf = tw.id;
+  if (!tw.cat && su.cat) tw.cat = su.cat; if (!tw.title && su.title) tw.title = su.title;
+  return true;
+}
+// Two versions of the same item (same item number or name) whose price per unit is far apart: usually a wrong case size.
+function caseSizeSuspect(su, r){
+  const pb = priceBase(su); if (pb == null || !su.supplier) return null;
+  const sameItem = o => o.id !== su.id && !o.estimated && UNITS[o.unit] && UNITS[su.unit] && UNITS[o.unit][0] === UNITS[su.unit][0] &&
+    ((su.code && o.code && String(o.code) === String(su.code)) || o.altOf === su.id || su.altOf === o.id);
+  const other = Object.values(r.supplies).filter(sameItem).map(o => priceBase(o)).filter(v => v != null);
+  if (!other.length) return null;
+  const mid = other.sort((x, y) => x - y)[Math.floor(other.length / 2)], ratio = pb / mid;
+  return ratio > 2.5 || ratio < 0.4 ? ratio : null;
+}
 function priceBase(su){ const u = su && UNITS[su.unit]; if (!u || !n(su.price) || !n(su.caseQty)) return null; return su.price / (su.caseQty * u[1]); }
 const perUnitLabel = dim => dim === "w" ? "lb" : dim === "v" ? "fl oz" : "each";
 const perUnitPrice = (su) => { const b = priceBase(su), d = UNITS[su.unit][0]; return b == null ? null : b * (d === "w" ? 16 : 1); };
@@ -6369,6 +6395,12 @@ function supplies(m){
   const r = R();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Supplies"}), el("p",{class:"lead", text:"Everything you buy. Prices update from approved invoices."})),
     el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn primary", text:"+ Add supply", onclick:() => openSupply(null)}))));
+  { const ps = el("select",{class:"inp", style:"width:auto;min-height:38px", "aria-label":"Recipes use the price from"}, el("option",{value:"latest", text:"Your most recent order (any vendor)"}), el("option",{value:"usual", text:"The item's usual vendor"}));
+    ps.value = r.priceSource || "latest"; ps.onchange = () => { r.priceSource = ps.value; save(); toast(ps.value === "latest" ? "Recipes will follow what you most recently ordered." : "Recipes stay on each item's usual vendor."); };
+    const suspects = Object.values(r.supplies).filter(su => usedBy(su.id, r).length && caseSizeSuspect(su, r)).length;
+    m.append(el("div",{class:"price-src"}, el("span",null, el("b",{text:"Recipes use the price from: "})), ps,
+      el("span",{class:"mini", text:"When an invoice comes from a different vendor, recipes switch to that price automatically."}),
+      suspects ? el("button",{class:"pill bad", type:"button", style:"border:0;cursor:pointer", text:"\u26a0 " + suspects + (suspects === 1 ? " item in recipes needs" : " items in recipes need") + " a case-size check", onclick:() => { SV.q = ""; SV.suspect = !SV.suspect; render(); }}) : null)); }
   const all = Object.values(r.supplies);
   if (!all.length){ m.append(el("div",{class:"card empty", text:"No supplies yet. Upload an invoice or import your costing spreadsheet and they'll appear here."})); return; }
   if (ACCT && ["owner","manager"].includes(ACCT.role)){ const ban = vendorRepairBanner(r); if (ban) m.append(ban);
@@ -6389,7 +6421,8 @@ function supplies(m){
   const inSup = su => SV.sup === "all" || (su.supplier || "No supplier") === SV.sup;
   const inQ = su => !q || su.name.toLowerCase().includes(q) || supName(su).toLowerCase().includes(q) || (su.code || "").toLowerCase().includes(q) || (su.supplier || "").toLowerCase().includes(q);
   const inSt = su => SV.status === "all" || flags.get(su.id)[SV.status];
-  const shown = all.filter(su => inCat(su) && inSup(su) && inQ(su) && inSt(su));
+  const shown = all.filter(su => inCat(su) && inSup(su) && inQ(su) && inSt(su) && (!SV.suspect || (usedBy(su.id, r).length && caseSizeSuspect(su, r))));
+  if (SV.suspect) m.append(el("div",{class:"msg warn", style:"margin-bottom:10px"}, "Showing items whose case size looks wrong. Tap one to fix its case size. ", el("button",{class:"linkbtn", type:"button", text:"Show everything", onclick:() => { SV.suspect = false; render(); }})));
 
   const distNames = all.filter(su => !su.title && !/[a-z]/.test(su.name || "")).length;
   r.hidden = r.hidden || {};
@@ -6452,6 +6485,7 @@ function supplies(m){
         el("td",{style:"white-space:normal"}, el("b",{text:supName(su)}), su.estimated ? el("span",{class:"est-tag", title:"Price is an AI estimate. An invoice or price sheet for this item replaces it."}, "AI estimate") : null,
           supName(su) !== su.name ? el("div",{class:"mini order-name", title:"Name on invoices", text:su.name}) : null,
           el("div",{class:"mini", text:[SV.group !== "sup" ? su.supplier : "", su.code ? "#" + su.code : "", SV.group !== "cat" && su.cat ? su.cat : ""].filter(Boolean).join(", ")}),
+          (() => { const q = caseSizeSuspect(su, r); return q ? el("span",{class:"pill bad", style:"margin-top:4px;display:inline-block", title:"Another version of this item costs " + (q > 1 ? Math.round(q) + "\u00d7 less" : Math.round(1 / q) + "\u00d7 more") + " per unit. The case size is probably wrong.", text:"\u26a0 Check case size"}) : null; })(),
           f.needsize ? el("span",{class:"pill warn", style:"margin-top:3px", text:"Needs case size"}) : null),
         el("td",{class:"num"}, n(su.price) > 0 ? $$(su.price) : dash()),
         el("td",{class:"num c-plate"}, n(su.caseQty) ? (Math.round(su.caseQty * 100) / 100) + " " + su.unit : dash()),
@@ -7133,7 +7167,7 @@ function approve(d){
     const su = l.match && r.supplies[l.match]; if (!su) return;
     seen[l.match] = (seen[l.match] || 0) + 1;
   });
-  const lastFor = {}; let held = 0, twins = 0;
+  const lastFor = {}; let held = 0, twins = 0; const switched = [], skipped = [];
   d.lines.forEach((l, i) => { const su0 = l.match && r.supplies[l.match]; if (su0){ if (isHeld(l, su0, priceForSupply(l, su0))){ held++; return; } lastFor[l.match] = i; } });
   Object.entries(lastFor).forEach(([sid, i]) => {
     const l = d.lines[i]; let su = r.supplies[sid];
@@ -7146,7 +7180,9 @@ function approve(d){
       if (l.code && !tw.code) tw.code = l.code;
       if (!tw.caseQty) tw.caseQty = su.caseQty;
       const p = tw.packUnknown ? priceForSupply(l, su).price : priceForSupply(l, tw).price;
-      applyPrice(tw, p, d.date, d.id); return;
+      applyPrice(tw, p, d.date, d.id);
+      if ((r.priceSource || "latest") === "latest"){ const why = switchToTwin(r, su, tw); if (why === true) switched.push({ name: supName(tw), from: su.supplier, to: tw.supplier }); else if (why) skipped.push({ name: supName(tw), why }); }
+      return;
     }
     if (l.code && !su.code) su.code = l.code;
     const res = applyPrice(su, priceForSupply(l, su).price, d.date, d.id);
@@ -7155,12 +7191,15 @@ function approve(d){
     if (res.older) older++;
   });
   const newIds = Object.values(madeFor);
-  d.combined = combined; d.older = older; d.held = held; d.twins = twins;
+  d.combined = combined; d.older = older; d.held = held; d.twins = twins; d.switched = switched; d.switchSkipped = skipped;
   const linked = linkUnpriced(r, newIds);
   d.status = "approved";
   const changed = Object.values(r.items).map(it => ({ it, a: stats(it, r, before).plate, b: stats(it).plate })).filter(x => Math.abs(x.b - x.a) >= 0.005);
   save();
-  openDlg("Invoice approved", [
+  const switchNote = switched.length || skipped.length ? el("div",{class:"msg " + (skipped.length ? "warn" : "good")},
+      switched.length ? el("div",null, el("b",{text:"Recipes now use your latest prices: "}), switched.map(x => x.name + " (" + x.to + ", was " + x.from + ")").join("; ") + ".") : null,
+      skipped.length ? el("div",null, el("b",{text:"Check these before switching: "}), skipped.map(x => x.name + ": " + x.why).join("; ") + ".") : null) : null;
+  openDlg("Invoice approved", [switchNote,
     el("div",{class:"cost", style:"grid-template-columns:repeat(3,1fr)"}, el("div",null, el("span",{text:"Prices updated"}), el("b",{text:up})), el("div",null, el("span",{text:"New supplies"}), el("b",{text:added})), el("div",null, el("span",{text:"Recipes affected"}), el("b",{text:changed.length}))),
     held ? el("div",{class:"msg bad", text: held + (held === 1 ? " line was" : " lines were") + " held because the price change looked like a pack-size mix-up. Open the supply to check its case size, then upload again or set the price by hand."}) : null,
     twins ? el("div",{class:"msg good", text: twins + (twins === 1 ? " item is" : " items are") + " normally bought from another vendor, so " + (twins === 1 ? "its price was" : "their prices were") + " saved as " + d.supplier + "'s version instead of replacing your usual price. Compare vendors uses " + (twins === 1 ? "it" : "them") + "."}) : null,
