@@ -2186,7 +2186,7 @@ function dutyChecksCached(from, to){
   if (hit && Date.now() - hit.at < 60000) return hit.p;
   const p = sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: from, p_to: to }); DCL.set(k, { at: Date.now(), p }); return p;
 }
-const APP_VERSION = "Oct 28, 2026 \u00b7 Looks right";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Supplies filter fix";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -6426,6 +6426,7 @@ function supplies(m){
   const inSup = su => SV.sup === "all" || (su.supplier || "No supplier") === SV.sup;
   const inQ = su => !q || su.name.toLowerCase().includes(q) || supName(su).toLowerCase().includes(q) || (su.code || "").toLowerCase().includes(q) || (su.supplier || "").toLowerCase().includes(q);
   const inSt = su => SV.status === "all" || flags.get(su.id)[SV.status];
+  if (SV.suspect && !all.some(su => usedBy(su.id, r).length && caseSizeSuspect(su, r))) SV.suspect = false;   // nothing left to check: turn the filter off
   const shown = all.filter(su => inCat(su) && inSup(su) && inQ(su) && inSt(su) && (!SV.suspect || (usedBy(su.id, r).length && caseSizeSuspect(su, r)))); SV.lastShown = shown;
   if (SV.suspect) m.append(el("div",{class:"msg warn", style:"margin-bottom:10px"}, "Showing items whose case size looks wrong. Tap one to fix its case size. ", el("button",{class:"linkbtn", type:"button", text:"Show everything", onclick:() => { SV.suspect = false; render(); }})));
 
@@ -6471,7 +6472,7 @@ function supplies(m){
         SV.sel.clear(); save(); render(); toast("Deleted"); }}),
       el("button",{class:"btn quiet", text:"Clear", onclick:() => { SV.sel.clear(); render(); }})));
   }
-  if (!shown.length){ m.append(el("div",{class:"card empty"}, "Nothing matches. ", el("button",{class:"btn quiet", text:"Show everything", onclick:() => { SV.cat = "all"; SV.sup = "all"; SV.status = "all"; SV.q = ""; render(); }}))); return; }
+  if (!shown.length){ m.append(el("div",{class:"card empty"}, "Nothing matches. ", el("button",{class:"btn quiet", text:"Show everything", onclick:() => { SV.suspect = false; SV.cat = "all"; SV.sup = "all"; SV.status = "all"; SV.q = ""; render(); }}))); return; }
 
   const lastDate = su => { const h = su.history || []; return h.length ? h[h.length - 1].date || "" : ""; };
   const sorter = { name:(a, b) => supName(a).localeCompare(supName(b)), up:(a, b) => (lastChange(b) ?? -9) - (lastChange(a) ?? -9), used:(a, b) => used.get(b.id) - used.get(a.id) || a.name.localeCompare(b.name),
