@@ -2186,7 +2186,7 @@ function dutyChecksCached(from, to){
   if (hit && Date.now() - hit.at < 60000) return hit.p;
   const p = sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: from, p_to: to }); DCL.set(k, { at: Date.now(), p }); return p;
 }
-const APP_VERSION = "Oct 28, 2026 \u00b7 Supplies filter fix";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Reconnect ingredients";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -6403,6 +6403,10 @@ function supplies(m){
   { const ps = el("select",{class:"inp", style:"width:auto;min-height:38px", "aria-label":"Recipes use the price from"}, el("option",{value:"latest", text:"Your most recent order (any vendor)"}), el("option",{value:"usual", text:"The item's usual vendor"}));
     ps.value = r.priceSource || "latest"; ps.onchange = () => { r.priceSource = ps.value; save(); toast(ps.value === "latest" ? "Recipes will follow what you most recently ordered." : "Recipes stay on each item's usual vendor."); };
     const suspects = Object.values(r.supplies).filter(su => usedBy(su.id, r).length && caseSizeSuspect(su, r)).length;
+    const lost = unlinkedGroups(r), lostLines = lost.reduce((t, g) => t + g.lines.length, 0);
+    if (lostLines) m.append(el("div",{class:"msg bad", style:"display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:10px"},
+      el("span",null, el("b",{text: lostLines + " recipe ingredients aren't connected to a supply"}), " (", lost.slice(0, 4).map(g => g.label).join(", ") + (lost.length > 4 ? ", \u2026" : ""), "), so they count as $0."),
+      el("button",{class:"btn primary sm", type:"button", text:"Reconnect them", onclick:() => openReconnect(r)})));
     m.append(el("div",{class:"price-src"}, el("span",null, el("b",{text:"Recipes use the price from: "})), ps,
       el("span",{class:"mini", text:"When an invoice comes from a different vendor, recipes switch to that price automatically."}),
       suspects ? el("button",{class:"pill bad", type:"button", style:"border:0;cursor:pointer", text:"\u26a0 " + suspects + (suspects === 1 ? " item in recipes needs" : " items in recipes need") + " a case-size check", onclick:() => { SV.q = ""; SV.suspect = !SV.suspect; render(); }}) : null)); }
@@ -6736,6 +6740,59 @@ async function applyFixFile(r){
         r.fixUndo = { at: Date.now(), supplies: before, items: null }; save(); dlg.close(); render();
         toast("Applied " + done + " fixes." + (kept.length ? " Kept " + kept.join(", ") + " (still used in recipes)." : "")); }})]);
   };
+}
+// ---------- Reconnect ingredients: recipe lines left unlinked when a supply was deleted ----------
+function unlinkedGroups(r){
+  const groups = new Map();
+  Object.values(r.items).forEach(it => (it.lines || []).forEach(l => {
+    const gone = !!l.s && !r.supplies[l.s], label = String(l.label || "").trim();
+    // Needs reconnecting: its supply was deleted, or it has a name but no supply and no typed-in cost.
+    if (!gone && !(!l.s && label && !(n(l.cost) > 0))) return;
+    const key = label ? label.toLowerCase() : "id:" + l.s;
+    if (!groups.has(key)) groups.set(key, { key, label: label || "(unknown)", oldId: gone ? l.s : null, lines: [], recipes: new Set() });
+    const g = groups.get(key); g.lines.push(l); g.recipes.add(it.name); if (gone && !g.oldId) g.oldId = l.s;
+  }));
+  return [...groups.values()];
+}
+// Older copies of supplies the app kept (vendor price fix, fix files), newest first.
+function supplySnapshots(r){ return [r.fixUndo && r.fixUndo.supplies, r.repairUndo && r.repairUndo.supplies].filter(Boolean); }
+function suggestFor(g, r){
+  const nm = g.label.toLowerCase(), all = Object.values(r.supplies);
+  if (g.oldId){ for (const snap of supplySnapshots(r)) if (snap[g.oldId]) return { restore: snap[g.oldId] }; }
+  const lastDate = su => ((su.history || []).slice(-1)[0] || {}).date || "";
+  const exact = all.filter(su => supName(su).toLowerCase() === nm || String(su.name || "").toLowerCase() === nm)
+    .sort((a, b) => (!!a.altOf - !!b.altOf) || (!!a.estimated - !!b.estimated) || lastDate(b).localeCompare(lastDate(a)));
+  if (exact.length) return { use: exact[0] };
+  for (const snap of supplySnapshots(r)){
+    const old = Object.values(snap).filter(su => (supName(su).toLowerCase() === nm || String(su.name || "").toLowerCase() === nm) && !r.supplies[su.id])
+      .sort((a, b) => (!a.supplier - !b.supplier) || (!!a.estimated - !!b.estimated) || (!!a.altOf - !!b.altOf));
+    if (old.length) return { restore: old[0] };
+  }
+  const fuzzy = all.map(su => ({ su, sc: Math.max(simScore(nm, supName(su).toLowerCase()), simScore(nm, String(su.name || "").toLowerCase())) })).filter(x => x.sc >= 0.75).sort((a, b) => b.sc - a.sc)[0];
+  return fuzzy ? { use: fuzzy.su, fuzzy: true } : null;
+}
+function openReconnect(r){
+  const groups = unlinkedGroups(r).sort((a, b) => b.recipes.size - a.recipes.size);
+  if (!groups.length) return toast("Every recipe ingredient is connected to a supply.");
+  const opts = Object.values(r.supplies).filter(su => !su.altOf).sort((a, b) => supName(a).localeCompare(supName(b)));
+  const picks = groups.map(g => { const sg = suggestFor(g, r), sel = el("select",{class:"inp", style:"min-width:220px"});
+    sel.append(el("option",{value:"", text:"Leave it unlinked"}));
+    if (sg && sg.restore) sel.append(el("option",{value:"restore", text:"Restore \u201c" + supName(sg.restore) + "\u201d" + (sg.restore.supplier ? " (" + sg.restore.supplier + ")" : "") + (sg.restore.price ? " " + $$(sg.restore.price) + (sg.restore.caseQty ? " / " + sg.restore.caseQty + " " + sg.restore.unit : "") : "")}));
+    opts.forEach(su => sel.append(el("option",{value: su.id, text: supName(su) + (su.supplier ? " (" + su.supplier + ")" : "") + (su.price ? " " + $$(su.price) : "")})));
+    sel.value = sg ? (sg.restore ? "restore" : sg.use.id) : "";
+    return { g, sg, sel }; });
+  openDlg("Reconnect ingredients", [
+    el("p",{class:"lead", text: groups.reduce((t, g) => t + g.lines.length, 0) + " recipe ingredients lost their supply (it was deleted), so they count as $0. Check each match, then reconnect."}),
+    el("div",{class:"fx-list"}, picks.map(({ g, sg, sel }) => el("div",{class:"fx-row"},
+      el("b",{text: g.label}), el("span",{class:"pill", text: g.recipes.size + (g.recipes.size === 1 ? " recipe" : " recipes")}),
+      sg && sg.fuzzy ? el("span",{class:"pill warn", text:"closest name: check"}) : null,
+      el("div",{class:"mini", style:"margin:4px 0 6px", text: [...g.recipes].slice(0, 8).join(", ") + (g.recipes.size > 8 ? "\u2026" : "")}), sel)))],
+    [el("span"), el("button",{class:"btn primary", text:"Reconnect", onclick:() => {
+      let lines = 0, restored = 0;
+      picks.forEach(({ g, sg, sel }) => { let id = sel.value; if (!id) return;
+        if (id === "restore"){ const rec = JSON.parse(JSON.stringify(sg.restore)); id = r.supplies[rec.id] ? uid("s") : rec.id; rec.id = id; delete rec.altOf; r.supplies[id] = rec; restored++; }
+        g.lines.forEach(l => { l.s = id; delete l.cost; lines++; }); });
+      save(); dlg.close(); render(); toast("Reconnected " + lines + " ingredients" + (restored ? ", restored " + restored + (restored === 1 ? " supply" : " supplies") : "") + "."); }})]);
 }
 function openExportSupplies(r, shown){
   const all = Object.values(r.supplies), only = el("input",{type:"checkbox"}); only.checked = shown.length < all.length;
