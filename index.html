@@ -1678,6 +1678,8 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .vc-best{background:color-mix(in srgb, #1F6F5C 7%, transparent)} .good-t{color:#1F6F5C;font-weight:700}
 @media (max-width:700px){ .vc-head{grid-template-columns:1fr} }
 .price-src{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:0 0 12px}
+.fx-list{display:grid;gap:8px;max-height:55vh;overflow:auto;margin:8px 0} .fx-row{border:1px solid var(--line);border-radius:12px;padding:8px 12px}
+.fx-row b{margin-right:8px} .fx-row ul{margin:4px 0 0;padding-left:18px;font-size:.92rem}
 </style>
 </head>
 <body>
@@ -2184,7 +2186,7 @@ function dutyChecksCached(from, to){
   if (hit && Date.now() - hit.at < 60000) return hit.p;
   const p = sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: from, p_to: to }); DCL.set(k, { at: Date.now(), p }); return p;
 }
-const APP_VERSION = "Oct 28, 2026 \u00b7 Export supplies";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Fix files";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -6395,7 +6397,8 @@ function supplies(m){
   const r = R();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Supplies"}), el("p",{class:"lead", text:"Everything you buy. Prices update from approved invoices."})),
     el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}),
-      el("button",{class:"btn quiet", text:"\u2b07 Export", onclick:() => openExportSupplies(r, SV.lastShown || Object.values(r.supplies))}), el("button",{class:"btn primary", text:"+ Add supply", onclick:() => openSupply(null)}))));
+      el("button",{class:"btn quiet", text:"\u2b07 Export", onclick:() => openExportSupplies(r, SV.lastShown || Object.values(r.supplies))}),
+      el("button",{class:"btn quiet", text:"\u2b06 Apply a fix file", onclick:() => applyFixFile(r)}), el("button",{class:"btn primary", text:"+ Add supply", onclick:() => openSupply(null)}))));
   { const ps = el("select",{class:"inp", style:"width:auto;min-height:38px", "aria-label":"Recipes use the price from"}, el("option",{value:"latest", text:"Your most recent order (any vendor)"}), el("option",{value:"usual", text:"The item's usual vendor"}));
     ps.value = r.priceSource || "latest"; ps.onchange = () => { r.priceSource = ps.value; save(); toast(ps.value === "latest" ? "Recipes will follow what you most recently ordered." : "Recipes stay on each item's usual vendor."); };
     const suspects = Object.values(r.supplies).filter(su => usedBy(su.id, r).length && caseSizeSuspect(su, r)).length;
@@ -6669,6 +6672,63 @@ async function exportSupplies(list, r, fmt){
   const csv = "\ufeff" + [cols.map(q).join(",")].concat(rows.map(x => cols.map(c => q(x[c])).join(","))).join("\r\n");
   const url = URL.createObjectURL(new Blob([csv], { type:"text/csv;charset=utf-8" })), a = el("a",{ href:url, download: name + ".csv" });
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); toast("Exported " + rows.length + " supplies.");
+}
+// ---------- Apply a fix file: bulk corrections to supplies from a spreadsheet ----------
+// Columns: Supply, Supplier, Item #, New case price, New case size, New unit, New category, Move recipes to supplier, Delete
+function findSupplyRow(r, row){
+  const nm = String(row["Supply"] || "").trim().toLowerCase(), v = String(row["Supplier"] || "").trim(), code = String(row["Item #"] || "").trim();
+  if (!nm) return [];
+  let c = Object.values(r.supplies).filter(su => supName(su).trim().toLowerCase() === nm || String(su.name || "").trim().toLowerCase() === nm);
+  if (v && !/^\(/.test(v)) c = c.filter(su => su.supplier && sameVendor(su.supplier, v, r)); else if (v) c = c.filter(su => !su.supplier);
+  if (code && c.length > 1){ const c2 = c.filter(su => String(su.code || "") === code); if (c2.length) c = c2; }
+  return c;
+}
+async function applyFixFile(r){
+  const inp = el("input",{type:"file", accept:".xlsx,.xls,.csv"}); inp.click();
+  inp.onchange = async () => { const f = inp.files[0]; if (!f) return;
+    let rows; try { await loadXLSX(); const wb = XLSX.read(await f.arrayBuffer()); const ws = wb.Sheets["Fixes"] || wb.Sheets[wb.SheetNames[0]]; rows = XLSX.utils.sheet_to_json(ws, { defval:"" }); }
+    catch(e){ return toast("Couldn't read that file."); }
+    const val = (row, k) => { const x = row[k]; return x === "" || x == null ? null : x; };
+    const plan = [], problems = [];
+    rows.forEach((row, i) => {
+      if (!String(row["Supply"] || "").trim()) return;
+      const hits = findSupplyRow(r, row), label = row["Supply"] + (row["Supplier"] ? " (" + row["Supplier"] + ")" : "");
+      if (!hits.length) return problems.push(label + ": not found in Supplies");
+      if (hits.length > 1) return problems.push(label + ": more than one match; add the Item #");
+      const su = hits[0], ch = [], used = usedBy(su.id, r).length;
+      const price = val(row, "New case price"), size = val(row, "New case size"), unit = val(row, "New unit"), cat = val(row, "New category"), mv = val(row, "Move recipes to supplier"), del = /^y/i.test(String(val(row, "Delete") || ""));
+      if (price != null){ const p = n(price); if (p > 0) ch.push({ k:"price", v:p, t:"Case price " + $$(su.price || 0) + " \u2192 " + $$(p) }); else problems.push(label + ": New case price isn't a number"); }
+      if (size != null){ const q = n(size); if (q > 0) ch.push({ k:"size", v:q, t:"Case size " + (su.caseQty || "?") + " \u2192 " + q + " " + (unit || su.unit) }); else problems.push(label + ": New case size isn't a number"); }
+      if (unit != null){ if (UNITS[unit]) ch.push({ k:"unit", v:unit, t:"Unit " + su.unit + " \u2192 " + unit }); else problems.push(label + ": unit \u201c" + unit + "\u201d isn't one the app knows"); }
+      if (cat != null) ch.push({ k:"cat", v:String(cat), t:"Category " + (su.cat || "none") + " \u2192 " + cat });
+      if (mv != null){ const tgt = Object.values(r.supplies).find(o => o.id !== su.id && (supName(o).trim().toLowerCase() === supName(su).trim().toLowerCase() || String(o.name || "").trim().toLowerCase() === String(su.name || "").trim().toLowerCase()) && o.supplier && sameVendor(o.supplier, String(mv), r));
+        if (tgt) ch.push({ k:"move", v:tgt.id, t:"Move " + used + (used === 1 ? " recipe" : " recipes") + " to " + tgt.supplier + "'s " + supName(tgt) + " (" + $$(perUnitPrice(tgt) || 0) + "/" + perUnitLabel(UNITS[tgt.unit][0]) + ")" });
+        else problems.push(label + ": no " + mv + " version of this item to move recipes to"); }
+      if (del) ch.push({ k:"del", t:"Delete this supply" });
+      if (ch.length) plan.push({ su, ch, used, label });
+    });
+    if (!plan.length) return openDlg("Nothing to apply", [el("p",{class:"lead", text:"No changes found in that file."}), problems.length ? el("ul",null, problems.map(p => el("li",{text:p}))) : null], []);
+    openDlg("Review the fixes", [el("p",{class:"lead", text: plan.length + " supplies will change. Recipes update right away."}),
+      el("div",{class:"fx-list"}, plan.map(p => el("div",{class:"fx-row"}, el("b",{text:p.label}), p.used ? el("span",{class:"pill", text:p.used + (p.used === 1 ? " recipe" : " recipes")}) : null,
+        el("ul",null, p.ch.map(c => el("li",{text:c.t})))))),
+      problems.length ? el("div",{class:"msg warn"}, el("b",{text:"Skipped: "}), problems.join("; ") + ".") : null],
+      [el("span"), el("button",{class:"btn primary", text:"Apply " + plan.length + " fixes", onclick:() => {
+        const before = JSON.parse(JSON.stringify(r.supplies)); let done = 0; const kept = [];
+        plan.forEach(({ su, ch }) => {
+          ch.forEach(c => {
+            if (c.k === "unit") su.unit = c.v;
+            if (c.k === "size"){ su.caseQty = c.v; delete su.packUnknown; }
+            if (c.k === "price"){ applyPrice(su, c.v, localDay(new Date()), "fixfile-" + localDay(new Date())); delete su.estimated; }
+            if (c.k === "cat") su.cat = c.v;
+            if (c.k === "move"){ Object.values(r.items).forEach(it => (it.lines || []).forEach(l => { if (l.s === su.id) l.s = c.v; }));
+              (r.ideas || []).forEach(i2 => ((i2.draft && i2.draft.lines) || []).forEach(l => { if (l.s === su.id) l.s = c.v; })); delete r.supplies[c.v].altOf; }
+          });
+          if (ch.some(c => c.k === "del")){ if (usedBy(su.id, r).length) kept.push(supName(su)); else { Object.values(r.supplies).forEach(o => { if (o.altOf === su.id) delete o.altOf; }); delete r.supplies[su.id]; } }
+          done++;
+        });
+        r.fixUndo = { at: Date.now(), supplies: before, items: null }; save(); dlg.close(); render();
+        toast("Applied " + done + " fixes." + (kept.length ? " Kept " + kept.join(", ") + " (still used in recipes)." : "")); }})]);
+  };
 }
 function openExportSupplies(r, shown){
   const all = Object.values(r.supplies), only = el("input",{type:"checkbox"}); only.checked = shown.length < all.length;
