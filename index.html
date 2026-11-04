@@ -1669,6 +1669,14 @@ body.gated aside .acctrow, body.gated aside .qsearch, body.gated aside #userbox,
 .ms-card.on .ms-stage{background:var(--mustard, #D99A1E);color:#24221F}
 .ms-empty{margin:0;padding:16px;border:1.5px dashed var(--line);border-radius:14px;color:var(--muted);text-align:center}
 .ms-pick{display:grid;gap:8px} .ms-cands{display:grid;gap:8px} .ms-cand{display:grid;gap:2px;text-align:left;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--panel);font:inherit;color:var(--ink);cursor:pointer}
+.vc{margin:0 0 16px}
+.vc-head{display:grid;grid-template-columns:minmax(220px,1fr) 2fr;gap:12px;margin-top:10px}
+.vc-big{display:grid;gap:2px;align-content:center;background:linear-gradient(135deg,#E3F1EB,#D6EEE3);border-radius:16px;padding:14px 16px}
+.vc-big b{font-family:var(--brand-font);font-weight:800;font-size:2.2rem;color:#1F6F5C;line-height:1.05} .vc-big.ok b{font-size:1.3rem}
+.vc-wins{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.vc-win{display:grid;gap:2px;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--panel)} .vc-win b{font-size:1.05rem}
+.vc-best{background:color-mix(in srgb, #1F6F5C 7%, transparent)} .good-t{color:#1F6F5C;font-weight:700}
+@media (max-width:700px){ .vc-head{grid-template-columns:1fr} }
 </style>
 </head>
 <body>
@@ -2175,7 +2183,7 @@ function dutyChecksCached(from, to){
   if (hit && Date.now() - hit.at < 60000) return hit.p;
   const p = sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: from, p_to: to }); DCL.set(k, { at: Date.now(), p }); return p;
 }
-const APP_VERSION = "Oct 28, 2026 \u00b7 Lighter on the database";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Vendor price compare";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -6531,10 +6539,74 @@ function inbox(m){
 const VENDOR_KIND = { food:"Food", bev:"Beer, wine & spirits", other:"Other" };
 const ORDER_HOW = { rep:"Through my rep", phone:"Phone or text", portal:"Supplier's website", provi:"Provi app", email:"Email" };
 const INVOICE_HOW = { paper:"Paper invoice with delivery", pdf:"Emailed PDF", download:"Download from their website", edi:"Electronic (EDI)" };
+// ---------- Compare prices across vendors (Suppliers page) ----------
+// Weekly cost of a supply from the recipes that use it: recipe amount per plate x plates sold a week.
+function weeklySupplyCost(su, r){
+  let t = 0; usedBy(su.id, r).forEach(it => { const sold = n(it.sold) || 0, por = n(it.portions) || 1; if (!sold) return;
+    (it.lines || []).filter(l => l.s === su.id).forEach(l => { const c = lineCost(l, r); if (c) t += c / por * sold; }); });
+  return t;
+}
+function vendorComparison(r){
+  const seen = new Set(), rows = [], cutoff = addDays(localDay(new Date()), -60);
+  const lastDate = su => { const h = (su.history || []).filter(x => x.src !== "estimate").slice(-1)[0]; return h && h.date || su.updated || ""; };
+  Object.values(r.supplies).forEach(su => {
+    if (seen.has(su.id) || su.estimated || !su.supplier || priceBase(su) == null) return;
+    const alts = vendorAlts(su, r); if (!alts.length) return;
+    const members = [su].concat(alts.map(a => a.o)).filter((o, i, a) => a.findIndex(x => x.id === o.id) === i);
+    members.forEach(o => seen.add(o.id));
+    const withCost = members.map(o => ({ o, base: priceBase(o), week: weeklySupplyCost(o, r), date: lastDate(o) })).filter(x => x.base != null);
+    if (withCost.length < 2) return;
+    const cheapest = withCost.slice().sort((a, b) => a.base - b.base)[0];
+    const inUse = withCost.filter(x => x.week > 0).sort((a, b) => b.week - a.week)[0] || withCost.find(x => usedBy(x.o.id, r).length) || withCost.find(x => !x.o.altOf) || withCost[0];
+    const gap = inUse.base > 0 ? (inUse.base - cheapest.base) / inUse.base : 0;
+    const weekNow = withCost.reduce((t, x) => t + x.week, 0);
+    const save = withCost.reduce((t, x) => t + (x.week ? x.week * (1 - cheapest.base / x.base) : 0), 0);
+    rows.push({ name: supName(inUse.o), cat: inUse.o.cat || cheapest.o.cat || "Other", members: withCost, cheapest, inUse, gap, save: Math.max(0, save), weekNow,
+      stale: withCost.some(x => x.date && x.date < cutoff), dim: UNITS[inUse.o.unit][0] });
+  });
+  return rows.sort((a, b) => b.save - a.save || b.gap - a.gap);
+}
+const CMPV = { only: true };
+function vendorCompareCard(r){
+  const rows = vendorComparison(r), unitTxt = d => "/" + perUnitLabel(d), ppu = x => perUnitPrice(x.o);
+  if (!rows.length) return el("div",{class:"card vc"}, el("h2",{style:"margin:0 0 6px", text:"\u2696\ufe0f Compare prices across vendors"}),
+    el("p",{class:"mini", style:"margin:0", text:"Comparisons appear once two vendors' invoices or price sheets include the same item. Upload invoices from each supplier and they'll line up here automatically."}));
+  const vname = x => canonVendor ? canonVendor(x.o.supplier, r) : x.o.supplier;
+  const wins = {}, catWins = {};
+  rows.forEach(x => { const v = vname(x.cheapest); wins[v] = (wins[v] || 0) + 1; (catWins[x.cat] = catWins[x.cat] || {})[v] = (catWins[x.cat][v] || 0) + 1; });
+  const vendorsSeen = {}; rows.forEach(x => x.members.forEach(m => { vendorsSeen[vname(m)] = (vendorsSeen[vname(m)] || 0) + 1; }));
+  const saveRows = rows.filter(x => x.save >= 0.5 || (x.gap > 0.02 && x.inUse.o.id !== x.cheapest.o.id));
+  const total = saveRows.reduce((t, x) => t + x.save, 0);
+  const leaders = Object.entries(wins).sort((a, b) => b[1] - a[1]);
+  const catLead = v => Object.entries(catWins).filter(([c, m]) => Object.entries(m).sort((a, b) => b[1] - a[1])[0][0] === v && Object.values(m).reduce((t, k) => t + k, 0) >= 1).map(([c]) => c);
+  const list = CMPV.only ? saveRows : rows;
+  return el("div",{class:"card vc"},
+    el("div",{class:"spread"}, el("h2",{style:"margin:0", text:"\u2696\ufe0f Compare prices across vendors"}), el("span",{class:"mini", text: rows.length + " items sold by more than one vendor"})),
+    el("div",{class:"vc-head"},
+      total >= 1 ? el("div",{class:"vc-big"}, el("span",{text:"Buying " + saveRows.length + (saveRows.length === 1 ? " item" : " items") + " from the cheapest vendor saves about"}),
+          el("b",{text: $$(total) + "/week"}), el("span",{class:"mini", text:"about $" + Math.round(total * 52).toLocaleString() + " a year, based on your recipes and plates sold"}))
+        : el("div",{class:"vc-big ok"}, el("b",{text:"\u2713 You're already buying at the best price"}), el("span",{class:"mini", text:"on every item we can compare."})),
+      el("div",{class:"vc-wins"}, leaders.map(([v, k]) => { const cats = catLead(v);
+        return el("div",{class:"vc-win"}, el("b",{text:v}), el("span",{text:"Cheapest on " + k + " of " + (vendorsSeen[v] || k) + " compared items"}), cats.length ? el("span",{class:"mini", text:"Wins: " + cats.slice(0, 4).join(", ")}) : null); }))),
+    el("div",{class:"row", style:"gap:10px;margin:10px 0 6px;flex-wrap:wrap"},
+      el("label",{class:"row", style:"gap:6px;font-weight:600"}, (() => { const cb = el("input",{type:"checkbox"}); cb.checked = CMPV.only; cb.onchange = () => { CMPV.only = cb.checked; render(); }; return cb; })(), "Only items where you'd save"),
+      el("span",{class:"mini", text:"Prices compared per " + "lb, fl oz or each, so different case sizes line up."})),
+    list.length ? el("div",{class:"tw"}, el("table",{class:"vc-t"},
+      el("thead",null, el("tr",null, ["Item","You buy","Cheapest","Gap","Saves / week"].map((h, i) => el("th",{class: i >= 3 ? "num" : "", text:h})))),
+      el("tbody",null, list.map(x => { const same = x.inUse.o.id === x.cheapest.o.id;
+        return el("tr",null,
+          el("td",{class:"cell-main"}, el("b",{text:x.name}), el("span",{class:"mini", text:"  " + x.cat}), x.stale ? el("span",{class:"pill warn", style:"margin-left:6px", title:"At least one price is over 60 days old", text:"old price"}) : null),
+          el("td",null, el("div",null, vname(x.inUse)), el("span",{class:"mini", text: $$(ppu(x.inUse)) + unitTxt(x.dim) + " \u00b7 " + $$(x.inUse.o.price) + "/case"})),
+          el("td",{class: same ? "" : "vc-best"}, same ? el("span",{class:"good-t", text:"\u2713 Already cheapest"}) : el("div",null, el("b",{text: vname(x.cheapest)}), el("span",{class:"mini", style:"display:block", text: $$(ppu(x.cheapest)) + unitTxt(x.dim) + " \u00b7 " + $$(x.cheapest.o.price) + "/case"}))),
+          el("td",{class:"num", text: same ? "\u2014" : pc(x.gap)}),
+          el("td",{class:"num"}, x.save >= 0.5 ? el("b",{class:"good-t", text: $$(x.save)}) : el("span",{class:"mini", text: same ? "\u2014" : x.members.some(mm => usedBy(mm.o.id, r).length) ? "no sales data" : "not in recipes"}))); }))))
+      : el("p",{class:"mini", text:"No cheaper options found right now."}));
+}
 function suppliers(m){
   const r = R(); r.vendors = r.vendors || [];
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Suppliers"}), el("p",{class:"lead", text:"Everyone you buy from. Upload their invoices and the prices flow into your recipes."})),
     el("button",{class:"btn primary", text:"+ Add a supplier", onclick:() => openVendor(null)})));
+  m.append(vendorCompareCard(r));
   const g = el("div",{class:"grid sup-grid"});
   if (!r.vendors.length) g.append(el("div",{class:"card"}, el("h3",{text:"Add the suppliers you use"}), el("p",{text:"Your food distributors, your beer and wine distributors, the bakery, the produce guy. One card each."}), el("button",{class:"btn primary", text:"+ Add a supplier", onclick:() => openVendor(null)})));
   r.vendors.forEach(v => {
