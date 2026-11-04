@@ -2184,7 +2184,7 @@ function dutyChecksCached(from, to){
   if (hit && Date.now() - hit.at < 60000) return hit.p;
   const p = sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: from, p_to: to }); DCL.set(k, { at: Date.now(), p }); return p;
 }
-const APP_VERSION = "Oct 28, 2026 \u00b7 Prices follow latest order";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Export supplies";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -6394,7 +6394,8 @@ function openVendorRepair(r){
 function supplies(m){
   const r = R();
   m.append(el("div",{class:"spread"}, el("div",null, el("h1",{text:"Supplies"}), el("p",{class:"lead", text:"Everything you buy. Prices update from approved invoices."})),
-    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}), el("button",{class:"btn primary", text:"+ Add supply", onclick:() => openSupply(null)}))));
+    el("div",{class:"row"}, el("button",{class:"btn quiet", text:"Import spreadsheet", onclick:() => openSheetImport()}),
+      el("button",{class:"btn quiet", text:"\u2b07 Export", onclick:() => openExportSupplies(r, SV.lastShown || Object.values(r.supplies))}), el("button",{class:"btn primary", text:"+ Add supply", onclick:() => openSupply(null)}))));
   { const ps = el("select",{class:"inp", style:"width:auto;min-height:38px", "aria-label":"Recipes use the price from"}, el("option",{value:"latest", text:"Your most recent order (any vendor)"}), el("option",{value:"usual", text:"The item's usual vendor"}));
     ps.value = r.priceSource || "latest"; ps.onchange = () => { r.priceSource = ps.value; save(); toast(ps.value === "latest" ? "Recipes will follow what you most recently ordered." : "Recipes stay on each item's usual vendor."); };
     const suspects = Object.values(r.supplies).filter(su => usedBy(su.id, r).length && caseSizeSuspect(su, r)).length;
@@ -6421,7 +6422,7 @@ function supplies(m){
   const inSup = su => SV.sup === "all" || (su.supplier || "No supplier") === SV.sup;
   const inQ = su => !q || su.name.toLowerCase().includes(q) || supName(su).toLowerCase().includes(q) || (su.code || "").toLowerCase().includes(q) || (su.supplier || "").toLowerCase().includes(q);
   const inSt = su => SV.status === "all" || flags.get(su.id)[SV.status];
-  const shown = all.filter(su => inCat(su) && inSup(su) && inQ(su) && inSt(su) && (!SV.suspect || (usedBy(su.id, r).length && caseSizeSuspect(su, r))));
+  const shown = all.filter(su => inCat(su) && inSup(su) && inQ(su) && inSt(su) && (!SV.suspect || (usedBy(su.id, r).length && caseSizeSuspect(su, r)))); SV.lastShown = shown;
   if (SV.suspect) m.append(el("div",{class:"msg warn", style:"margin-bottom:10px"}, "Showing items whose case size looks wrong. Tap one to fix its case size. ", el("button",{class:"linkbtn", type:"button", text:"Show everything", onclick:() => { SV.suspect = false; render(); }})));
 
   const distNames = all.filter(su => !su.title && !/[a-z]/.test(su.name || "")).length;
@@ -6635,6 +6636,48 @@ function vendorCompareCard(r){
           el("td",{class:"num", text: same ? "\u2014" : pc(x.gap)}),
           el("td",{class:"num"}, x.save >= 0.5 ? el("b",{class:"good-t", text: $$(x.save)}) : el("span",{class:"mini", text: same ? "\u2014" : x.members.some(mm => usedBy(mm.o.id, r).length) ? "no sales data" : "not in recipes"}))); }))))
       : el("p",{class:"mini", text:"No cheaper options found right now."}));
+}
+// ---------- Export the supplies list (Excel or CSV) ----------
+function supplyRows(list, r){
+  return list.slice().sort((a, b) => (a.cat || "").localeCompare(b.cat || "") || supName(a).localeCompare(supName(b))).map(su => {
+    const h = (su.history || []).filter(x => x.src !== "estimate"), last = h[h.length - 1], prev = h[h.length - 2];
+    const cpu = supCostPerUnit(su), used = usedBy(su.id, r);
+    return {
+      "Supply": supName(su), "Invoice name": su.title || "", "Category": su.cat || "", "Supplier": su.supplier || "", "Item #": su.code || "",
+      "Case price": n(su.price) ? +(+su.price).toFixed(2) : "", "Case size": n(su.caseQty) || "", "Unit": su.unit || "",
+      "Usable cost per unit": cpu != null ? +cpu.toFixed(4) : "", "Yield %": n(su.yield) ? Math.round(su.yield * 100) : 100,
+      "Last price date": last && last.date || "", "Change since last price": prev && prev.price ? +(((last.price - prev.price) / prev.price) * 100).toFixed(1) + "%" : "",
+      "Recipes using it": used.length, "Recipe names": used.map(i => i.name).join(", "),
+      "Version": su.altOf ? "Other vendor's version" : "Usual", "Notes": [su.estimated ? "AI estimate" : "", caseSizeSuspect(su, r) ? "Check case size" : ""].filter(Boolean).join("; ")
+    };
+  });
+}
+async function exportSupplies(list, r, fmt){
+  const rows = supplyRows(list, r), name = ((ACCT && ACCT.name) || "Supplies") + " supplies " + localDay(new Date());
+  if (!rows.length) return toast("Nothing to export.");
+  if (fmt === "xlsx"){
+    try {
+      await loadXLSX();
+      const ws = XLSX.utils.json_to_sheet(rows);
+      ws["!cols"] = Object.keys(rows[0]).map(k => ({ wch: Math.min(48, Math.max(k.length + 2, ...rows.slice(0, 200).map(x => String(x[k]).length + 1))) }));
+      ws["!autofilter"] = { ref: XLSX.utils.encode_range({ s:{ r:0, c:0 }, e:{ r: rows.length, c: Object.keys(rows[0]).length - 1 } }) };
+      const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "Supplies");
+      XLSX.writeFile(wb, name + ".xlsx"); toast("Exported " + rows.length + " supplies."); return;
+    } catch(e){ toast("Excel export didn't load, so here's a CSV instead."); }
+  }
+  const cols = Object.keys(rows[0]), q = v => { const t = String(v == null ? "" : v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; };
+  const csv = "\ufeff" + [cols.map(q).join(",")].concat(rows.map(x => cols.map(c => q(x[c])).join(","))).join("\r\n");
+  const url = URL.createObjectURL(new Blob([csv], { type:"text/csv;charset=utf-8" })), a = el("a",{ href:url, download: name + ".csv" });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); toast("Exported " + rows.length + " supplies.");
+}
+function openExportSupplies(r, shown){
+  const all = Object.values(r.supplies), only = el("input",{type:"checkbox"}); only.checked = shown.length < all.length;
+  openDlg("Export supplies", [
+    el("p",{class:"lead", text:"A spreadsheet with every supply: vendor, item number, case price and size, usable cost, last price change, and which recipes use it."}),
+    shown.length < all.length ? el("label",{class:"row", style:"gap:8px;font-weight:600"}, only, "Only the " + shown.length + " shown with your filters (instead of all " + all.length + ")") : null,
+    el("div",{class:"row", style:"gap:10px;margin-top:12px;flex-wrap:wrap"},
+      el("button",{class:"btn primary", type:"button", text:"\u2b07 Excel (.xlsx)", onclick:() => { dlg.close(); exportSupplies(only.checked ? shown : all, r, "xlsx"); }}),
+      el("button",{class:"btn quiet", type:"button", text:"\u2b07 CSV", onclick:() => { dlg.close(); exportSupplies(only.checked ? shown : all, r, "csv"); }}))], []);
 }
 function suppliers(m){
   const r = R(); r.vendors = r.vendors || [];
