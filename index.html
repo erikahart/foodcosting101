@@ -2186,7 +2186,7 @@ function dutyChecksCached(from, to){
   if (hit && Date.now() - hit.at < 60000) return hit.p;
   const p = sb.rpc("duty_checks_list", { p_account: ACCT.id, p_from: from, p_to: to }); DCL.set(k, { at: Date.now(), p }); return p;
 }
-const APP_VERSION = "Oct 28, 2026 \u00b7 Fix files";
+const APP_VERSION = "Oct 28, 2026 \u00b7 Looks right";
 
 /* ================= Install the app on a phone (home-screen icon, opens full screen) ================= */
 let INSTALL_EVT = null;
@@ -5204,6 +5204,7 @@ function switchToTwin(r, su, tw){
 // Two versions of the same item (same item number or name) whose price per unit is far apart: usually a wrong case size.
 function caseSizeSuspect(su, r){
   const pb = priceBase(su); if (pb == null || !su.supplier) return null;
+  if (su.sizeOk && su.sizeOk === (su.caseQty + "|" + su.price)) return null;   // a manager checked it (until the size or price changes)
   const sameItem = o => o.id !== su.id && !o.estimated && UNITS[o.unit] && UNITS[su.unit] && UNITS[o.unit][0] === UNITS[su.unit][0] &&
     ((su.code && o.code && String(o.code) === String(su.code)) || o.altOf === su.id || su.altOf === o.id);
   const other = Object.values(r.supplies).filter(sameItem).map(o => priceBase(o)).filter(v => v != null);
@@ -6489,7 +6490,9 @@ function supplies(m){
         el("td",{style:"white-space:normal"}, el("b",{text:supName(su)}), su.estimated ? el("span",{class:"est-tag", title:"Price is an AI estimate. An invoice or price sheet for this item replaces it."}, "AI estimate") : null,
           supName(su) !== su.name ? el("div",{class:"mini order-name", title:"Name on invoices", text:su.name}) : null,
           el("div",{class:"mini", text:[SV.group !== "sup" ? su.supplier : "", su.code ? "#" + su.code : "", SV.group !== "cat" && su.cat ? su.cat : ""].filter(Boolean).join(", ")}),
-          (() => { const q = caseSizeSuspect(su, r); return q ? el("span",{class:"pill bad", style:"margin-top:4px;display:inline-block", title:"Another version of this item costs " + (q > 1 ? Math.round(q) + "\u00d7 less" : Math.round(1 / q) + "\u00d7 more") + " per unit. The case size is probably wrong.", text:"\u26a0 Check case size"}) : null; })(),
+          (() => { const q = caseSizeSuspect(su, r); return q ? el("span",{class:"row", style:"gap:8px;margin-top:4px;flex-wrap:wrap"},
+            el("span",{class:"pill bad", title:"Another version of this item costs " + (q > 1 ? Math.round(q) + "\u00d7 less" : Math.round(1 / q) + "\u00d7 more") + " per unit. The case size is probably wrong.", text:"\u26a0 Check case size"}),
+            el("button",{class:"linkbtn", type:"button", style:"font-size:.8rem", title:"You checked it: stop flagging this item (until its size or price changes)", text:"\u2713 Looks right", onclick: ev => { ev.stopPropagation(); su.sizeOk = su.caseQty + "|" + su.price; save(); render(); toast(supName(su) + " won't be flagged again unless its case size or price changes."); }})) : null; })(),
           f.needsize ? el("span",{class:"pill warn", style:"margin-top:3px", text:"Needs case size"}) : null),
         el("td",{class:"num"}, n(su.price) > 0 ? $$(su.price) : dash()),
         el("td",{class:"num c-plate"}, n(su.caseQty) ? (Math.round(su.caseQty * 100) / 100) + " " + su.unit : dash()),
@@ -6674,7 +6677,7 @@ async function exportSupplies(list, r, fmt){
   document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 4000); toast("Exported " + rows.length + " supplies.");
 }
 // ---------- Apply a fix file: bulk corrections to supplies from a spreadsheet ----------
-// Columns: Supply, Supplier, Item #, New case price, New case size, New unit, New category, Move recipes to supplier, Delete
+// Columns: Supply, Supplier, Item #, New name, New case price, New case size, New unit, New category, Move recipes to supplier, Delete
 function findSupplyRow(r, row){
   const nm = String(row["Supply"] || "").trim().toLowerCase(), v = String(row["Supplier"] || "").trim(), code = String(row["Item #"] || "").trim();
   if (!nm) return [];
@@ -6696,6 +6699,8 @@ async function applyFixFile(r){
       if (!hits.length) return problems.push(label + ": not found in Supplies");
       if (hits.length > 1) return problems.push(label + ": more than one match; add the Item #");
       const su = hits[0], ch = [], used = usedBy(su.id, r).length;
+      const nn = val(row, "New name");
+      if (nn != null && String(nn).trim() && String(nn).trim() !== supName(su)) ch.push({ k:"name", v:String(nn).trim(), t:"Rename \u201c" + supName(su) + "\u201d \u2192 \u201c" + String(nn).trim() + "\u201d" + (su.altOf ? " (and treat it as its own item)" : "") });
       const price = val(row, "New case price"), size = val(row, "New case size"), unit = val(row, "New unit"), cat = val(row, "New category"), mv = val(row, "Move recipes to supplier"), del = /^y/i.test(String(val(row, "Delete") || ""));
       if (price != null){ const p = n(price); if (p > 0) ch.push({ k:"price", v:p, t:"Case price " + $$(su.price || 0) + " \u2192 " + $$(p) }); else problems.push(label + ": New case price isn't a number"); }
       if (size != null){ const q = n(size); if (q > 0) ch.push({ k:"size", v:q, t:"Case size " + (su.caseQty || "?") + " \u2192 " + q + " " + (unit || su.unit) }); else problems.push(label + ": New case size isn't a number"); }
@@ -6720,6 +6725,7 @@ async function applyFixFile(r){
             if (c.k === "size"){ su.caseQty = c.v; delete su.packUnknown; }
             if (c.k === "price"){ applyPrice(su, c.v, localDay(new Date()), "fixfile-" + localDay(new Date())); delete su.estimated; }
             if (c.k === "cat") su.cat = c.v;
+            if (c.k === "name"){ su.name = c.v; delete su.title; delete su.altOf; }
             if (c.k === "move"){ Object.values(r.items).forEach(it => (it.lines || []).forEach(l => { if (l.s === su.id) l.s = c.v; }));
               (r.ideas || []).forEach(i2 => ((i2.draft && i2.draft.lines) || []).forEach(l => { if (l.s === su.id) l.s = c.v; })); delete r.supplies[c.v].altOf; }
           });
